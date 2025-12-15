@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "notifyhub"
+version = "0.1.0"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "python-multipart",
+    "aiofiles",
+    "requests"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "httpx",
+    "pytest-asyncio"
+]
+
+[tool.setuptools.packages.find]
+include = ["notifyhub*"]
+
+[project.scripts]
+notifyhub-server = "notifyhub.server:main"
+notifyhub-push = "notifyhub.cli:main"

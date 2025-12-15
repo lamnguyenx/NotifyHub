@@ -1,5 +1,44 @@
 # NotifyHub - Application Requirements Document
 
+## Quick Start
+
+### Installation
+```bash
+pip install -e .
+cd web && npm install && npm run build
+```
+
+### Usage
+```bash
+# Start server
+notifyhub-server --port 9080
+
+# Send notification
+notifyhub-push --port 9080 "Your message"
+
+# Build web assets
+cd web && npm run build
+
+# Run tests
+./run_tests.sh
+```
+
+### Usage
+```bash
+# Start server
+notifyhub-server --port 9080
+
+# Send notification
+notifyhub-push --port 9080 "Your message"
+
+# Build web assets
+cd web && npm run build
+```
+
+The web dashboard will be available at http://localhost:9080
+
+---
+
 ## 1. Overview
 NotifyHub is a lightweight notification system consisting of a server with a web dashboard and a CLI client for pushing notifications. The system enables users to send notifications from command-line tools or scripts and view them in real-time through a web interface.
 
