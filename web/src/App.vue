@@ -34,10 +34,16 @@ export default {
   data() {
     return {
       notifications: [],
-      error: false
+      error: false,
+      audio: null
     }
   },
   mounted() {
+    // Preload audio
+    this.audio = new Audio('/static/audio/Submarine.mp3');
+    this.audio.volume = 0.3;
+    this.audio.load();
+
     this.fetchNotifications();
     setInterval(this.fetchNotifications, 2000); // Poll every 2 seconds
   },
@@ -62,9 +68,10 @@ export default {
       }
     },
     playNotificationSound() {
-      const audio = new Audio('/static/audio/notification-space-432438-4s.mp3');
-      audio.volume = 0.3; // Not too loud
-      audio.play().catch(e => console.log('Audio play failed:', e));
+      if (this.audio) {
+        this.audio.currentTime = 0; // Reset to start
+        this.audio.play().catch(e => console.log('Audio play failed:', e));
+      }
     },
     formatDate(timestamp) {
       return new Date(timestamp).toLocaleString();

@@ -1,12 +1,30 @@
 # NotifyHub - Application Requirements Document
 
+## Tech Stack
+
+- **Backend**: Python + FastAPI (server with REST API and static file serving)
+- **Frontend**: Vue.js 3 + Bootstrap 5 (single-page app with real-time polling)
+- **Build Tools**: Bun (package manager), Vite (fast bundler for development/production)
+- **Testing**: pytest (unit and integration tests)
+
 ## Quick Start
 
 ### Installation
 ```bash
 pip install -e .
-cd web && npm install && npm run build
+cd web && bun install
 ```
+
+### Development Setup
+For development with auto-reload of web changes:
+```bash
+# Terminal 1: Run server
+notifyhub-server --port 9080
+
+# Terminal 2: Watch and rebuild web assets
+cd web && bun run dev
+```
+This automatically rebuilds web assets on file changes and serves them via the server.
 
 ### Usage
 ```bash
@@ -17,22 +35,13 @@ notifyhub-server --port 9080
 notifyhub-push --port 9080 "Your message"
 
 # Build web assets
-cd web && npm run build
+cd web && bun run build
+
+# For production, build once
+cd web && bun run build
 
 # Run tests
 ./run_tests.sh
-```
-
-### Usage
-```bash
-# Start server
-notifyhub-server --port 9080
-
-# Send notification
-notifyhub-push --port 9080 "Your message"
-
-# Build web assets
-cd web && npm run build
 ```
 
 The web dashboard will be available at http://localhost:9080
@@ -137,7 +146,7 @@ notifyhub-push --port <PORT_NUMBER> "<MESSAGE>"
 
 ### 4.3 Notification Sound
 - Use browser-compatible audio format (MP3/WAV/OGG)
-- Short, non-intrusive notification sound (1-2 seconds)
+- Short, non-intrusive notification sound (1-4 seconds)
 - Option to mute/unmute in UI (optional enhancement)
 
 ---
@@ -178,7 +187,7 @@ graph LR
   Browser[Browser Client]
 
   CLI -->|POST /api/notify| Server
-  Server -->|WebSocket/SSE| Browser
+  Browser -->|HTTP polling<br/>GET /api/notifications| Server
   Server -->|Serve HTML/JS| WebUI
   Browser -->|Opens| WebUI
 

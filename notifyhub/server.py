@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 # Static files and templates setup
-app.mount("/static", StaticFiles(directory="web/dist/static"), name="static")
+app.mount("/static", StaticFiles(directory="web/static"), name="static")
 templates = Jinja2Templates(directory="web/templates")
 
 @app.post("/api/notify")

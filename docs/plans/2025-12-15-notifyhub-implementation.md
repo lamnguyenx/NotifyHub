@@ -35,10 +35,11 @@ A working notification system where:
 
 Follow glances architecture:
 - Python FastAPI server for REST API and static file serving
-- Vue.js single-page application with Bootstrap styling
+- Vue.js single-page application with Bootstrap styling (built with Bun + Vite)
 - Separate CLI client as standalone Python script
 - HTTP polling every 2 seconds for real-time updates
 - In-memory notification storage with unique IDs
+- Audio notifications with preloaded sound (reused for efficiency)
 
 ## Phase 1: Core Server & API
 
@@ -172,15 +173,16 @@ Build the Vue.js frontend with real-time polling, notification display, and basi
 {
   "name": "notifyhub-web",
   "scripts": {
-    "build": "webpack --mode production"
+    "build": "vite build",
+    "dev": "vite build --watch"
   },
   "dependencies": {
     "vue": "^3.3.0",
     "bootstrap": "^5.3.0"
   },
   "devDependencies": {
-    "webpack": "^5.0.0",
-    "webpack-cli": "^5.0.0"
+    "vite": "^5.0.0",
+    "@vitejs/plugin-vue": "^5.0.0"
   }
 }
 ```
@@ -258,8 +260,8 @@ app.mount("/static", StaticFiles(directory="web/dist/static"), name="static")
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] Vue.js builds successfully: `cd web && npm run build`
-- [ ] Webpack generates dist/static/ directory with bundled files
+- [ ] Vue.js builds successfully: `cd web && bun run build`
+- [ ] Vite generates static/ directory with bundled files
 - [ ] Server serves Vue app: Vue components load without errors
 
 #### Manual Verification:
@@ -353,25 +355,26 @@ Add notification sounds, improve UX, and handle edge cases.
 ### Changes Required:
 
 #### 1. Audio Notifications
-**File**: `web/src/App.vue`, `web/static/audio/`
-**Changes**: Add browser audio API for notification sounds
+**File**: `web/src/App.vue`, `web/public/audio/`
+**Changes**: Add browser audio API with preloaded reusable sound
 
 ```javascript
 // In Vue component
+data() {
+  return {
+    audio: null
+  }
+},
+mounted() {
+  this.audio = new Audio('/static/audio/Submarine.mp3');
+  this.audio.volume = 0.3;
+  this.audio.load();
+},
 methods: {
   playNotificationSound() {
-    const audio = new Audio('/static/audio/notification.mp3');
-    audio.volume = 0.3; // Not too loud
-    audio.play().catch(e => console.log('Audio play failed:', e));
-  },
-  
-  async fetchNotifications() {
-    const previousCount = this.notifications.length;
-    // ... existing fetch logic ...
-    const newCount = this.notifications.length;
-    
-    if (newCount > previousCount) {
-      this.playNotificationSound();
+    if (this.audio) {
+      this.audio.currentTime = 0;
+      this.audio.play().catch(e => console.log('Audio play failed:', e));
     }
   }
 }
@@ -406,11 +409,11 @@ async def get_notifications():
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] Audio file exists: `ls web/static/audio/notification.mp3`
+- [ ] Audio file exists: `ls web/static/audio/Submarine.mp3`
 - [ ] Error handling works: Disconnect server, check UI shows error state
 
 #### Manual Verification:
-- [ ] Sound plays on new notifications (if audio enabled)
+- [ ] Sound plays on new notifications (preloaded and reused)
 - [ ] UI handles server disconnection gracefully
 - [ ] Performance acceptable with 100+ notifications
 - [ ] Clean, professional appearance
@@ -432,12 +435,13 @@ async def get_notifications():
 - Web UI polling and display
 
 ### Manual Testing Steps:
-1. Start server: `notifyhub-server --port 9080`
-2. Open browser to http://localhost:9080
-3. Send notification: `notifyhub-push --port 9080 "Test message"`
-4. Verify notification appears with sound
-5. Test multiple notifications and ordering
-6. Test error cases (wrong port, server down)
+1. Build web: `cd web && bun run build`
+2. Start server: `python -m notifyhub.server --port 9080` or `notifyhub-server --port 9080`
+3. Open browser to http://localhost:9080
+4. Send notification: `notifyhub-push --port 9080 "Test message"` or `python -m notifyhub.cli --port 9080 "Test message"`
+5. Verify notification appears with sound
+6. Test multiple notifications and ordering
+7. Test error cases (wrong port, server down)
 
 ## Performance Considerations
 
@@ -455,5 +459,7 @@ async def get_notifications():
 
 - Glances web interface pattern: https://github.com/nicolargo/glances
 - FastAPI documentation: https://fastapi.tiangolo.com/
-- Vue.js guide: https://vuejs.org/guide/</content>
+- Vue.js guide: https://vuejs.org/guide/
+- Bun documentation: https://bun.sh/docs
+- Vite documentation: https://vite.dev/</content>
 <parameter name="filePath">docs/plans/2025-12-15-notifyhub-implementation.md
