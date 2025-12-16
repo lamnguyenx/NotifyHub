@@ -8,19 +8,29 @@
       No notifications yet
     </div>
     <div v-else-if="!connectionError" class="row">
-      <div class="col-md-8 mx-auto">
-        <div v-for="notification in notifications"
-             :key="notification.id"
-             class="card mb-2">
-          <div class="card-body">
-            <div class="d-flex justify-content-between">
-              <div>
-                <h6 class="card-title">{{ notification.message }}</h6>
-                <small class="text-muted">
-                  {{ formatDate(notification.timestamp) }}
-                </small>
+      <div class="col-12 px-2">
+        <div class="d-flex justify-content-end mb-3">
+          <button @click="clearAllNotifications"
+                  class="btn btn-outline-danger btn-sm"
+                  :disabled="notifications.length === 0">
+            Clear All
+          </button>
+        </div>
+        <div>
+          <div v-for="notification in notifications"
+               :key="notification.id"
+               class="card mb-2 mx-auto"
+               style="width: 95%; max-width: 95%;">
+            <div class="card-body">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <h6 class="card-title">{{ notification.message }}</h6>
+                  <small class="text-muted">
+                    {{ formatDate(notification.timestamp) }}
+                  </small>
+                </div>
+                <span class="text-primary">🔔</span>
               </div>
-              <span class="text-primary">🔔</span>
             </div>
           </div>
         </div>
@@ -76,6 +86,12 @@ export default {
         this.connectionError = false;
       });
 
+      this.eventSource.addEventListener('clear', (event) => {
+        // Handle clear all event from server
+        this.notifications = [];
+        this.connectionError = false;
+      });
+
       this.eventSource.addEventListener('heartbeat', (event) => {
         // Handle heartbeat to monitor connection health
         this.connectionError = false;
@@ -102,7 +118,27 @@ export default {
     },
     formatDate(timestamp) {
       return new Date(timestamp).toLocaleString();
+    },
+    async clearAllNotifications() {
+      try {
+        const response = await fetch('/api/notifications', {
+          method: 'DELETE'
+        });
+        if (response.ok) {
+          // Server will broadcast clear event to all clients including this one
+          // No need to clear locally here as the SSE event will handle it
+        } else {
+          console.error('Failed to clear notifications on server');
+          // Fallback: clear locally
+          this.notifications = [];
+        }
+      } catch (error) {
+        console.error('Error clearing notifications:', error);
+        // Fallback: clear locally
+        this.notifications = [];
+      }
     }
   }
 }
 </script>
+

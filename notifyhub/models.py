@@ -37,3 +37,7 @@ class NotificationStore:
             self.notifications.pop()
 
         return notification.id
+
+    def clear_all(self):
+        """Clear all notifications"""
+        self.notifications.clear()

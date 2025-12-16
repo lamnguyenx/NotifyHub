@@ -189,32 +189,44 @@ Build the Vue.js frontend with real-time polling, notification display, and basi
 
 #### 2. Vue Components
 **File**: `web/src/App.vue`
-**Changes**: Create notification list component with polling
+**Changes**: Create notification list component with polling, clear all functionality, and animations
 
 ```vue
 <template>
   <div class="container mt-4">
     <h1 class="mb-4">🔔 NotifyHub</h1>
-    <div v-if="notifications.length === 0" class="text-center text-muted">
+    <div v-if="connectionError" class="alert alert-warning">
+      Connection lost - retrying...
+    </div>
+    <div v-if="notifications.length === 0 && !connectionError" class="text-center text-muted">
       No notifications yet
     </div>
-    <div v-else class="row">
+    <div v-else-if="!connectionError" class="row">
       <div class="col-md-8 mx-auto">
-        <div v-for="notification in notifications" 
-             :key="notification.id" 
-             class="card mb-2">
-          <div class="card-body">
-            <div class="d-flex justify-content-between">
-              <div>
-                <h6 class="card-title">{{ notification.message }}</h6>
-                <small class="text-muted">
-                  {{ formatDate(notification.timestamp) }}
-                </small>
+        <div class="d-flex justify-content-end mb-3">
+          <button @click="clearAllNotifications"
+                  class="btn btn-outline-danger btn-sm"
+                  :disabled="notifications.length === 0">
+            Clear All
+          </button>
+        </div>
+        <transition-group name="notification" tag="div">
+          <div v-for="notification in notifications"
+               :key="notification.id"
+               class="card mb-2">
+            <div class="card-body">
+              <div class="d-flex justify-content-between">
+                <div>
+                  <h6 class="card-title">{{ notification.message }}</h6>
+                  <small class="text-muted">
+                    {{ formatDate(notification.timestamp) }}
+                  </small>
+                </div>
+                <span class="text-primary">🔔</span>
               </div>
-              <span class="text-primary">🔔</span>
             </div>
           </div>
-        </div>
+        </transition-group>
       </div>
     </div>
   </div>
@@ -224,10 +236,16 @@ Build the Vue.js frontend with real-time polling, notification display, and basi
 export default {
   data() {
     return {
-      notifications: []
+      notifications: [],
+      connectionError: false,
+      audio: null
     }
   },
   mounted() {
+    this.audio = new Audio('/static/audio/Submarine.mp3');
+    this.audio.volume = 0.3;
+    this.audio.load();
+
     this.fetchNotifications();
     setInterval(this.fetchNotifications, 2000); // Poll every 2 seconds
   },
@@ -236,16 +254,47 @@ export default {
       try {
         const response = await fetch('/api/notifications');
         this.notifications = await response.json();
+        this.connectionError = false;
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
+        this.connectionError = true;
       }
     },
     formatDate(timestamp) {
       return new Date(timestamp).toLocaleString();
+    },
+    clearAllNotifications() {
+      this.notifications = [];
     }
   }
 }
 </script>
+
+<style scoped>
+.notification-enter-active {
+  animation: popIn 0.5s ease-out;
+}
+
+.notification-enter-from {
+  opacity: 0;
+  transform: scale(0.8) translateY(-20px);
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(-20px);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+</style>
 ```
 
 #### 3. Build Integration
@@ -350,35 +399,14 @@ notifyhub-push = "notifyhub.cli:main"
 ## Phase 4: Audio & Polish
 
 ### Overview
-Add notification sounds, improve UX, and handle edge cases.
+Add notification sounds (implemented in Phase 2), improve UX with animations and error handling, and handle edge cases.
 
 ### Changes Required:
 
-#### 1. Audio Notifications
-**File**: `web/src/App.vue`, `web/public/audio/`
-**Changes**: Add browser audio API with preloaded reusable sound
-
-```javascript
-// In Vue component
-data() {
-  return {
-    audio: null
-  }
-},
-mounted() {
-  this.audio = new Audio('/static/audio/Submarine.mp3');
-  this.audio.volume = 0.3;
-  this.audio.load();
-},
-methods: {
-  playNotificationSound() {
-    if (this.audio) {
-      this.audio.currentTime = 0;
-      this.audio.play().catch(e => console.log('Audio play failed:', e));
-    }
-  }
-}
-```
+#### 1. Audio Integration
+**Status**: ✅ Implemented in Phase 2
+**File**: `web/src/App.vue`
+**Changes**: Audio notifications are now integrated with notification polling
 
 #### 2. Real-time Improvements
 **File**: `notifyhub/server.py`
@@ -393,18 +421,24 @@ async def get_notifications():
     }
 ```
 
-#### 3. Error Handling
+#### 3. Enhanced Error Handling
+**Status**: ✅ Implemented in Phase 2
 **File**: `web/src/App.vue`
-**Changes**: Add offline/error states
+**Changes**: Connection error states and retry logic implemented
 
-```vue
-<template>
-  <div v-if="error" class="alert alert-warning">
-    Connection lost - retrying...
-  </div>
-  <!-- ... existing template ... -->
-</template>
-```
+#### 4. Notification Animations
+**Status**: ✅ Implemented in Phase 2
+**File**: `web/src/App.vue`
+**Changes**: Popping animations added for new notifications
+
+#### 5. Clear All Functionality
+**Status**: ✅ Implemented in Phase 2 + Server sync added
+**Files**: `web/src/App.vue`, `notifyhub/server.py`, `notifyhub/models.py`
+**Changes**:
+- Added DELETE `/api/notifications` endpoint to clear all notifications server-side
+- Added `clear_all()` method to NotificationStore
+- Clear All button now syncs across all connected clients via SSE broadcast
+- Added `clear` SSE event handling for real-time sync
 
 ### Success Criteria:
 

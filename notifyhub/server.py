@@ -83,6 +83,17 @@ async def notify(request: NotifyRequest):
 async def get_notifications():
     return store.notifications
 
+@app.delete("/api/notifications")
+async def clear_notifications():
+    """Clear all notifications"""
+    store.clear_all()
+    # Broadcast clear event to all connected clients
+    await sse_manager.broadcast({
+        "event": "clear",
+        "data": json.dumps({"message": "All notifications cleared"})
+    })
+    return {"success": True}
+
 @app.get("/events")
 async def events():
     """SSE endpoint for real-time notifications"""
