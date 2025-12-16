@@ -1,4 +1,4 @@
-.PHONY: web web-dev sv cli test test-bg clean
+.PHONY: web web-dev sv cli test test-bg clean install-plugin remove-plugin
 
 # Web assets
 web:
@@ -29,3 +29,15 @@ clean:
 	pkill -f "notifyhub.server" 2>/dev/null || true
 	pkill -f "bun run dev" 2>/dev/null || true
 	@echo "Cleanup complete."
+
+# OpenCode plugin management
+install-plugin:
+	@echo "Installing NotifyHub plugin to OpenCode..."
+	mkdir -p ~/.config/opencode/plugin
+	cp chat_plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/
+	@echo "Plugin installed! Start NotifyHub server with 'make sv'"
+
+remove-plugin:
+	@echo "Removing NotifyHub plugin from OpenCode..."
+	rm -f ~/.config/opencode/plugin/notifyhub-plugin.ts
+	@echo "Plugin removed."
