@@ -3,7 +3,7 @@
 ## Tech Stack
 
 - **Backend**: Python + FastAPI (server with REST API and static file serving)
-- **Frontend**: Vue.js 3 + Bootstrap 5 (single-page app with real-time polling)
+- **Frontend**: Vue.js 3 + Bootstrap 5 (single-page app with real-time SSE)
 - **Build Tools**: Bun (package manager), Vite (fast bundler for development/production)
 - **Testing**: pytest (unit and integration tests)
 
@@ -13,40 +13,53 @@
 ```bash
 pip install -e .
 cd web && bun install
+# Or build web assets: make web
 ```
 
 ### Development Setup
 For development with auto-reload of web changes:
 ```bash
 # Terminal 1: Run server
-notifyhub-server --port 9080
+make sv
 
 # Terminal 2: Watch and rebuild web assets
-cd web && bun run dev
+make web-dev
 ```
-This automatically rebuilds web assets on file changes and serves them via the server.
+This automatically rebuilds web assets on file changes and serves them via the server with real-time SSE updates.
 
 ### Usage
 ```bash
 # Start server
-notifyhub-server --port 9080
+make sv
 
-# Send notification
-notifyhub-push --port 9080 "Your message"
+# Send notification (example)
+make cli
 
-# Build web assets
-cd web && bun run build
-
-# For production, build once
-cd web && bun run build
+# Build web assets for production
+make web
 
 # Run tests
-./run_tests.sh
+make test
 ```
 
 The web dashboard will be available at http://localhost:9080
 
+### Makefile Targets
+For convenience, common operations are available via Makefile targets:
+
+```bash
+make web          # Build web assets for production
+make web-dev      # Start web development server with hot reload
+make sv           # Start NotifyHub server on port 9080
+make cli          # Send test notification to server
+make test         # Run test suite
+make test-bg      # Build web assets and start server in background for testing
+make clean        # Cleanup background processes
+```
+
 ---
+
+
 
 ## 1. Overview
 NotifyHub is a lightweight notification system consisting of a server with a web dashboard and a CLI client for pushing notifications. The system enables users to send notifications from command-line tools or scripts and view them in real-time through a web interface.
@@ -77,9 +90,10 @@ A command-line tool that:
 #### 3.1.1 Command-Line Interface
 ```bash
 notifyhub-server --port <PORT_NUMBER>
+# Or use Makefile: make sv
 ```
 - **Default port**: 9080 (if not specified)
-- **Example**: `notifyhub-server --port 9080`
+- **Example**: `notifyhub-server --port 9080` or `make sv`
 
 #### 3.1.2 Web Dashboard
 - **Access URL**: `http://localhost:<PORT>`
@@ -91,8 +105,8 @@ notifyhub-server --port <PORT_NUMBER>
 - Clean, minimal UI design
 
 #### 3.1.3 Real-time Notifications
-- Use WebSocket or Server-Sent Events (SSE) for real-time updates
-- No page refresh required to see new notifications
+- Use Server-Sent Events (SSE) for real-time updates
+- Instant notification delivery (< 100ms latency)
 - Audio notification on new message arrival
 
 #### 3.1.4 Data Storage
@@ -107,11 +121,12 @@ notifyhub-server --port <PORT_NUMBER>
 #### 3.2.1 Command-Line Interface
 ```bash
 notifyhub-push --port <PORT_NUMBER> "<MESSAGE>"
+# Or use Makefile: make cli
 ```
 - **Required parameters**:
-- `--port`: Server port number
-- `<MESSAGE>`: Notification message (string)
-- **Example**: `notifyhub-push --port 9080 "Agent is done"`
+  - `--port`: Server port number
+  - `<MESSAGE>`: Notification message (string)
+- **Example**: `notifyhub-push --port 9080 "Agent is done"` or `make cli`
 
 #### 3.2.2 Behavior
 - Send HTTP POST request to server with message
@@ -140,9 +155,10 @@ notifyhub-push --port <PORT_NUMBER> "<MESSAGE>"
 }
 ```
 
-### 4.2 WebSocket/SSE for Real-time Updates
-- **Endpoint**: `/events` or WebSocket at `/ws`
+### 4.2 Server-Sent Events (SSE) for Real-time Updates
+- **Endpoint**: `GET /events` (SSE stream)
 - Push new notifications to all connected clients immediately
+- Automatic browser reconnection on connection loss
 
 ### 4.3 Notification Sound
 - Use browser-compatible audio format (MP3/WAV/OGG)
@@ -187,7 +203,7 @@ graph LR
   Browser[Browser Client]
 
   CLI -->|POST /api/notify| Server
-  Browser -->|HTTP polling<br/>GET /api/notifications| Server
+  Browser -->|SSE<br/>GET /events| Server
   Server -->|Serve HTML/JS| WebUI
   Browser -->|Opens| WebUI
 
@@ -212,13 +228,13 @@ graph LR
 
 ### 6.1 Performance
 - Support at least 1000 notifications in memory
-- Real-time notification delivery < 100ms
+- Real-time notification delivery < 100ms (via SSE)
 - Dashboard loads in < 1 second
 
 ### 6.2 Reliability
 - Server should handle multiple concurrent connections
 - Graceful error handling for network issues
-- Auto-reconnect for WebSocket disconnections
+- Auto-reconnect for SSE connection loss
 
 ### 6.3 Usability
 - Simple command-line interface
@@ -251,9 +267,9 @@ graph LR
 
 ```bash
 # Terminal 1: Start the server
-$ notifyhub-server --port 9080
+$ make sv
 NotifyHub Server started on http://localhost:9080
-WebSocket listening on ws://localhost:9080/ws
+SSE endpoint available at /events
 
 # Terminal 2: Send notifications
 $ notifyhub-push --port 9080 "Build started"
@@ -266,7 +282,7 @@ $ notifyhub-push --port 9080 "Deployment complete"
 ✓ Notification sent successfully
 
 # Browser: Open http://localhost:9080
-# See all notifications listed with sound alerts
+# See notifications appear instantly with sound alerts
 ```
 
 ---
@@ -277,7 +293,7 @@ The application is considered complete when:
 1. ✅ Server starts successfully on specified port
 2. ✅ Web dashboard is accessible and displays notifications
 3. ✅ CLI client can send messages to server
-4. ✅ Notifications appear in real-time without refresh
+4. ✅ Notifications appear instantly (< 100ms) without refresh
 5. ✅ Notification sound plays on new messages
 6. ✅ Notifications are sorted newest to oldest
 7. ✅ System works across different platforms
