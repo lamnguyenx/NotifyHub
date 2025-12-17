@@ -5,7 +5,7 @@
 - **Backend**: Python + FastAPI (server with REST API and static file serving)
 - **Frontend**: Vue.js 3 + Bootstrap 5 (single-page app with real-time SSE)
 - **Build Tools**: Bun (package manager), Vite (fast bundler for development/production)
-- **Testing**: pytest (unit and integration tests)
+- **Testing**: pytest (backend), Playwright (UI tests)
 
 ## Quick Start
 
@@ -44,6 +44,24 @@ make test
 
 The web dashboard will be available at http://localhost:9080
 
+### Testing
+```bash
+# Install dependencies
+npm install
+cd web && npx playwright install
+
+# Run UI tests
+npm run test:ui
+
+# Debug mode
+npm run test:ui:debug
+```
+
+### All Tests
+```bash
+make test-all
+```
+
 ### Makefile Targets
 For convenience, common operations are available via Makefile targets:
 
@@ -52,7 +70,11 @@ make web          # Build web assets for production
 make web-dev      # Start web development server with hot reload
 make sv           # Start NotifyHub server on port 9080
 make cli          # Send test notification to server
-make test         # Run test suite
+make test         # Run backend test suite
+make test-ui      # Run UI tests with Playwright
+make test-ui-debug # Run UI tests in debug mode (headed)
+make test-chrome  # Test Chrome remote debugging connection
+make test-all     # Run all tests (backend + UI)
 make test-bg      # Build web assets and start server in background for testing
 make clean        # Cleanup background processes
 ```

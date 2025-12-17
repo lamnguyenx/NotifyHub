@@ -1,4 +1,4 @@
-.PHONY: web web-dev sv cli test test-bg clean install-plugin remove-plugin
+.PHONY: web web-dev sv cli test test-ui test-ui-debug test-chrome test-all test-bg clean install-plugin remove-plugin
 
 # Web assets
 web:
@@ -17,6 +17,17 @@ cli:
 # Testing
 test:
 	./run_tests.sh
+
+test-ui:
+	npm run test:ui
+
+test-ui-debug:
+	npm run test:ui:debug
+
+test-chrome:
+	npx tsx tests/ui/utils/test_chrome_connection.ts
+
+test-all: test test-ui
 
 test-bg: web
 	@echo "Starting server in background for testing..."

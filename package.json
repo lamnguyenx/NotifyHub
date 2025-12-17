@@ -1,5 +1,12 @@
 {
   "devDependencies": {
-    "@types/node": "^25.0.2"
+    "@types/node": "^25.0.2",
+    "@playwright/test": "^1.40.0",
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "test:ui": "playwright test",
+    "test:ui:debug": "playwright test --headed --timeout=0",
+    "test:all": "npm run test && npm run test:ui"
   }
 }

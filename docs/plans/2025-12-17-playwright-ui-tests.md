@@ -122,7 +122,7 @@ Setup Playwright configuration to support Chrome remote debugging for both local
 ```
 
 #### 3. Playwright Configuration File
-**File**: `playwright.config.js`
+**File**: `playwright.config.ts`
 **Changes**: New configuration supporting remote debugging
 
 ```javascript
@@ -317,7 +317,7 @@ Add documentation, README updates, and final cleanup for production readiness.
 ### Changes Required:
 
 #### 1. UI Testing Documentation
-**File**: `docs/testing/ui-testing.md`
+**File**: `README.TESTING.md`
 **Changes**: Comprehensive testing documentation
 
 ```markdown
@@ -404,7 +404,7 @@ make test-all
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] Documentation builds without errors: `cat docs/testing/ui-testing.md`
+- [ ] Documentation builds without errors: `cat README.TESTING.md`
 - [ ] README renders correctly: `head -50 README.md`
 - [ ] All test commands documented and functional
 
