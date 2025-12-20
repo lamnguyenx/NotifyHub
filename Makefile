@@ -19,10 +19,10 @@ test:
 	./run_tests.sh
 
 test-ui:
-	npm run test:ui
+	export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && npx playwright test
 
 test-ui-debug:
-	npm run test:ui:debug
+	export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
 
 test-chrome:
 	npx tsx tests/ui/utils/test_chrome_connection.ts

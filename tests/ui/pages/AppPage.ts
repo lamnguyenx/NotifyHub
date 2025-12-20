@@ -9,11 +9,13 @@ export class AppPage extends BasePage {
   async toggleEditMode() {
     const button = this.page.locator('button').filter({ hasText: 'Edit Layout' }).or(this.page.locator('button').filter({ hasText: 'View Live' }));
     await button.click();
+    await this.page.waitForTimeout(1000);
   }
 
   async isEditMode(): Promise<boolean> {
-    const button = this.page.locator('button').filter({ hasText: 'View Live' });
-    return await button.isVisible();
+    const button = this.page.locator('button').filter({ hasText: 'Edit Layout' }).or(this.page.locator('button').filter({ hasText: 'View Live' }));
+    const text = await button.textContent();
+    return text === 'View Live';
   }
 
   async expectConnectionError(expected: boolean) {

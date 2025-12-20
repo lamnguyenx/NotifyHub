@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    port: 9070
+  },
   build: {
     outDir: 'static',
     rollupOptions: {

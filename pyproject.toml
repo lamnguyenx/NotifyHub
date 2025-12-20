@@ -11,7 +11,8 @@ dependencies = [
     "jinja2",
     "python-multipart",
     "aiofiles",
-    "requests"
+    "requests",
+    "sse-starlette"
 ]
 
 [project.optional-dependencies]

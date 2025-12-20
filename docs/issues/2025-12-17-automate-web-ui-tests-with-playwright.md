@@ -20,9 +20,10 @@ The current web UI lacks automated testing, leading to potential unnoticed bugs 
 - **So that** I can verify functionality reliably without manual testing
 
 ### Requirements
-- Playwright framework installation and configuration
+- Playwright framework installation and configuration with Chrome DevTools Protocol (CDP) support
 - Test scenarios for notification display and interaction
 - Integration with existing test suite
+- **MANDATORY**: Use CDP connection to existing Chrome instances - do not auto-launch browsers
 
 ### Acceptance Criteria
 - [ ] Playwright v1.40+ installed with configuration files
@@ -38,6 +39,7 @@ The current web UI lacks automated testing, leading to potential unnoticed bugs 
 - Use Page Object pattern for test organization
 - Use the web/ directory as the test environment
 - Use TypeScript for writing tests
+- Use Chrome DevTools Protocol (CDP) for connecting to existing Chrome instances - do not auto-launch browsers
 
 ### Success Metrics
 - Reduce UI-related bugs by 40% in 2 months

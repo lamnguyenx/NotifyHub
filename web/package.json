@@ -1,5 +1,6 @@
 {
   "name": "notifyhub-web",
+  "type": "module",
   "scripts": {
     "build": "vite build",
     "dev": "vite"

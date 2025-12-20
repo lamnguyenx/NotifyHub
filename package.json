@@ -5,8 +5,5 @@
     "typescript": "^5.0.0"
   },
   "scripts": {
-    "test:ui": "playwright test",
-    "test:ui:debug": "playwright test --headed --timeout=0",
-    "test:all": "npm run test && npm run test:ui"
   }
 }

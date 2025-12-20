@@ -127,17 +127,6 @@ function App() {
     }
   }, []);
 
-  if (isEditing) {
-    return (
-      <Puck
-        config={config}
-        data={puckData}
-        onPublish={savePuckData}
-        onChange={setPuckData}
-      />
-    );
-  }
-
   return (
     <>
       <div className="fixed top-4 right-4 z-50">
@@ -148,32 +137,41 @@ function App() {
           {isEditing ? 'View Live' : 'Edit Layout'}
         </button>
       </div>
-      <Render
-        config={{
-          ...config,
-          components: {
-            ...config.components,
-            Header: {
-              ...config.components.Header,
-              render: (props) => config.components.Header.render({ ...props, connectionError })
-            },
-            ConnectionStatus: {
-              ...config.components.ConnectionStatus,
-              render: (props) => config.components.ConnectionStatus.render({ ...props, connectionError })
-            },
-            NotificationList: {
-              ...config.components.NotificationList,
-              render: (props) => config.components.NotificationList.render({
-                ...props,
-                notifications,
-                formatDate,
-                clearAllNotifications
-              })
+      {isEditing ? (
+        <Puck
+          config={config}
+          data={puckData}
+          onPublish={savePuckData}
+          onChange={setPuckData}
+        />
+      ) : (
+        <Render
+          config={{
+            ...config,
+            components: {
+              ...config.components,
+              Header: {
+                ...config.components.Header,
+                render: (props) => config.components.Header.render({ ...props, connectionError })
+              },
+              ConnectionStatus: {
+                ...config.components.ConnectionStatus,
+                render: (props) => config.components.ConnectionStatus.render({ ...props, connectionError })
+              },
+              NotificationList: {
+                ...config.components.NotificationList,
+                render: (props) => config.components.NotificationList.render({
+                  ...props,
+                  notifications,
+                  formatDate,
+                  clearAllNotifications
+                })
+              }
             }
-          }
-        }}
-        data={puckData}
-      />
+          }}
+          data={puckData}
+        />
+      )}
     </>
   );
 }

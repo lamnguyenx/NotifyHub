@@ -23,6 +23,7 @@ export class NotificationPage extends BasePage {
 
   async expectClearButtonEnabled(enabled: boolean) {
     const clearButton = this.page.locator('button.btn.btn-outline-danger.btn-sm').filter({ hasText: 'Clear All' });
+    await expect(clearButton).toBeVisible();
     if (enabled) {
       await expect(clearButton).toBeEnabled();
     } else {

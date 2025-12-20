@@ -1,33 +1,21 @@
 import { defineConfig, PlaywrightTestConfig } from '@playwright/test';
 
-const isRemoteChrome: boolean = !!process.env.WEBSOCKET_ENDPOINT;
-
 const config: PlaywrightTestConfig = {
   testDir: 'tests/ui',
   timeout: 30000,
   expect: {
-    timeout: 5000,
+    timeout: 2000,
   },
+  maxFailures: 1,
   use: {
-    headless: true,
-    baseURL: 'http://localhost:5173',
-    ...(isRemoteChrome ? {
-      browserWSEndpoint: process.env.WEBSOCKET_ENDPOINT,
-    } : {
-      // Local Chrome launch configuration
-      launchOptions: {
-        args: [
-          '--remote-debugging-port=9222',
-          '--remote-debugging-address=0.0.0.0',
-        ],
-      },
-    }),
+    video: 'retain-on-failure',
+    baseURL: 'http://localhost:9080',
   },
-  webServer: {
-    command: 'cd web && npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: true,
-   },
+  // webServer: {
+  //   command: 'cd web && bun run dev',
+  //   url: 'http://localhost:9030',
+  //   reuseExistingServer: true,
+  // },
 };
 
 export default defineConfig(config);
