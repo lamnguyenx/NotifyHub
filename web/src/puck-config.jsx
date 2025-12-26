@@ -21,7 +21,7 @@ export const config = {
         showBell: true
       },
       render: ({ title, showBell }) => (
-        <h1 className={`mb-4 text-2xl font-bold ${showBell ? '' : 'text-center'}`}>
+        <h1 className={`mb-4 text-2xl font-bold dark:text-white ${showBell ? '' : 'text-center'}`}>
           {showBell ? title : title.replace('🔔 ', '')}
         </h1>
       )
@@ -41,7 +41,7 @@ export const config = {
       },
       render: ({ showBanner, connectionError }) => (
         showBanner && connectionError ? (
-          <div className="alert alert-warning mb-3">
+          <div className="alert alert-warning mb-3 dark:bg-yellow-900 dark:text-yellow-100 dark:border-yellow-700">
             Connection lost - retrying...
           </div>
         ) : null
@@ -54,6 +54,7 @@ export const config = {
           options: [
             { label: "White Cards", value: "white" },
             { label: "Gray Cards", value: "gray" },
+            { label: "Dark Cards", value: "dark" },
             { label: "Bordered Cards", value: "bordered" }
           ]
         },
@@ -63,7 +64,7 @@ export const config = {
         }
       },
       defaultProps: {
-        cardStyle: "white",
+        cardStyle: "dark",
         maxWidth: "95%"
       },
       render: ({ cardStyle, maxWidth, notifications, formatDate, clearAllNotifications }) => (
@@ -83,19 +84,20 @@ export const config = {
                 <div
                   key={notification.id}
                   className={`card mb-2 mx-auto ${
-                    cardStyle === 'white' ? 'bg-white' :
-                    cardStyle === 'gray' ? 'bg-gray-100' :
-                    'border border-gray-300'
+                    cardStyle === 'white' ? 'bg-white dark:bg-gray-800' :
+                    cardStyle === 'gray' ? 'bg-gray-100 dark:bg-gray-700' :
+                    cardStyle === 'dark' ? 'bg-gray-800' :
+                    'border border-gray-300 dark:border-gray-600'
                   }`}
                   style={{ width: maxWidth, maxWidth }}
                 >
                   <div className="card-body">
                     <div className="flex justify-between">
                       <div>
-                        <h6 className="card-title font-bold">{notification.message}</h6>
-                        <small className="text-muted">
-                          {formatDate(notification.timestamp)}
-                        </small>
+                        <h6 className="card-title font-bold dark:text-white">{notification.message}</h6>
+                         <small className="text-muted dark:text-gray-300">
+                           {formatDate(notification.timestamp)}
+                         </small>
                       </div>
                       <span className="text-primary">🔔</span>
                     </div>

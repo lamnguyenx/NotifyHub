@@ -9,7 +9,7 @@ const config: PlaywrightTestConfig = {
   maxFailures: 1,
   use: {
     video: 'retain-on-failure',
-    baseURL: 'http://localhost:9080',
+    baseURL: process.env.BASE_URL || 'http://localhost:9080',
   },
   // webServer: {
   //   command: 'cd web && bun run dev',

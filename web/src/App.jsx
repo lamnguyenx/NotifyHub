@@ -22,7 +22,7 @@ function App() {
         type: "NotificationList",
         props: {
           id: "list",
-          cardStyle: "white",
+          cardStyle: "dark",
           maxWidth: "95%"
         }
       }

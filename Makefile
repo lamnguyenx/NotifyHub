@@ -1,52 +1,48 @@
-.PHONY: web web-dev sv cli test test-ui test-ui-debug test-chrome test-all test-bg clean install-plugin remove-plugin
+.PHONY: backend frontend frontend-dev noti chrome test-all test-chrome test-backend test-ui test-ui-debug install-plugin remove-plugin test-bg clean
 
-# Web assets
-web:
-	cd web && bun run build
-
-web-dev:
-	cd web && bun run dev
-
-# Server and client
-sv:
+# -----------------------------------
+#            Production
+# -----------------------------------
+backend:
 	python -m notifyhub.server --port 9080
 
-cli:
+frontend:
+	cd web && bun run build
+
+# -----------------------------------
+#            Development
+# -----------------------------------
+frontend-dev:
+	cd web && bun run dev
+
+noti:
 	python -m notifyhub.cli --port 9080 "Hello"
 
-# Testing
-test:
-	./run_tests.sh
+chrome:
+	open -a "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-dev-profile
 
-test-ui:
-	export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && npx playwright test
-
-test-ui-debug:
-	export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
+# -----------------------------------
+#             Testing
+# -----------------------------------
+test-all: test-chrome test-backend test-frontend
 
 test-chrome:
 	npx tsx tests/ui/utils/test_chrome_connection.ts
 
-test-all: test test-ui
+test-backend:
+	python -m pytest tests/ -v
 
-test-bg: web
-	@echo "Starting server in background for testing..."
-	python -m notifyhub.server --port 9080 &
-	@echo "Server started. Run tests, then use 'make clean' to stop server."
+test-frontend:
+	export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
 
-# Cleanup background processes
-clean:
-	@echo "Cleaning up background processes..."
-	pkill -f "notifyhub.server" 2>/dev/null || true
-	pkill -f "bun run dev" 2>/dev/null || true
-	@echo "Cleanup complete."
-
-# OpenCode plugin management
+# -----------------------------------
+#        Plugin Management
+# -----------------------------------
 install-plugin:
 	@echo "Installing NotifyHub plugin to OpenCode..."
 	mkdir -p ~/.config/opencode/plugin
 	cp chat_plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/
-	@echo "Plugin installed! Start NotifyHub server with 'make sv'"
+	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
 
 remove-plugin:
 	@echo "Removing NotifyHub plugin from OpenCode..."

@@ -1,321 +1,289 @@
-# NotifyHub - Application Requirements Document
+# NotifyHub
 
-## Tech Stack
+- [NotifyHub](#notifyhub)
+  - [1. System Overview \& Tech Stack](#1-system-overview--tech-stack)
+    - [Architecture Diagram](#architecture-diagram)
+    - [Technology Stack](#technology-stack)
+  - [2. Installation \& Setup](#2-installation--setup)
+    - [Prerequisites](#prerequisites)
+    - [Initial Install](#initial-install)
+    - [OpenCode Plugin Installation (Optional)](#opencode-plugin-installation-optional)
+  - [3. Development Workflow](#3-development-workflow)
+    - [Development Diagram](#development-diagram)
+    - [Why the Proxy is Needed](#why-the-proxy-is-needed)
+    - [Commands](#commands)
+  - [4. Production Usage](#4-production-usage)
+  - [5. Testing Strategy](#5-testing-strategy)
+    - [Test Architecture (Page Object Model)](#test-architecture-page-object-model)
+    - [5.1 UI Test Setup](#51-ui-test-setup)
+    - [5.2 Running Tests](#52-running-tests)
+    - [5.3 Test Organization](#53-test-organization)
+    - [5.4 Chrome Remote Debugging (CDP)](#54-chrome-remote-debugging-cdp)
 
-- **Backend**: Python + FastAPI (server with REST API and static file serving)
-- **Frontend**: Vue.js 3 + Bootstrap 5 (single-page app with real-time SSE)
-- **Build Tools**: Bun (package manager), Vite (fast bundler for development/production)
-- **Testing**: pytest (backend), Playwright (UI tests)
+## 1. System Overview & Tech Stack
 
-## Quick Start
+NotifyHub is a single-page application consisting of a Python FastAPI backend and a React frontend. The application uses Server-Sent Events (SSE) for real-time updates and includes a page builder via Puck.
 
-### Installation
-```bash
-pip install -e .
-cd web && bun install
-# Or build web assets: make web
-```
-
-### Development Setup
-For development with auto-reload of web changes:
-```bash
-# Terminal 1: Run server
-make sv
-
-# Terminal 2: Watch and rebuild web assets
-make web-dev
-```
-This automatically rebuilds web assets on file changes and serves them via the server with real-time SSE updates.
-
-### Usage
-```bash
-# Start server
-make sv
-
-# Send notification (example)
-make cli
-
-# Build web assets for production
-make web
-
-# Run tests
-make test
-```
-
-The web dashboard will be available at http://localhost:9080
-
-### Testing
-```bash
-# Install dependencies
-npm install
-cd web && npx playwright install
-
-# Run UI tests
-npm run test:ui
-
-# Debug mode
-npm run test:ui:debug
-```
-
-### All Tests
-```bash
-make test-all
-```
-
-### Makefile Targets
-For convenience, common operations are available via Makefile targets:
-
-```bash
-make web          # Build web assets for production
-make web-dev      # Start web development server with hot reload
-make sv           # Start NotifyHub server on port 9080
-make cli          # Send test notification to server
-make test         # Run backend test suite
-make test-ui      # Run UI tests with Playwright
-make test-ui-debug # Run UI tests in debug mode (headed)
-make test-chrome  # Test Chrome remote debugging connection
-make test-all     # Run all tests (backend + UI)
-make test-bg      # Build web assets and start server in background for testing
-make clean        # Cleanup background processes
-```
-
----
-
-
-
-## 1. Overview
-NotifyHub is a lightweight notification system consisting of a server with a web dashboard and a CLI client for pushing notifications. The system enables users to send notifications from command-line tools or scripts and view them in real-time through a web interface.
-
----
-
-## 2. System Components
-
-### 2.1 NotifyHub Server (`notifyhub-server`)
-A server application that:
-- Hosts a web-based dashboard UI
-- Receives and stores notification messages
-- Pushes notifications to connected clients in real-time
-- Configurable port binding
-
-### 2.2 NotifyHub CLI Client (`notifyhub-push`)
-A command-line tool that:
-- Sends notification messages to the server
-- Connects to a specified server port
-- Simple one-line command interface
-
----
-
-## 3. Functional Requirements
-
-### 3.1 Server Requirements
-
-#### 3.1.1 Command-Line Interface
-```bash
-notifyhub-server --port <PORT_NUMBER>
-# Or use Makefile: make sv
-```
-- **Default port**: 9080 (if not specified)
-- **Example**: `notifyhub-server --port 9080` or `make sv`
-
-#### 3.1.2 Web Dashboard
-- **Access URL**: `http://localhost:<PORT>`
-- **Features**:
-- Display all notifications in a list format
-- Sort notifications from newest to oldest (descending order)
-- Auto-refresh when new notifications arrive
-- Play notification sound when new message received
-- Clean, minimal UI design
-
-#### 3.1.3 Real-time Notifications
-- Use Server-Sent Events (SSE) for real-time updates
-- Instant notification delivery (< 100ms latency)
-- Audio notification on new message arrival
-
-#### 3.1.4 Data Storage
-- Store notifications in memory (or optionally persist to file/database)
-- Each notification should include:
-- Message content (string)
-- Timestamp (when received)
-- Unique ID
-
-### 3.2 CLI Client Requirements
-
-#### 3.2.1 Command-Line Interface
-```bash
-notifyhub-push --port <PORT_NUMBER> "<MESSAGE>"
-# Or use Makefile: make cli
-```
-- **Required parameters**:
-  - `--port`: Server port number
-  - `<MESSAGE>`: Notification message (string)
-- **Example**: `notifyhub-push --port 9080 "Agent is done"` or `make cli`
-
-#### 3.2.2 Behavior
-- Send HTTP POST request to server with message
-- Exit immediately after sending
-- Return appropriate exit codes (0 for success, non-zero for failure)
-- Display error message if server is unreachable
-
----
-
-## 4. Technical Specifications
-
-### 4.1 Communication Protocol
-- **Server API Endpoint**: `POST /api/notify`
-- **Request Body** (JSON):
-```json
-{
-  "message": "Agent is done",
-  "timestamp": "2025-12-15T18:16:00Z"
-}
-```
-- **Response** (JSON):
-```json
-{
-  "success": true,
-  "id": "notification-uuid"
-}
-```
-
-### 4.2 Server-Sent Events (SSE) for Real-time Updates
-- **Endpoint**: `GET /events` (SSE stream)
-- Push new notifications to all connected clients immediately
-- Automatic browser reconnection on connection loss
-
-### 4.3 Notification Sound
-- Use browser-compatible audio format (MP3/WAV/OGG)
-- Short, non-intrusive notification sound (1-4 seconds)
-- Option to mute/unmute in UI (optional enhancement)
-
----
-
-## 5. User Interface Design
-
-### 5.1 Dashboard Layout
-
-```mermaid
-graph TB
-  subgraph Dashboard["NotifyHub Dashboard"]
-      Header["<b>NotifyHub Dashboard</b><br/>🔔 Notifications"]
-
-      subgraph NotificationList["Notification List"]
-          N1["🔔 <b>Agent is done</b><br/>📅 2025-12-15 18:16:45"]
-          N2["🔔 <b>Build completed successfully</b><br/>📅 2025-12-15 18:10:22"]
-          N3["🔔 <b>Task started</b><br/>📅 2025-12-15 18:05:10"]
-      end
-
-      Header --> NotificationList
-  end
-
-  style Dashboard fill:#f9f9f9,stroke:#333,stroke-width:2px
-  style Header fill:#4a90e2,stroke:#333,stroke-width:2px,color:#fff
-  style NotificationList fill:#fff,stroke:#ddd,stroke-width:1px
-  style N1 fill:#e8f4f8,stroke:#4a90e2,stroke-width:2px
-  style N2 fill:#f0f0f0,stroke:#999,stroke-width:1px
-  style N3 fill:#f0f0f0,stroke:#999,stroke-width:1px
-```
-
-### 5.2 System Architecture
+### Architecture Diagram
 
 ```mermaid
 graph LR
-  CLI[notifyhub-push CLI]
-  Server[NotifyHub Server<br/>Port 9080]
-  WebUI[Web Dashboard]
-  Browser[Browser Client]
+    subgraph Client
+        Browser[Web Browser]
+    end
 
-  CLI -->|POST /api/notify| Server
-  Browser -->|SSE<br/>GET /events| Server
-  Server -->|Serve HTML/JS| WebUI
-  Browser -->|Opens| WebUI
+    subgraph "Frontend (Port 9070 Dev / 9080 Prod)"
+        React[React App]
+        Puck[Puck Page Builder]
+        Tailwind[Tailwind CSS]
+    end
 
-  style CLI fill:#90EE90,stroke:#333,stroke-width:2px
-  style Server fill:#FFD700,stroke:#333,stroke-width:2px
-  style WebUI fill:#87CEEB,stroke:#333,stroke-width:2px
-  style Browser fill:#DDA0DD,stroke:#333,stroke-width:2px
+    subgraph "Backend (Port 9080)"
+        FastAPI[FastAPI Server]
+        API[REST API]
+        SSE[SSE Stream]
+    end
+
+    Browser --> React
+    React -- HTTP Proxy --> API
+    React -- EventStream --> SSE
+
 ```
 
-### 5.3 UI Elements
-- **Header**: Application title and icon
-- **Notification Cards**: Each showing:
-- Bell icon
-- Message text
-- Timestamp (formatted: YYYY-MM-DD HH:MM:SS)
-- **Styling**: Clean, modern, responsive design
-- **Empty State**: "No notifications yet" when list is empty
+### Technology Stack
+
+| Layer        | Technology                 | Role                                  |
+| ------------ | -------------------------- | ------------------------------------- |
+| **Backend**  | **Python + FastAPI**       | Server, REST API, Static File Serving |
+| **Frontend** | **React + Puck**           | UI & Page Builder                     |
+| **Styling**  | **Bootstrap 5 + Tailwind** | Responsive Design                     |
+| **Build**    | **Bun + Vite**             | Package Management & Bundling         |
+| **Testing**  | **pytest + Playwright**    | Backend Unit Tests & E2E UI Tests     |
 
 ---
 
-## 6. Non-Functional Requirements
+## 2. Installation & Setup
 
-### 6.1 Performance
-- Support at least 1000 notifications in memory
-- Real-time notification delivery < 100ms (via SSE)
-- Dashboard loads in < 1 second
+### Prerequisites
 
-### 6.2 Reliability
-- Server should handle multiple concurrent connections
-- Graceful error handling for network issues
-- Auto-reconnect for SSE connection loss
+* Python 3.x
+* Bun (JavaScript runtime/package manager)
 
-### 6.3 Usability
-- Simple command-line interface
-- No configuration files required for basic usage
-- Works out-of-the-box with default settings
+### Initial Install
 
-### 6.4 Compatibility
-- Cross-platform support (Windows, macOS, Linux)
-- Modern browser support (Chrome, Firefox, Safari, Edge)
-
----
-
-## 7. Future Enhancements (Optional)
-
-- [ ] Notification categories/tags
-- [ ] Filter and search notifications
-- [ ] Persistent storage (SQLite/PostgreSQL)
-- [ ] Multiple notification channels
-- [ ] Authentication and multi-user support
-- [ ] Notification history with pagination
-- [ ] Custom notification sounds
-- [ ] Desktop notifications (browser API)
-- [ ] REST API for querying notifications
-- [ ] Configuration file support
-- [ ] Docker container deployment
-
----
-
-## 8. Example Usage Workflow
+Run the following to set up both backend and frontend dependencies:
 
 ```bash
-# Terminal 1: Start the server
-$ make sv
-NotifyHub Server started on http://localhost:9080
-SSE endpoint available at /events
+# Install backend dependencies (editable mode)
+pip install -e .
 
-# Terminal 2: Send notifications
-$ notifyhub-push --port 9080 "Build started"
-✓ Notification sent successfully
+# Install frontend dependencies
+cd web && bun install
 
-$ notifyhub-push --port 9080 "Tests passed"
-✓ Notification sent successfully
+# (Optional) Build web assets immediately
+make frontend
 
-$ notifyhub-push --port 9080 "Deployment complete"
-✓ Notification sent successfully
-
-# Browser: Open http://localhost:9080
-# See notifications appear instantly with sound alerts
 ```
+
+### OpenCode Plugin Installation (Optional)
+
+To integrate NotifyHub with OpenCode, you can install the NotifyHub plugin:
+
+```bash
+# Install the plugin
+make install-plugin
+
+# Remove the plugin (if needed)
+make remove-plugin
+```
+
+This copies the plugin file from `chat_plugins/opencode/notifyhub-plugin.ts` to `~/.config/opencode/plugin/` and enables NotifyHub notifications in OpenCode.
 
 ---
 
-## 9. Success Criteria
+## 3. Development Workflow
 
-The application is considered complete when:
-1. ✅ Server starts successfully on specified port
-2. ✅ Web dashboard is accessible and displays notifications
-3. ✅ CLI client can send messages to server
-4. ✅ Notifications appear instantly (< 100ms) without refresh
-5. ✅ Notification sound plays on new messages
-6. ✅ Notifications are sorted newest to oldest
-7. ✅ System works across different platforms
+For active development, run the backend and frontend in separate terminals to enable hot-reloading.
+
+### Development Diagram
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Term1 as Terminal 1 (Backend)
+    participant Term2 as Terminal 2 (Frontend)
+    participant Browser
+
+     Dev->>Term1: make backend
+     Note right of Term1: Runs FastAPI on :9080
+     Dev->>Term2: make frontend-dev
+     Note right of Term2: Runs Vite on :9070<br/>Proxies API calls to :9080
+
+    Browser->>Term2: Access http://localhost:9070
+    Term2->>Term1: Proxy API/SSE requests
+    Term1-->>Browser: Response
+
+```
+
+### Why the Proxy is Needed
+
+In development, frontend runs on port 9070 and backend on port 9080. Since browsers block requests between different ports (CORS), the Vite dev server acts as a proxy—intercepting API calls from the browser, forwarding them to the backend on port 9080, and returning the response. The browser only sees port 9070, avoiding CORS issues.
+
+**Setup:**
+
+| Environment | Frontend | Backend | Proxy Needed? |
+| ----------- | -------- | ------- | ------------- |
+| Development | `:9070`  | `:9080` | Yes |
+| Production  | `:9080`  | `:9080` | No (served together) |
+
+**Development flow:**
+```
+Browser → Frontend (:9070) → Proxy → Backend (:9080)
+```
+
+**Benefits:**
+- No CORS configuration needed on backend
+- Frontend hot-reloading enabled
+- Clean separation of concerns
+
+### Commands
+
+**Terminal 1: Start Backend**
+
+```bash
+make backend
+# Serves on http://localhost:9080
+
+```
+
+**Terminal 2: Start Frontend (Hot-Reload)**
+
+```bash
+make frontend-dev
+# Serves on http://localhost:9070 (Proxies to backend)
+
+```
+
+> **Note:** Access the UI at **`http://localhost:9070`** for development.
+
+---
+
+## 4. Production Usage
+
+To run the application as it would appear in production (serving built static assets via FastAPI):
+
+1. **Build Assets:**
+```bash
+make frontend
+
+```
+
+
+2. **Start Server:**
+```bash
+make backend
+
+```
+
+
+3. **Access:**
+Open **`http://localhost:9080`**. (Default: Dark Theme).
+4. **Send Test Notification (CLI):**
+```bash
+make noti
+
+```
+
+
+
+---
+
+## 5. Testing Strategy
+
+NotifyHub uses a combination of `pytest` for the backend and `Playwright` for frontend UI testing.
+
+### Test Architecture (Page Object Model)
+
+```mermaid
+classDiagram
+    class BasePage {
+        +page: Page
+        +goto()
+        +wait()
+    }
+    class AppPage {
+        +navigate_global()
+        +check_status()
+    }
+    class NotificationPage {
+        +send_notification()
+        +verify_alert()
+    }
+    class SpecFile {
+        +test_send_notification()
+    }
+
+    BasePage <|-- AppPage
+    BasePage <|-- NotificationPage
+    SpecFile --> NotificationPage : Uses
+
+```
+
+### 5.1 UI Test Setup
+
+Before running UI tests, ensure Playwright browsers are installed:
+
+```bash
+# Install NPM dependencies
+npm install
+cd web && bun install
+
+# Install Playwright browsers
+npx playwright install
+
+```
+
+### 5.2 Running Tests
+
+You can run tests via standard NPM commands or the provided Makefile shortcuts.
+
+| Scope          | Command              | Description                        |
+| -------------- | -------------------- | ---------------------------------- |
+| **Backend**    | `make test-backend`  | Run pytest (backend only)          |
+| **UI**         | `make test-frontend` | Run Playwright tests (headed)      |
+| **Connection** | `make test-chrome`   | Test Chrome CDP connection utility |
+| **All**        | `make test-all`      | Run entire test suite              |
+
+### 5.3 Test Organization
+
+The project follows the Page Object Model (POM) design pattern:
+
+```text
+tests/ui/
+├── pages/                  # Page Object Model classes
+│   ├── AppPage.ts          # App-wide interactions
+│   ├── BasePage.ts         # Base class with common methods
+│   └── NotificationPage.ts # Notification-specific actions
+├── specs/                  # Test specifications
+│   └── notification.spec.ts
+├── utils/                  # Helper utilities
+│   └── test_chrome_connection.ts
+└── tsconfig.json           # TypeScript configuration
+
+```
+
+### 5.4 Chrome Remote Debugging (CDP)
+
+Tests can connect to an existing Chrome instance via the Chrome DevTools Protocol (CDP). This requires launching Chrome with specific flags.
+
+**macOS:**
+
+```bash
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --user-data-dir=/tmp/chrome-debug
+```
+
+**Linux:**
+
+```bash
+google-chrome --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --user-data-dir=/tmp/chrome-debug
+```
