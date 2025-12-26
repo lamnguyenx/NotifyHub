@@ -22,7 +22,7 @@
 
 ## 1. System Overview & Tech Stack
 
-NotifyHub is a single-page application consisting of a Python FastAPI backend and a React frontend. The application uses Server-Sent Events (SSE) for real-time updates and includes a page builder via Puck.
+NotifyHub is a single-page application consisting of a Python FastAPI backend and a React frontend. The application uses Server-Sent Events (SSE) for real-time updates, includes a page builder via Puck, and features audio notifications with autoplay handling.
 
 ### Architecture Diagram
 
@@ -77,8 +77,8 @@ Run the following to set up both backend and frontend dependencies:
 # Install backend dependencies (editable mode)
 pip install -e .
 
-# Install frontend dependencies
-cd web && bun install
+# Install frontend dependencies (includes testing tools)
+make frontend-deps
 
 # (Optional) Build web assets immediately
 make frontend
@@ -234,9 +234,8 @@ classDiagram
 Before running UI tests, ensure Playwright browsers are installed:
 
 ```bash
-# Install NPM dependencies
-npm install
-cd web && bun install
+# Install dependencies
+cd notifyhub/frontend && bun install
 
 # Install Playwright browsers
 npx playwright install
@@ -259,7 +258,7 @@ You can run tests via standard NPM commands or the provided Makefile shortcuts.
 The project follows the Page Object Model (POM) design pattern:
 
 ```text
-tests/ui/
+notifyhub/frontend/tests/ui/
 ├── pages/                  # Page Object Model classes
 │   ├── AppPage.ts          # App-wide interactions
 │   ├── BasePage.ts         # Base class with common methods
@@ -269,6 +268,11 @@ tests/ui/
 ├── utils/                  # Helper utilities
 │   └── test_chrome_connection.ts
 └── tsconfig.json           # TypeScript configuration
+
+notifyhub/backend/tests/
+├── test_cli.py             # CLI tests
+├── test_models.py          # Model tests
+└── test_server.py         # Server tests
 
 ```
 

@@ -123,8 +123,8 @@ app.add_middleware(
 )
 
 # Static files and templates setup
-app.mount("/static", StaticFiles(directory="web/static"), name="static")
-templates = Jinja2Templates(directory="web/templates")
+app.mount("/static", StaticFiles(directory="notifyhub/frontend/static"), name="static")
+templates = Jinja2Templates(directory="notifyhub/frontend/templates")
 
 @app.post("/api/notify")
 async def notify(message: str):
@@ -165,11 +165,11 @@ Build the Vue.js frontend with real-time polling, notification display, and basi
 ### Changes Required:
 
 #### 1. Vue.js Setup
-**File**: `web/package.json`, `web/src/`
+**File**: `notifyhub/frontend/package.json`, `notifyhub/frontend/src/`
 **Changes**: Create Vue.js project with Bootstrap and polling logic
 
 ```json
-// web/package.json
+// notifyhub/frontend/package.json
 {
   "name": "notifyhub-web",
   "scripts": {
@@ -188,7 +188,7 @@ Build the Vue.js frontend with real-time polling, notification display, and basi
 ```
 
 #### 2. Vue Components
-**File**: `web/src/App.vue`
+**File**: `notifyhub/frontend/src/App.vue`
 **Changes**: Create notification list component with polling, clear all functionality, and animations
 
 ```vue
@@ -303,7 +303,7 @@ export default {
 
 ```python
 # Update static file mounting to serve built Vue files
-app.mount("/static", StaticFiles(directory="web/dist/static"), name="static")
+app.mount("/static", StaticFiles(directory="notifyhub/frontend/dist/static"), name="static")
 ```
 
 ### Success Criteria:
@@ -405,7 +405,7 @@ Add notification sounds (implemented in Phase 2), improve UX with animations and
 
 #### 1. Audio Integration
 **Status**: ✅ Implemented in Phase 2
-**File**: `web/src/App.vue`
+**File**: `notifyhub/frontend/src/App.vue`
 **Changes**: Audio notifications are now integrated with notification polling
 
 #### 2. Real-time Improvements
@@ -423,17 +423,17 @@ async def get_notifications():
 
 #### 3. Enhanced Error Handling
 **Status**: ✅ Implemented in Phase 2
-**File**: `web/src/App.vue`
+**File**: `notifyhub/frontend/src/App.vue`
 **Changes**: Connection error states and retry logic implemented
 
 #### 4. Notification Animations
 **Status**: ✅ Implemented in Phase 2
-**File**: `web/src/App.vue`
+**File**: `notifyhub/frontend/src/App.vue`
 **Changes**: Popping animations added for new notifications
 
 #### 5. Clear All Functionality
 **Status**: ✅ Implemented in Phase 2 + Server sync added
-**Files**: `web/src/App.vue`, `notifyhub/server.py`, `notifyhub/models.py`
+**Files**: `notifyhub/frontend/src/App.vue`, `notifyhub/server.py`, `notifyhub/models.py`
 **Changes**:
 - Added DELETE `/api/notifications` endpoint to clear all notifications server-side
 - Added `clear_all()` method to NotificationStore
@@ -443,7 +443,7 @@ async def get_notifications():
 ### Success Criteria:
 
 #### Automated Verification:
-- [ ] Audio file exists: `ls web/static/audio/Submarine.mp3`
+- [ ] Audio file exists: `ls notifyhub/frontend/static/audio/Submarine.mp3`
 - [ ] Error handling works: Disconnect server, check UI shows error state
 
 #### Manual Verification:

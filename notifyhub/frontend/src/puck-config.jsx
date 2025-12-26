@@ -47,6 +47,27 @@ export const config = {
         ) : null
       )
     },
+    AudioStatus: {
+      fields: {
+        showBanner: {
+          type: "radio",
+          options: [
+            { label: "Show", value: true },
+            { label: "Hide", value: false }
+          ]
+        }
+      },
+      defaultProps: {
+        showBanner: true
+      },
+      render: ({ showBanner, audioBlocked }) => (
+        showBanner && audioBlocked ? (
+          <div className="alert alert-info mb-3 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-700">
+            🔊 Audio notifications are muted. Click anywhere on the page to enable them.
+          </div>
+        ) : null
+      )
+    },
     NotificationList: {
       fields: {
         cardStyle: {

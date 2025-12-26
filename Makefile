@@ -1,19 +1,25 @@
-.PHONY: backend frontend frontend-dev noti chrome test-all test-chrome test-backend test-ui test-ui-debug install-plugin remove-plugin test-bg clean
+.PHONY: backend frontend frontend-dev frontend-deps noti chrome test-all test-chrome test-backend test-ui test-ui-debug install-plugin remove-plugin test-bg clean
+
+# -----------------------------------
+#            Dependencies
+# -----------------------------------
+frontend-deps:
+	cd notifyhub/frontend && bun install
 
 # -----------------------------------
 #            Production
 # -----------------------------------
 backend:
-	python -m notifyhub.server --port 9080
+	python -m notifyhub.backend.backend --port 9080
 
 frontend:
-	cd web && bun run build
+	cd notifyhub/frontend && bun run build
 
 # -----------------------------------
 #            Development
 # -----------------------------------
 frontend-dev:
-	cd web && bun run dev
+	cd notifyhub/frontend && bun run dev
 
 noti:
 	python -m notifyhub.cli --port 9080 "Hello"
@@ -27,13 +33,13 @@ chrome:
 test-all: test-chrome test-backend test-frontend
 
 test-chrome:
-	npx tsx tests/ui/utils/test_chrome_connection.ts
+	cd notifyhub/frontend && npx tsx tests/ui/utils/test_chrome_connection.ts
 
 test-backend:
-	python -m pytest tests/ -v
+	python -m pytest notifyhub/backend/tests/ -v
 
 test-frontend:
-	export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
+	cd notifyhub/frontend && export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
 
 # -----------------------------------
 #        Plugin Management

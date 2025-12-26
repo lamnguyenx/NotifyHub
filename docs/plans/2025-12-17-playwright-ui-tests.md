@@ -13,7 +13,7 @@ Implement automated web UI tests using Playwright with Chrome remote debugging s
 ## Current State Analysis
 
 NotifyHub has a React/Vite web UI with:
-- Real-time SSE notifications with audio playback (`web/src/App.jsx`)
+- Real-time SSE notifications with audio playback (`notifyhub/frontend/src/App.jsx`)
 - Puck-based customizable layouts for dashboard components with visual editor
 - Key components: NotificationList (display/clear), ConnectionStatus (error handling), Header
 - Simple user interactions: edit mode toggle, clear all notifications button
@@ -63,7 +63,7 @@ Use Chrome DevTools Protocol (CDP) connections for reliable testing:
 ### Codebase Research Requirements
 
 Before implementing tests, examine:
-- Web UI components (`web/src/`) to understand DOM structure and CSS classes
+- Web UI components (`notifyhub/frontend/src/`) to understand DOM structure and CSS classes
 - Existing HTML elements and their selectors
 - Component state and user interactions
 - Text content and dynamic elements
@@ -199,7 +199,7 @@ tests/ui/
 #### 3. App Page Object
 **File**: `tests/ui/pages/AppPage.ts`
 **Requirements**: Page object for main application interactions
-- **RESEARCH REQUIRED**: Examine `web/src/App.jsx` to find actual edit toggle button selector
+- **RESEARCH REQUIRED**: Examine `notifyhub/frontend/src/App.jsx` to find actual edit toggle button selector
 - **RESEARCH REQUIRED**: Examine connection status component in puck-config.jsx
 - Implement methods for:
   - Toggling edit mode (find actual button using text/CSS classes)
@@ -232,7 +232,7 @@ Implement tests for core notification functionality using debugging capabilities
 #### 1. Notification Page Object
 **File**: `tests/ui/pages/NotificationPage.ts`
 **Requirements**: Complete page object for notification interactions
-- **RESEARCH REQUIRED**: Examine `web/src/puck-config.jsx` NotificationList component to find:
+- **RESEARCH REQUIRED**: Examine `notifyhub/frontend/src/puck-config.jsx` NotificationList component to find:
   - Actual CSS classes for notification cards (likely '.card.mb-2' or similar)
   - Clear all button selector (likely '.btn.btn-outline-danger.btn-sm' with text "Clear All")
   - How to count notifications (use locator.count() on notification container)
@@ -493,7 +493,7 @@ For complex implementations:
 ## References
 
 - Issue requirements: `docs/issues/2025-12-17-automate-web-ui-tests-with-playwright.md`
-- Web UI components: `web/src/App.jsx`, `web/src/puck-config.jsx`
+- Web UI components: `notifyhub/frontend/src/App.jsx`, `notifyhub/frontend/src/puck-config.jsx`
 - UI test implementation: `tests/ui/` (TypeScript with error detection)
 - Existing test patterns: `tests/test_*.py`
 

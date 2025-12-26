@@ -1,14 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
-from notifyhub.server import app
-from notifyhub.models import NotificationStore
-import notifyhub.server
+from notifyhub.backend.backend import app
+from notifyhub.backend.models import NotificationStore
+import notifyhub.backend.backend as backend
 
 
 @pytest.fixture(autouse=True)
 def reset_store():
     # Reset the global store before each test
-    notifyhub.server.store = NotificationStore()
+    backend.store = NotificationStore()
 
 
 @pytest.fixture
@@ -40,8 +40,8 @@ class TestNotifyAPI:
         assert response.status_code == 200
 
         # Check that notification was stored
-        assert len(notifyhub.server.store.notifications) == 1
-        assert notifyhub.server.store.notifications[0].message == message
+        assert len(backend.store.notifications) == 1
+        assert backend.store.notifications[0].message == message
     
     def test_notify_post_multiple_notifications(self, client):
         # Send multiple notifications
@@ -50,10 +50,10 @@ class TestNotifyAPI:
         client.post("/api/notify", json={"message": "Third"})
 
         # Check they are stored in correct order (newest first)
-        assert len(notifyhub.server.store.notifications) == 3
-        assert notifyhub.server.store.notifications[0].message == "Third"
-        assert notifyhub.server.store.notifications[1].message == "Second"
-        assert notifyhub.server.store.notifications[2].message == "First"
+        assert len(backend.store.notifications) == 3
+        assert backend.store.notifications[0].message == "Third"
+        assert backend.store.notifications[1].message == "Second"
+        assert backend.store.notifications[2].message == "First"
 
 
 class TestNotificationsAPI:
@@ -103,9 +103,9 @@ class TestRootEndpoint:
         assert "text/html" in response.headers["content-type"]
         assert "NotifyHub" in response.text
     
-    def test_root_serves_vue_app(self, client):
+    def test_root_serves_react_app(self, client):
         response = client.get("/")
-        
-        # Should contain the Vue app mounting point
-        assert '<div id="app">' in response.text
+
+        # Should contain the React app mounting point
+        assert '<div id="root"></div>' in response.text
         assert '<script src="/static/app.js"></script>' in response.text

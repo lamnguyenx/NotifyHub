@@ -8,11 +8,39 @@ function App() {
   const [eventSource, setEventSource] = useState(null);
   const audioRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [audioBlocked, setAudioBlocked] = useState(false);
+
+  // Enable audio on user interaction
+  useEffect(() => {
+    if (audioBlocked) {
+      const enableAudio = () => {
+        if (audioRef.current) {
+          audioRef.current.play().then(() => {
+            setAudioBlocked(false);
+            document.removeEventListener('click', enableAudio);
+          }).catch(() => {
+            // Still blocked, keep listening
+          });
+        }
+      };
+      document.addEventListener('click', enableAudio);
+      return () => document.removeEventListener('click', enableAudio);
+    }
+  }, [audioBlocked]);
+
+  // Update page title based on audio status
+  useEffect(() => {
+    document.title = audioBlocked ? "NotifyHub | Muted. Please click to enable audio notifications" : "🔔 NotifyHub";
+  }, [audioBlocked]);
   const [puckData, setPuckData] = useState({
     content: [
       {
         type: "Header",
         props: { id: "header", title: "🔔 NotifyHub", showBell: true }
+      },
+      {
+        type: "AudioStatus",
+        props: { id: "audio", showBanner: true }
       },
       {
         type: "ConnectionStatus",
@@ -33,7 +61,7 @@ function App() {
   // Audio setup
   useEffect(() => {
     audioRef.current = new Audio('/static/audio/Submarine.mp3');
-    audioRef.current.volume = 0.3;
+    audioRef.current.volume = 0.5;
     audioRef.current.load();
   }, []);
 
@@ -49,16 +77,29 @@ function App() {
 
     es.addEventListener('init', (event) => {
       const initData = JSON.parse(event.data);
-      setNotifications(initData);
+      // Filter out any potential duplicates by ID
+      const uniqueNotifications = initData.filter((n, index, arr) =>
+        arr.findIndex(x => x.id === n.id) === index
+      );
+      setNotifications(uniqueNotifications);
       setConnectionError(false);
     });
 
     es.addEventListener('notification', (event) => {
       const notification = JSON.parse(event.data);
-      setNotifications(prev => [notification, ...prev]);
+      setNotifications(prev => {
+        // Prevent duplicate notifications by checking existing IDs
+        if (prev.some(n => n.id === notification.id)) {
+          return prev;
+        }
+        return [notification, ...prev];
+      });
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+        audioRef.current.play().catch(e => {
+          console.log('Audio play failed:', e);
+          setAudioBlocked(true);
+        });
       }
       setConnectionError(false);
     });
@@ -153,6 +194,10 @@ function App() {
               Header: {
                 ...config.components.Header,
                 render: (props) => config.components.Header.render({ ...props, connectionError })
+              },
+              AudioStatus: {
+                ...config.components.AudioStatus,
+                render: (props) => config.components.AudioStatus.render({ ...props, audioBlocked })
               },
               ConnectionStatus: {
                 ...config.components.ConnectionStatus,

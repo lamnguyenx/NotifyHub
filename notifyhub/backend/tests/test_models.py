@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from notifyhub.models import Notification, NotificationStore
+from notifyhub.backend.models import Notification, NotificationStore
 
 
 class TestNotification:

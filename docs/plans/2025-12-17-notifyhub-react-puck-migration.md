@@ -54,7 +54,7 @@ Install React dependencies, configure Puck, set up Tailwind CSS, and update buil
 ### Changes Required:
 
 #### 1. Package Dependencies
-**File**: `web/package.json`
+**File**: `notifyhub/frontend/package.json`
 **Changes**: Replace Vue dependencies with React, add Puck and Tailwind.
 
 ```json
@@ -74,7 +74,7 @@ Install React dependencies, configure Puck, set up Tailwind CSS, and update buil
 ```
 
 #### 2. Vite Configuration
-**File**: `web/vite.config.js`
+**File**: `notifyhub/frontend/vite.config.js`
 **Changes**: Replace Vue plugin with React plugin.
 
 ```js
@@ -98,7 +98,7 @@ export default defineConfig({
 ```
 
 #### 3. Tailwind Configuration
-**File**: `web/tailwind.config.js` (new)
+**File**: `notifyhub/frontend/tailwind.config.js` (new)
 **Changes**: Basic Tailwind setup for Puck compatibility.
 
 ```js
@@ -113,7 +113,7 @@ export default {
 ```
 
 #### 4. PostCSS Configuration
-**File**: `web/postcss.config.js` (new)
+**File**: `notifyhub/frontend/postcss.config.js` (new)
 **Changes**: Enable Tailwind processing.
 
 ```js
@@ -126,7 +126,7 @@ export default {
 ```
 
 #### 5. Main Entry Point
-**File**: `web/src/main.jsx` (renamed from main.js)
+**File**: `notifyhub/frontend/src/main.jsx` (renamed from main.js)
 **Changes**: React app initialization.
 
 ```jsx
@@ -143,7 +143,7 @@ ReactDOM.createRoot(document.getElementById('app')).render(
 ```
 
 #### 6. Global Styles
-**File**: `web/src/index.css` (new)
+**File**: `notifyhub/frontend/src/index.css` (new)
 **Changes**: Tailwind directives and Puck styles.
 
 ```css
@@ -179,7 +179,7 @@ Convert Vue components to React with Puck configurations for editability. Create
 ### Changes Required:
 
 #### 1. Puck Configuration
-**File**: `web/src/puck-config.js` (new)
+**File**: `notifyhub/frontend/src/puck-config.js` (new)
 **Changes**: Define editable components with fields and render functions.
 
 ```js
@@ -305,7 +305,7 @@ export const config = {
 ```
 
 #### 2. Root Puck Component
-**File**: `web/src/App.jsx` (renamed from App.vue)
+**File**: `notifyhub/frontend/src/App.jsx` (renamed from App.vue)
 **Changes**: Main app with Puck integration and state management.
 
 ```jsx
@@ -344,7 +344,7 @@ function App() {
   // Audio setup
   useEffect(() => {
     audioRef.current = new Audio('/static/audio/Submarine.mp3');
-    audioRef.current.volume = 0.3;
+    audioRef.current.volume = 0.5;
     audioRef.current.load();
   }, []);
 
@@ -507,20 +507,20 @@ Ensure SSE connection, audio playback, and state management work correctly in th
 ### Changes Required:
 
 #### 1. Audio Preloading and Playback
-**File**: `web/src/App.jsx`
+**File**: `notifyhub/frontend/src/App.jsx`
 **Changes**: Verified audio setup in useEffect.
 
 ```jsx
 // Already implemented in Phase 2
 useEffect(() => {
   audioRef.current = new Audio('/static/audio/Submarine.mp3');
-  audioRef.current.volume = 0.3;
+  audioRef.current.volume = 0.5;
   audioRef.current.load();
 }, []);
 ```
 
 #### 2. SSE Connection Management
-**File**: `web/src/App.jsx`
+**File**: `notifyhub/frontend/src/App.jsx`
 **Changes**: Verified SSE logic in useEffect and event handlers.
 
 ```jsx
@@ -528,7 +528,7 @@ useEffect(() => {
 ```
 
 #### 3. State Synchronization
-**File**: `web/src/App.jsx`
+**File**: `notifyhub/frontend/src/App.jsx`
 **Changes**: Verified state updates for notifications and connection status.
 
 ```jsx
@@ -559,7 +559,7 @@ Add toggle between edit and live modes, implement data persistence, and ensure e
 ### Changes Required:
 
 #### 1. Edit Mode Toggle
-**File**: `web/src/App.jsx`
+**File**: `notifyhub/frontend/src/App.jsx`
 **Changes**: Add button to switch between edit and render modes.
 
 ```jsx
@@ -575,7 +575,7 @@ Add toggle between edit and live modes, implement data persistence, and ensure e
 ```
 
 #### 2. Data Persistence
-**File**: `web/src/App.jsx`
+**File**: `notifyhub/frontend/src/App.jsx`
 **Changes**: Save/load Puck data from localStorage (placeholder for API integration).
 
 ```jsx
@@ -606,7 +606,7 @@ Run comprehensive tests to ensure all functionality is preserved and Puck integr
 ### Changes Required:
 
 #### 1. Update Test Scripts
-**File**: `web/package.json`
+**File**: `notifyhub/frontend/package.json`
 **Changes**: Add test scripts if needed.
 
 ```json
@@ -670,5 +670,5 @@ Run comprehensive tests to ensure all functionality is preserved and Puck integr
 - Puck documentation: https://puckeditor.com/docs
 - Puck demo: https://demo.puckeditor.com/edit
 - Tailwind CSS: https://tailwindcss.com/docs
-- Original Vue implementation: web/src/App.vue</content>
+- Original Vue implementation: notifyhub/frontend/src/App.vue</content>
 <parameter name="filePath">docs/plans/2025-12-17-notifyhub-react-puck-migration.md

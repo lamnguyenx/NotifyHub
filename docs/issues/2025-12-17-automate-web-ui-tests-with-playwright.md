@@ -37,7 +37,7 @@ The current web UI lacks automated testing, leading to potential unnoticed bugs 
 ### Technical Notes
 - Store tests in `tests/` directory following existing patterns
 - Use Page Object pattern for test organization
-- Use the web/ directory as the test environment
+- Use the notifyhub/frontend/ directory as the test environment
 - Use TypeScript for writing tests
 - Use Chrome DevTools Protocol (CDP) for connecting to existing Chrome instances - do not auto-launch browsers
 

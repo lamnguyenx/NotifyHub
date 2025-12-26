@@ -26,5 +26,5 @@ test = [
 include = ["notifyhub*"]
 
 [project.scripts]
-notifyhub-server = "notifyhub.server:main"
+notifyhub-server = "notifyhub.backend.backend:main"
 notifyhub-push = "notifyhub.cli:main"

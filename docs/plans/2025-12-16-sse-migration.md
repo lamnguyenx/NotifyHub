@@ -224,7 +224,7 @@ Replace HTTP polling with EventSource SSE connection in the Vue.js frontend.
 ### Changes Required:
 
 #### 1. Vue.js SSE Integration
-**File**: `web/src/App.vue`
+**File**: `notifyhub/frontend/src/App.vue`
 **Changes**: Replace polling with EventSource for real-time updates
 
 ```vue
@@ -334,7 +334,7 @@ export default {
 ```
 
 #### 2. Remove Polling Logic
-**File**: `web/src/App.vue`
+**File**: `notifyhub/frontend/src/App.vue`
 **Changes**: Remove the old polling code and interval
 
 ```javascript
@@ -373,7 +373,7 @@ Add fallback mechanisms and improve error handling for production readiness.
 ### Changes Required:
 
 #### 1. Graceful Fallback to Polling
-**File**: `web/src/App.vue`
+**File**: `notifyhub/frontend/src/App.vue`
 **Changes**: Add polling fallback when SSE fails
 
 ```javascript
@@ -409,7 +409,7 @@ methods: {
 ```
 
 #### 2. Connection Health Monitoring
-**File**: `web/src/App.vue`
+**File**: `notifyhub/frontend/src/App.vue`
 **Changes**: Add heartbeat monitoring for connection health
 
 ```javascript

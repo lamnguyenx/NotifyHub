@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -6,7 +6,6 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from contextlib import asynccontextmanager
-import uvicorn
 from uvicorn import Config, Server
 import argparse
 import asyncio
@@ -71,8 +70,8 @@ app.add_middleware(
 )
 
 # Static files and templates setup
-app.mount("/static", StaticFiles(directory="web/static"), name="static")
-templates = Jinja2Templates(directory="web/templates")
+app.mount("/static", StaticFiles(directory="notifyhub/frontend/static"), name="static")
+templates = Jinja2Templates(directory="notifyhub/frontend/templates")
 
 @app.post("/api/notify")
 async def notify(request: NotifyRequest):
@@ -135,8 +134,8 @@ async def events():
     return EventSourceResponse(event_generator())
 
 @app.get("/", response_class=HTMLResponse)
-async def root():
-    return templates.TemplateResponse("index.html", {"request": {}})
+async def root(request: Request):
+    return templates.TemplateResponse(request, "index.fastapi.html")
 
 def main():
     parser = argparse.ArgumentParser(description='Start NotifyHub server')

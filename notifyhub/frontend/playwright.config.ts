@@ -1,7 +1,7 @@
 import { defineConfig, PlaywrightTestConfig } from '@playwright/test';
 
 const config: PlaywrightTestConfig = {
-  testDir: 'tests/ui',
+  testDir: './tests/ui',
   timeout: 30000,
   expect: {
     timeout: 2000,
@@ -12,7 +12,7 @@ const config: PlaywrightTestConfig = {
     baseURL: process.env.BASE_URL || 'http://localhost:9080',
   },
   // webServer: {
-  //   command: 'cd web && bun run dev',
+  //   command: 'bun run dev',
   //   url: 'http://localhost:9030',
   //   reuseExistingServer: true,
   // },
