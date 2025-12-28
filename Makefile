@@ -33,10 +33,10 @@ chrome:
 test-all: test-chrome test-backend test-frontend
 
 test-chrome:
-	cd notifyhub/frontend && npx tsx tests/ui/utils/test_chrome_connection.ts
+	cd notifyhub/frontend && npx tsx __tests__/ui/utils/test_chrome_connection.ts
 
 test-backend:
-	python -m pytest notifyhub/backend/tests/ -v
+	python -m pytest notifyhub/backend/__tests__/ -v
 
 test-frontend:
 	cd notifyhub/frontend && export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
