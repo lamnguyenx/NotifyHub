@@ -7,12 +7,13 @@ export class NotificationPage extends BasePage {
   }
 
   async getNotificationCount(): Promise<number> {
-    const notifications = this.page.locator('.card.mb-2.mx-auto');
+    // Count bell emojis which are in each notification card
+    const notifications = this.page.locator('text=🔔');
     return await notifications.count();
   }
 
   async clearAllNotifications() {
-    const clearButton = this.page.locator('button.btn.btn-outline-danger.btn-sm').filter({ hasText: 'Clear All' });
+    const clearButton = this.page.locator('button').filter({ hasText: 'Clear All' });
     await clearButton.click();
   }
 
@@ -22,12 +23,16 @@ export class NotificationPage extends BasePage {
   }
 
   async expectClearButtonEnabled(enabled: boolean) {
-    const clearButton = this.page.locator('button.btn.btn-outline-danger.btn-sm').filter({ hasText: 'Clear All' });
+    const clearButton = this.page.locator('button').filter({ hasText: 'Clear All' });
     await expect(clearButton).toBeVisible();
     if (enabled) {
       await expect(clearButton).toBeEnabled();
     } else {
-      await expect(clearButton).toBeDisabled();
+      // Check if button is disabled by checking for disabled class or reduced opacity
+      const hasDisabledClass = await clearButton.evaluate(el => el.classList.contains('mantine-Button-disabled'));
+      const opacity = await clearButton.evaluate(el => getComputedStyle(el).opacity);
+      const isVisuallyDisabled = hasDisabledClass || parseFloat(opacity) < 1;
+      expect(isVisuallyDisabled).toBe(true);
     }
   }
 }

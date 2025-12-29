@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Puck, Render } from "@measured/puck";
-import { config } from './puck-config.jsx';
+import { Button, Container, Alert, Title, Card, Text, Group, Flex, ActionIcon, Box, useMantineColorScheme } from '@mantine/core';
 
 function App() {
   const [notifications, setNotifications] = useState([]);
   const [connectionError, setConnectionError] = useState(false);
   const [eventSource, setEventSource] = useState(null);
   const audioRef = useRef(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
 
   // Enable audio on user interaction
   useEffect(() => {
@@ -32,31 +31,7 @@ function App() {
   useEffect(() => {
     document.title = audioBlocked ? "NotifyHub | Muted. Please click to enable audio notifications" : "🔔 NotifyHub";
   }, [audioBlocked]);
-  const [puckData, setPuckData] = useState({
-    content: [
-      {
-        type: "Header",
-        props: { id: "header", title: "🔔 NotifyHub", showBell: true }
-      },
-      {
-        type: "AudioStatus",
-        props: { id: "audio", showBanner: true }
-      },
-      {
-        type: "ConnectionStatus",
-        props: { id: "status", showBanner: true }
-      },
-      {
-        type: "NotificationList",
-        props: {
-          id: "list",
-          cardStyle: "dark",
-          maxWidth: "95%"
-        }
-      }
-    ],
-    root: {}
-  });
+
 
   // Audio setup
   useEffect(() => {
@@ -154,70 +129,75 @@ function App() {
     }
   };
 
-  const savePuckData = (data) => {
-    setPuckData(data);
-    // In a real app, save to API/database
-    localStorage.setItem('puckData', JSON.stringify(data));
-  };
 
-  // Load saved Puck data on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('puckData');
-    if (saved) {
-      setPuckData(JSON.parse(saved));
-    }
-  }, []);
 
   return (
-    <>
-      <div className="fixed top-4 right-4 z-50">
-        <button
-          onClick={() => setIsEditing(!isEditing)}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-        >
-          {isEditing ? 'View Live' : 'Edit Layout'}
-        </button>
-      </div>
-      {isEditing ? (
-        <Puck
-          config={config}
-          data={puckData}
-          onPublish={savePuckData}
-          onChange={setPuckData}
-        />
-      ) : (
-        <Render
-          config={{
-            ...config,
-            components: {
-              ...config.components,
-              Header: {
-                ...config.components.Header,
-                render: (props) => config.components.Header.render({ ...props, connectionError })
-              },
-              AudioStatus: {
-                ...config.components.AudioStatus,
-                render: (props) => config.components.AudioStatus.render({ ...props, audioBlocked })
-              },
-              ConnectionStatus: {
-                ...config.components.ConnectionStatus,
-                render: (props) => config.components.ConnectionStatus.render({ ...props, connectionError })
-              },
-              NotificationList: {
-                ...config.components.NotificationList,
-                render: (props) => config.components.NotificationList.render({
-                  ...props,
-                  notifications,
-                  formatDate,
-                  clearAllNotifications
-                })
-              }
-            }
-          }}
-          data={puckData}
-        />
-      )}
-    </>
+    <Box bg="body" p="md" mih="100vh">
+      {/* Theme Toggle */}
+      <ActionIcon
+        variant="outline"
+        color={colorScheme === 'dark' ? 'yellow' : 'blue'}
+        onClick={toggleColorScheme}
+        title="Toggle color scheme"
+        size="lg"
+        style={{
+          position: 'fixed',
+          top: 16,
+          right: 80,
+          zIndex: 50
+        }}
+      >
+        {colorScheme === 'dark' ? '☀️' : '🌙'}
+      </ActionIcon>
+
+      <Container size="lg">
+        {/* Header */}
+        <Title order={1} ta="center" mb="md">
+          🔔 NotifyHub
+        </Title>
+
+        {/* Status Alerts */}
+        {audioBlocked && (
+          <Alert title="Audio Status" color="blue" variant="light" mb="md">
+            🔊 Audio notifications are muted. Click anywhere on the page to enable them.
+          </Alert>
+        )}
+
+        {connectionError && (
+          <Alert title="Connection Status" color="orange" variant="light" mb="md">
+            Connection lost - retrying...
+          </Alert>
+        )}
+
+        {/* Clear All Button */}
+        <Flex justify="flex-end" mb="md">
+          <Button
+            onClick={clearAllNotifications}
+            disabled={notifications.length === 0}
+            variant="default"
+          >
+            Clear All
+          </Button>
+        </Flex>
+
+        {/* Notifications */}
+        <div>
+          {notifications.map(notification => (
+            <Card key={notification.id} shadow="sm" p="md" mb="sm" bg="default" bd="default">
+              <Group justify="space-between">
+                <div>
+                  <Text fw={500}>{notification.message}</Text>
+                  <Text size="sm" c="dimmed">
+                    {formatDate(notification.timestamp)}
+                  </Text>
+                </div>
+                <Text size="xl">🔔</Text>
+              </Group>
+            </Card>
+          ))}
+        </div>
+      </Container>
+    </Box>
   );
 }
 

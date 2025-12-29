@@ -22,7 +22,7 @@
 
 ## 1. System Overview & Tech Stack
 
-NotifyHub is a single-page application consisting of a Python FastAPI backend and a React frontend. The application uses Server-Sent Events (SSE) for real-time updates, includes a page builder via Puck, and features audio notifications with autoplay handling.
+NotifyHub is a single-page application consisting of a Python FastAPI backend and a React frontend. The application uses Server-Sent Events (SSE) for real-time updates and features audio notifications with autoplay handling.
 
 ### Architecture Diagram
 
@@ -34,8 +34,7 @@ graph LR
 
     subgraph "Frontend (Port 9070 Dev / 9080 Prod)"
         React[React App]
-        Puck[Puck Page Builder]
-        Tailwind[Tailwind CSS]
+        Mantine[Mantine]
     end
 
     subgraph "Backend (Port 9080)"
@@ -55,8 +54,8 @@ graph LR
 | Layer        | Technology                 | Role                                  |
 | ------------ | -------------------------- | ------------------------------------- |
 | **Backend**  | **Python + FastAPI**       | Server, REST API, Static File Serving |
-| **Frontend** | **React + Puck**           | UI & Page Builder                     |
-| **Styling**  | **Bootstrap 5 + Tailwind** | Responsive Design                     |
+| **Frontend** | **React**                  | UI                                    |
+| **Styling**  | **Mantine**                | UI Components & Styling               |
 | **Build**    | **Bun + Vite**             | Package Management & Bundling         |
 | **Testing**  | **pytest + Playwright**    | Backend Unit Tests & E2E UI Tests     |
 

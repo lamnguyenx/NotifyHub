@@ -1,14 +1,9 @@
-@import "@measured/puck/puck.css";
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import '@mantine/core/styles/global.css';
+@import '@mantine/core/styles/baseline.css';
+@import '@mantine/core/styles/default-css-variables.css';
 
 body {
-  @apply bg-gray-100 text-black dark:bg-gray-900 dark:text-white;
-}
-
-html.dark body {
-  background-color: #111 !important;
-  color: white !important;
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
