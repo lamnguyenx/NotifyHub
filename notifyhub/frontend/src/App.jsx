@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Container, Alert, Title, Card, Text, Group, Flex, ActionIcon, Box, useMantineColorScheme } from '@mantine/core';
+import { Button, Container, Alert, Title, Card, Text, Group, Box } from '@mantine/core';
+
+const starIcon = '/icons/star-icon.svg';
+const submarineAudio = '/audio/Submarine.mp3';
 
 function App() {
   const [notifications, setNotifications] = useState([]);
@@ -7,7 +10,6 @@ function App() {
   const [eventSource, setEventSource] = useState(null);
   const audioRef = useRef(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
-  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
 
   // Enable audio on user interaction
   useEffect(() => {
@@ -29,13 +31,13 @@ function App() {
 
   // Update page title based on audio status
   useEffect(() => {
-    document.title = audioBlocked ? "NotifyHub | Muted. Please click to enable audio notifications" : "🔔 NotifyHub";
+    document.title = audioBlocked ? "NotifyHub | Muted. Please click to enable audio notifications" : "★ NotifyHub";
   }, [audioBlocked]);
 
 
   // Audio setup
   useEffect(() => {
-    audioRef.current = new Audio('/static/audio/Submarine.mp3');
+    audioRef.current = new Audio(submarineAudio);
     audioRef.current.volume = 0.5;
     audioRef.current.load();
   }, []);
@@ -133,28 +135,22 @@ function App() {
 
   return (
     <Box bg="body" p="md" mih="100vh">
-      {/* Theme Toggle */}
-      <ActionIcon
-        variant="outline"
-        color={colorScheme === 'dark' ? 'yellow' : 'blue'}
-        onClick={toggleColorScheme}
-        title="Toggle color scheme"
-        size="lg"
-        style={{
-          position: 'fixed',
-          top: 16,
-          right: 80,
-          zIndex: 50
-        }}
-      >
-        {colorScheme === 'dark' ? '☀️' : '🌙'}
-      </ActionIcon>
 
       <Container size="lg">
         {/* Header */}
         <Title order={1} ta="center" mb="md">
-          🔔 NotifyHub
+           ★ NotifyHub
         </Title>
+
+        {/* Clear All Button */}
+        <Button
+          onClick={clearAllNotifications}
+          disabled={notifications.length === 0}
+          variant="default"
+          className="clear-all"
+        >
+          Clear All
+        </Button>
 
         {/* Status Alerts */}
         {audioBlocked && (
@@ -169,21 +165,10 @@ function App() {
           </Alert>
         )}
 
-        {/* Clear All Button */}
-        <Flex justify="flex-end" mb="md">
-          <Button
-            onClick={clearAllNotifications}
-            disabled={notifications.length === 0}
-            variant="default"
-          >
-            Clear All
-          </Button>
-        </Flex>
-
         {/* Notifications */}
         <div>
           {notifications.map(notification => (
-            <Card key={notification.id} shadow="sm" p="md" mb="sm" bg="default" bd="default">
+            <Card key={notification.id} shadow="sm" p="md" mb="sm" bg="default">
               <Group justify="space-between">
                 <div>
                   <Text fw={500}>{notification.message}</Text>
@@ -191,7 +176,7 @@ function App() {
                     {formatDate(notification.timestamp)}
                   </Text>
                 </div>
-                <Text size="xl">🔔</Text>
+                 <img src={starIcon} alt="star" width="20" height="20" />
               </Group>
             </Card>
           ))}

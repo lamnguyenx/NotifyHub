@@ -71,6 +71,8 @@ app.add_middleware(
 
 # Static files and templates setup
 app.mount("/static", StaticFiles(directory="notifyhub/frontend/static"), name="static")
+app.mount("/icons", StaticFiles(directory="notifyhub/frontend/static/icons"), name="icons")
+app.mount("/audio", StaticFiles(directory="notifyhub/frontend/static/audio"), name="audio")
 templates = Jinja2Templates(directory="notifyhub/frontend/templates")
 
 @app.post("/api/notify")

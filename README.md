@@ -185,16 +185,20 @@ To run the application as it would appear in production (serving built static as
 1. **Build Assets:**
 ```bash
 make frontend
+# Builds React app to notifyhub/frontend/static/
 
 ```
-
 
 2. **Start Server:**
 ```bash
 make backend
+# FastAPI serves static files from static/ at:
+# - /static/* (general assets like JS/CSS)
+# - /icons/* (icon files)
+# - /audio/* (audio files)
+# Note: When adding new asset folders to static/, update backend.py mounts accordingly.
 
 ```
-
 
 3. **Access:**
 Open **`http://localhost:9080`**. (Default: Dark Theme).

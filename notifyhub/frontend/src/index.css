@@ -5,5 +5,11 @@
 body {
   background-color: var(--mantine-color-body);
   color: var(--mantine-color-text);
-  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.clear-all {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 50;
 }
