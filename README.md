@@ -60,6 +60,17 @@ graph LR
 | **Build**    | **Bun + Vite**             | Package Management & Bundling         |
 | **Testing**  | **pytest + Playwright**    | Backend Unit Tests & E2E UI Tests     |
 
+### Project Structure
+
+The repository includes a `__refmodules__/` directory containing cloned third-party libraries. These are **not directly imported** into the NotifyHub codebase but serve as reference materials for development and integration purposes. Having the complete source code of libraries like Pharos allows for:
+
+- Better understanding of component internals
+- Easier debugging of integration issues
+- Reference for customization possibilities
+- Offline access to documentation and examples
+
+**Note:** Files in `__refmodules__/` should not be modified as they are external dependencies.
+
 ---
 
 ## 2. Installation & Setup
