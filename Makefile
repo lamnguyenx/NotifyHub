@@ -1,4 +1,4 @@
-.PHONY: backend frontend frontend-dev frontend-deps noti chrome test-all test-chrome test-backend test-ui test-ui-debug install-plugin remove-plugin test-bg clean
+.PHONY: backend frontend frontend-dev frontend-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-dev install-plugin remove-plugin test-bg clean
 
 # -----------------------------------
 #            Dependencies
@@ -30,7 +30,7 @@ chrome:
 # -----------------------------------
 #             Testing
 # -----------------------------------
-test-all: test-chrome test-backend test-frontend
+test-all: test-chrome test-backend test-frontend test-frontend-dev
 
 test-chrome:
 	cd notifyhub/frontend && npx tsx __tests__/ui/utils/test_chrome_connection.ts
@@ -40,6 +40,9 @@ test-backend:
 
 test-frontend:
 	cd notifyhub/frontend && export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
+
+test-frontend-dev:
+	cd notifyhub/frontend && export BASE_URL=http://localhost:9070 && export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
 
 # -----------------------------------
 #        Plugin Management

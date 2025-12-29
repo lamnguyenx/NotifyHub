@@ -260,19 +260,20 @@ npx playwright install
 
 You can run tests via standard NPM commands or the provided Makefile shortcuts.
 
-| Scope          | Command              | Description                        |
-| -------------- | -------------------- | ---------------------------------- |
-| **Backend**    | `make test-backend`  | Run pytest (backend only)          |
-| **UI**         | `make test-frontend` | Run Playwright tests (headed)      |
-| **Connection** | `make test-chrome`   | Test Chrome CDP connection utility |
-| **All**        | `make test-all`      | Run entire test suite              |
+| Scope          | Command                 | Description                                      |
+| -------------- | ----------------------- | ------------------------------------------------ |
+| **Backend**    | `make test-backend`     | Run pytest (backend only)                        |
+| **UI (Prod)**  | `make test-frontend`    | Run Playwright tests against port 9080 (headed) |
+| **UI (Dev)**   | `make test-frontend-dev`| Run Playwright tests against port 9070 (headed) |
+| **Connection** | `make test-chrome`      | Test Chrome CDP connection utility               |
+| **All**        | `make test-all`         | Run entire test suite                            |
 
 ### 5.3 Test Organization
 
 The project follows the Page Object Model (POM) design pattern:
 
 ```text
-notifyhub/frontend/tests/ui/
+notifyhub/frontend/__tests__/ui/
 ├── pages/                  # Page Object Model classes
 │   ├── AppPage.ts          # App-wide interactions
 │   ├── BasePage.ts         # Base class with common methods
@@ -283,12 +284,16 @@ notifyhub/frontend/tests/ui/
 │   └── test_chrome_connection.ts
 └── tsconfig.json           # TypeScript configuration
 
-notifyhub/backend/tests/
+notifyhub/backend/__tests__/
 ├── test_cli.py             # CLI tests
 ├── test_models.py          # Model tests
 └── test_server.py         # Server tests
 
 ```
+
+#### Notification Test Strategy
+
+The `notification.spec.ts` test suite implements a backup-and-restore approach for testing. See the detailed documentation in the test file itself (`notifyhub/frontend/__tests__/ui/specs/notification.spec.ts`) for the complete strategy.
 
 ### 5.4 Chrome Remote Debugging (CDP)
 

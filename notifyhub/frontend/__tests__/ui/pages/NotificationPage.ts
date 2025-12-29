@@ -22,17 +22,15 @@ export class NotificationPage extends BasePage {
     expect(count).toBe(expectedCount);
   }
 
-  async expectClearButtonEnabled(enabled: boolean) {
-    const clearButton = this.page.locator('button').filter({ hasText: 'Clear All' });
-    await expect(clearButton).toBeVisible();
-    if (enabled) {
-      await expect(clearButton).toBeEnabled();
-    } else {
-      // Check if button is disabled by checking for disabled class or reduced opacity
-      const hasDisabledClass = await clearButton.evaluate(el => el.classList.contains('mantine-Button-disabled'));
-      const opacity = await clearButton.evaluate(el => getComputedStyle(el).opacity);
-      const isVisuallyDisabled = hasDisabledClass || parseFloat(opacity) < 1;
-      expect(isVisuallyDisabled).toBe(true);
-    }
-  }
+   async expectClearButtonEnabled(enabled: boolean) {
+     const clearButton = this.page.locator('button').filter({ hasText: 'Clear All' });
+     await expect(clearButton).toBeVisible();
+     if (enabled) {
+       await expect(clearButton).toBeEnabled();
+     } else {
+       // Check if button is disabled by checking for disabled attribute
+       const isDisabled = await clearButton.evaluate((el: HTMLButtonElement) => el.disabled);
+       expect(isDisabled).toBe(true);
+     }
+   }
 }
