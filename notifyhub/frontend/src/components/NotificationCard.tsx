@@ -1,7 +1,6 @@
 import React from 'react';
-import '../../../../__refmodules__/notification-html-css/css/reset.css';
-import '../../../../__refmodules__/notification-html-css/css/global.css';
-import '../../../../__refmodules__/notification-html-css/css/notification.css';
+import { Avatar, Text } from '@mantine/core';
+
 import NotificationData from '../models/NotificationData';
 
 interface Notification {
@@ -59,17 +58,20 @@ function NotificationCard({ notification }: NotificationCardProps) {
           <div className="notification-notification"></div>
         </div>
 
-        <div className="notification-app-icon" style={{ backgroundColor: bgColor, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+        <Avatar
+          className="notification-app-icon"
+          style={{ backgroundColor: bgColor }}
+        >
           {initials}
-        </div>
+        </Avatar>
 
         <div className="notification-title-time">
           <div className="notification-title-and">
-            <p className="notification-text1 subheadline-emphasized">{notification.data.message}</p>
-            <p className="notification-text-time">{formatTime(notification.timestamp)}</p>
+            <Text className="notification-text1 subheadline-emphasized">{notification.data.message}</Text>
+            <Text className="notification-text-time">{formatTime(notification.timestamp)}</Text>
           </div>
 
-          <p className="notification-text2 subheadline-regular">{notification.data.pwd || "Notification details"}</p>
+          <Text className="notification-text2 subheadline-regular">{notification.data.pwd || "Notification details"}</Text>
         </div>
       </div>
     </div>

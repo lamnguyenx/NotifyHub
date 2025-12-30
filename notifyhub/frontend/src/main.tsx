@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
+import './notification.css'
 import { MantineProvider, ColorSchemeScript } from '@mantine/core';
 import { theme } from './theme';
 

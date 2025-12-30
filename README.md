@@ -78,6 +78,8 @@ The repository includes a `__refmodules__/` directory containing cloned third-pa
 
 * Python 3.x
 * Bun (JavaScript runtime/package manager)
+* VSCode Extensions:
+  * [CSS Navigation](https://marketplace.visualstudio.com/items?itemName=pucelle.vscode-css-navigation) - Enables Ctrl+click navigation for CSS imports and variable definitions
 
 ### Initial Install
 

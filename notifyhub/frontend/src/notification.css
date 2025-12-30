@@ -1,0 +1,109 @@
+@import "@mantine/core/styles/global.css";
+@import "@mantine/core/styles/baseline.css";
+@import "@mantine/core/styles/default-css-variables.css";
+
+.notification {
+  position: relative;
+  min-height: 4.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mantine-spacing-xs);
+  color: var(--mantine-color-text);
+  font-size: var(--mantine-font-size-sm);
+  line-height: var(--mantine-line-height-md);
+  letter-spacing: 0px;
+  margin-bottom: var(--mantine-spacing-xs);
+}
+
+.notification-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: 4.2rem;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-xs);
+  padding: var(--mantine-spacing-sm);
+}
+
+.notification-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  backdrop-filter: blur(75px);
+}
+
+.notification-notification {
+  height: 4.2rem;
+  background-color: var(--mantine-color-gray-5);
+  border-radius: var(--mantine-radius-lg);
+}
+
+.notification-app-icon {
+  position: relative;
+  z-index: 1;
+  margin-top: 1px;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+  background-color: transparent;
+  border-radius: var(--mantine-radius-md);
+  color: var(--mantine-color-white);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-title-time {
+  color: var(--mantine-color-gray-7);
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.notification-title-and {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--mantine-spacing-md);
+  padding-right: 8px;
+}
+
+.notification-text1 {
+  flex-grow: 1;
+  text-align: left;
+}
+
+.notification-text-time {
+  text-align: right;
+}
+
+.notification-text2 {
+  text-align: left;
+}
+
+.notification p {
+  margin: 0;
+}
+
+.notification .subheadline-regular {
+  color: var(--mantine-color-gray-7);
+  font-size: var(--mantine-font-size-md);
+  font-style: normal;
+  line-height: var(--mantine-h1-line-height);
+  letter-spacing: -0.23px;
+}
+
+.notification .subheadline-emphasized {
+  color: var(--mantine-color-black);
+  font-size: var(--mantine-font-size-md);
+  font-style: normal;
+  font-weight: 590;
+  line-height: var(--mantine-h1-line-height);
+  letter-spacing: -0.23px;
+}

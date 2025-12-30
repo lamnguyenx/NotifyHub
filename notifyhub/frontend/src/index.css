@@ -1,6 +1,6 @@
-@import '@mantine/core/styles/global.css';
-@import '@mantine/core/styles/baseline.css';
-@import '@mantine/core/styles/default-css-variables.css';
+@import "@mantine/core/styles/global.css";
+@import "@mantine/core/styles/baseline.css";
+@import "@mantine/core/styles/default-css-variables.css";
 
 body {
   background-color: var(--mantine-color-body);
@@ -12,4 +12,36 @@ body {
   top: 16px;
   right: 16px;
   z-index: 50;
+}
+
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  font-feature-settings: inherit;
+  font-variation-settings: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+button,
+select {
+  text-transform: none;
+}
+
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
+  -webkit-appearance: button;
+  background-color: transparent;
+  background-image: none;
 }
