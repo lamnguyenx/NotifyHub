@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from uvicorn import Config, Server
 import argparse
 import asyncio
-from typing import List
+from typing import List, Optional
 import logging
 import json
 import os
@@ -45,6 +45,7 @@ class SSEManager:
             self.disconnect(queue)
 
 class NotifyRequest(BaseModel):
+    id: Optional[str] = None
     data: dict
 
 @asynccontextmanager
@@ -80,7 +81,8 @@ templates = Jinja2Templates(directory=os.path.join(frontend_dir, "templates"))
 @app.post("/api/notify")
 async def notify(request: NotifyRequest):
     data = NotificationData.model_validate(request.data)
-    notification_id = store.add(data)
+    custom_id = request.id
+    notification_id = store.add(data, custom_id)
     return {"success": True, "id": notification_id}
 
 @app.get("/api/notifications")
@@ -88,15 +90,29 @@ async def get_notifications():
     return store.notifications
 
 @app.delete("/api/notifications")
-async def clear_notifications():
-    """Clear all notifications"""
-    store.clear_all()
-    # Broadcast clear event to all connected clients
-    await sse_manager.broadcast({
-        "event": "clear",
-        "data": json.dumps({"message": "All notifications cleared"})
-    })
-    return {"success": True}
+async def delete_notifications(id: Optional[str] = None):
+    """Delete notifications - all if no id provided, specific if id given"""
+    if id:
+        # Delete specific notification
+        if store.delete_by_id(id):
+            # Broadcast delete event with ID
+            await sse_manager.broadcast({
+                "event": "delete",
+                "data": json.dumps({"id": id, "message": f"Notification {id} deleted"})
+            })
+            return {"success": True, "message": f"Notification {id} deleted"}
+        else:
+            # Notification not found
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Notification not found")
+    else:
+        # Clear all notifications (existing behavior)
+        store.clear_all()
+        await sse_manager.broadcast({
+            "event": "clear",
+            "data": json.dumps({"message": "All notifications cleared"})
+        })
+        return {"success": True, "message": "All notifications cleared"}
 
 @app.get("/events")
 async def events():

@@ -123,6 +123,12 @@ function App() {
       setConnectionError(false);
     });
 
+    es.addEventListener('delete', (event: MessageEvent) => {
+      const deleteData = JSON.parse(event.data) as { id: string };
+      setNotifications(prev => prev.filter(n => n.id !== deleteData.id));
+      setConnectionError(false);
+    });
+
     es.addEventListener('heartbeat', (event: MessageEvent) => {
       setConnectionError(false);
     });

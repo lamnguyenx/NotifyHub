@@ -95,6 +95,70 @@ class TestNotificationsAPI:
         assert all(key in data[0] for key in ["id", "data", "timestamp"])
 
 
+class TestDeleteNotificationsAPI:
+    def test_delete_notifications_bulk(self, client):
+        # Add some notifications
+        client.post("/api/notify", json={"data": {"message": "First"}})
+        client.post("/api/notify", json={"data": {"message": "Second"}})
+
+        # Delete all notifications
+        response = client.delete("/api/notifications")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "All notifications cleared" in data["message"]
+
+        # Verify store is empty
+        assert len(backend.store.notifications) == 0
+
+    def test_delete_notifications_individual_existing(self, client):
+        # Add a notification
+        create_response = client.post("/api/notify", json={"data": {"message": "Test"}})
+        notification_id = create_response.json()["id"]
+
+        # Delete specific notification
+        delete_response = client.delete(f"/api/notifications?id={notification_id}")
+
+        assert delete_response.status_code == 200
+        data = delete_response.json()
+        assert data["success"] is True
+        assert f"Notification {notification_id} deleted" in data["message"]
+
+        # Verify notification is gone
+        assert len(backend.store.notifications) == 0
+
+    def test_delete_notifications_individual_nonexistent(self, client):
+        # Try to delete non-existent notification
+        response = client.delete("/api/notifications?id=nonexistent-id")
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "detail" in data
+        assert data["detail"] == "Notification not found"
+
+    def test_delete_notifications_individual_preserves_others(self, client):
+        # Add multiple notifications
+        client.post("/api/notify", json={"data": {"message": "First"}})
+        create_response = client.post("/api/notify", json={"data": {"message": "Second"}})
+        delete_id = create_response.json()["id"]
+        client.post("/api/notify", json={"data": {"message": "Third"}})
+
+        # Delete middle notification
+        response = client.delete(f"/api/notifications?id={delete_id}")
+
+        assert response.status_code == 200
+
+        # Should have 2 notifications left
+        assert len(backend.store.notifications) == 2
+
+        # Verify the deleted one is gone and others remain
+        remaining_messages = [n.data["message"] for n in backend.store.notifications]
+        assert "Second" not in remaining_messages
+        assert "First" in remaining_messages
+        assert "Third" in remaining_messages
+
+
 class TestRootEndpoint:
     def test_root_get_returns_html(self, client):
         response = client.get("/")

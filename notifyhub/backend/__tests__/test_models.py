@@ -77,3 +77,44 @@ class TestNotificationStore:
         assert len(store.notifications) == 2
         assert store.notifications[0].data["message"] == "Third"
         assert store.notifications[1].data["message"] == "Second"
+
+    def test_delete_by_id_existing_notification(self):
+        store = NotificationStore()
+
+        # Add notifications
+        id1 = store.add(NotificationData(message="First"))
+        id2 = store.add(NotificationData(message="Second"))
+        id3 = store.add(NotificationData(message="Third"))
+
+        # Delete middle notification
+        result = store.delete_by_id(id2)
+        assert result is True
+        assert len(store.notifications) == 2
+
+        # Check remaining notifications
+        assert store.notifications[0].data["message"] == "Third"
+        assert store.notifications[1].data["message"] == "First"
+
+        # Verify deleted notification is gone
+        assert not any(n.id == id2 for n in store.notifications)
+
+    def test_delete_by_id_nonexistent_notification(self):
+        store = NotificationStore()
+
+        # Add a notification
+        store.add(NotificationData(message="Test"))
+
+        # Try to delete non-existent ID
+        result = store.delete_by_id("nonexistent-id")
+        assert result is False
+
+        # Should still have the original notification
+        assert len(store.notifications) == 1
+
+    def test_delete_by_id_empty_store(self):
+        store = NotificationStore()
+
+        # Try to delete from empty store
+        result = store.delete_by_id("any-id")
+        assert result is False
+        assert len(store.notifications) == 0

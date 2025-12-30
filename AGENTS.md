@@ -32,9 +32,10 @@ Do not proceed until the user confirms both servers are running successfully.
 Once servers are confirmed running:
 - Make code changes to files as needed
 - Run automated tests: `make test-frontend-dev`
-- Both servers will automatically detect changes and reload
-- No need to ask user to restart servers between iterations
-- Changes will be visible at `http://localhost:9070`
+- **Frontend** (`make frontend-dev`): Automatically detects changes and hot-reloads
+- **Backend** (`make backend`): Does NOT auto-reload Python code changes
+- If you modify backend Python files, **prompt the user to restart the backend server**
+- Frontend changes are visible immediately at `http://localhost:9070`
 
 ### Important Notes
 
