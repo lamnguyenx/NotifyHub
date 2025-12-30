@@ -49,7 +49,7 @@ class TestCLIArgumentParsing:
                     # Check that the correct JSON was sent
                     mock_post.assert_called_once()
                     args, kwargs = mock_post.call_args
-                    assert kwargs['json'] == {"message": "my test message"}
+                    assert kwargs['json'] == {"data": {"message": "my test message"}}
 
 
 class TestCLISuccessBehavior:

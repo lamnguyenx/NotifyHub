@@ -15,17 +15,13 @@ def get_time_uid() -> str:
     """Generate a time-based unique identifier"""
     return f"{get_timeslug()}-{str(uuid.uuid4())[:8]}"
 
-class NotificationData(BaseModel):
+class Notification(BaseModel):
     model_config = ConfigDict(extra='allow')
 
+    id: Optional[str] = None
     message: str
     pwd: Optional[str] = None
-
-class Notification:
-    def __init__(self, data: NotificationData, custom_id: Optional[str] = None):
-        self.id = custom_id if custom_id is not None else get_time_uid()
-        self.data = data.model_dump(exclude_none=True)
-        self.timestamp = datetime.now()
+    timestamp: Optional[str] = None
 
 class NotificationStore:
     def __init__(self, sse_manager=None):
@@ -33,18 +29,30 @@ class NotificationStore:
         self.max_notifications = 1000
         self.sse_manager = sse_manager
 
-    def add(self, data: NotificationData, custom_id: Optional[str] = None) -> str:
-        notification = Notification(data, custom_id)
-        self.notifications.insert(0, notification)  # Newest first
+    def add(self, data: Notification, custom_id: Optional[str] = None) -> str:
+        if not data.id:
+            data.id = custom_id or get_time_uid()
+        if not data.timestamp:
+            data.timestamp = datetime.now(timezone.utc).isoformat()
+        else:
+            try:
+                parsed = datetime.fromisoformat(data.timestamp)
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                data.timestamp = parsed.isoformat()
+            except ValueError:
+                data.timestamp = datetime.now(timezone.utc).isoformat()
+
+        self.notifications.insert(0, data)  # Newest first
 
         # Broadcast to SSE clients
         if self.sse_manager:
             event_data = {
                 "event": "notification",
                 "data": json.dumps({
-                    "id": notification.id,
-                    "data": notification.data,
-                    "timestamp": notification.timestamp.isoformat()
+                    "id": data.id,
+                    "data": data.model_dump(exclude={'id', 'timestamp'}),
+                    "timestamp": data.timestamp
                 })
             }
             # Schedule broadcast (don't block notification creation)
@@ -53,7 +61,7 @@ class NotificationStore:
         if len(self.notifications) > self.max_notifications:
             self.notifications.pop()
 
-        return notification.id
+        return data.id
 
     def delete_by_id(self, notification_id: str) -> bool:
         """Delete a notification by ID. Returns True if found and deleted, False otherwise."""

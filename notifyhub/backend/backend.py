@@ -15,7 +15,7 @@ import json
 import os
 from datetime import datetime
 
-from .models import NotificationStore, NotificationData
+from .models import NotificationStore, Notification
 
 class SSEManager:
     def __init__(self):
@@ -80,14 +80,21 @@ templates = Jinja2Templates(directory=os.path.join(frontend_dir, "templates"))
 
 @app.post("/api/notify")
 async def notify(request: NotifyRequest):
-    data = NotificationData.model_validate(request.data)
+    data = Notification.model_validate(request.data)
     custom_id = request.id
     notification_id = store.add(data, custom_id)
     return {"success": True, "id": notification_id}
 
 @app.get("/api/notifications")
 async def get_notifications():
-    return store.notifications
+    return [
+        {
+            "id": n.id,
+            "data": n.model_dump(exclude={'id', 'timestamp'}),
+            "timestamp": n.timestamp
+        }
+        for n in store.notifications
+    ]
 
 @app.delete("/api/notifications")
 async def delete_notifications(id: Optional[str] = None):
@@ -125,8 +132,8 @@ async def events():
             current_notifications = [
                 {
                     "id": n.id,
-                    "data": n.data,
-                    "timestamp": n.timestamp.isoformat()
+                    "data": n.model_dump(exclude={'id', 'timestamp'}),
+                    "timestamp": n.timestamp
                 }
                 for n in store.notifications
             ]

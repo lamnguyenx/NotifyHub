@@ -2,7 +2,7 @@ import argparse
 import requests
 import sys
 import json
-from notifyhub.backend.models import NotificationData
+from notifyhub.backend.models import Notification
 
 def main():
     parser = argparse.ArgumentParser(description='Send notifications to NotifyHub server')
@@ -14,7 +14,7 @@ def main():
     parsed_data = None
     try:
         raw_data = json.loads(args.data)
-        parsed_data = NotificationData.model_validate(raw_data)
+        parsed_data = Notification.model_validate(raw_data)
     except json.JSONDecodeError as e:
         print(f'✗ Invalid JSON: {e}')
         sys.exit(1)

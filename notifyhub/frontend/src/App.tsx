@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Container, Alert, Title, Box } from '@mantine/core';
 import NotificationCard from './components/NotificationCard';
-import NotificationData from './models/NotificationData';
+import Notification from './models/NotificationData';
 const submarineAudio = '/audio/Submarine.mp3';
 
-interface Notification {
+interface INotification {
   id: string;
-  data: NotificationData;
+  message: string;
+  pwd?: string | null;
   timestamp: string;
 }
 
 function App() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<INotification[]>([]);
   const [connectionError, setConnectionError] = useState<boolean>(false);
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -66,20 +67,22 @@ function App() {
         data: any;
         timestamp: string;
       }>;
-      // Wrap data with NotificationData and filter duplicates
-      const uniqueNotifications: Notification[] = initData
+      // Create Notification instances and filter duplicates
+      const uniqueNotifications: INotification[] = initData
         .map(raw => {
           try {
-            return {
-              ...raw,
-              data: new NotificationData(raw.data),
-            };
+            return new Notification({
+              id: raw.id,
+              message: raw.data.message,
+              pwd: raw.data.pwd,
+              timestamp: raw.timestamp,
+            });
           } catch (error) {
             console.error('Invalid notification data in init:', error);
             return null;
           }
         })
-        .filter((n): n is Notification => n !== null)
+        .filter((n): n is INotification => n !== null)
         .filter((n, index, arr) => arr.findIndex(x => x.id === n.id) === index);
       setNotifications(uniqueNotifications);
       setConnectionError(false);
@@ -92,11 +95,12 @@ function App() {
         timestamp: string;
       };
       try {
-        const notificationData = new NotificationData(rawNotification.data);
-        const notification: Notification = {
-          ...rawNotification,
-          data: notificationData,
-        };
+        const notification = new Notification({
+          id: rawNotification.id,
+          message: rawNotification.data.message,
+          pwd: rawNotification.data.pwd,
+          timestamp: rawNotification.timestamp,
+        });
         setNotifications(prev => {
           // Prevent duplicate notifications by checking existing IDs
           if (prev.some(n => n.id === notification.id)) {

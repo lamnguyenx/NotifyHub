@@ -41,7 +41,7 @@ class TestNotifyAPI:
 
         # Check that notification was stored
         assert len(backend.store.notifications) == 1
-        assert backend.store.notifications[0].data == data
+        assert backend.store.notifications[0].model_dump(exclude={'id', 'timestamp'}, exclude_none=True) == data
 
     def test_notify_post_multiple_notifications(self, client):
         # Send multiple notifications
@@ -51,9 +51,9 @@ class TestNotifyAPI:
 
         # Check they are stored in correct order (newest first)
         assert len(backend.store.notifications) == 3
-        assert backend.store.notifications[0].data["message"] == "Third"
-        assert backend.store.notifications[1].data["message"] == "Second"
-        assert backend.store.notifications[2].data["message"] == "First"
+        assert backend.store.notifications[0].message == "Third"
+        assert backend.store.notifications[1].message == "Second"
+        assert backend.store.notifications[2].message == "First"
 
 
 class TestNotificationsAPI:
@@ -153,7 +153,7 @@ class TestDeleteNotificationsAPI:
         assert len(backend.store.notifications) == 2
 
         # Verify the deleted one is gone and others remain
-        remaining_messages = [n.data["message"] for n in backend.store.notifications]
+        remaining_messages = [n.message for n in backend.store.notifications]
         assert "Second" not in remaining_messages
         assert "First" in remaining_messages
         assert "Third" in remaining_messages

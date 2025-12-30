@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Avatar, Text } from '@mantine/core';
 
-import NotificationData from '../models/NotificationData';
+import Notification from '../models/NotificationData';
 import { formatTimestamp } from '../utils/timestampUtils';
 
-interface Notification {
+interface INotification {
   id: string;
-  data: NotificationData;
+  message: string;
+  pwd?: string | null;
   timestamp: string;
 }
 
 interface NotificationCardProps {
-  notification: Notification;
+  notification: INotification;
 }
 
 function NotificationCard({ notification }: NotificationCardProps) {
@@ -54,7 +55,7 @@ function NotificationCard({ notification }: NotificationCardProps) {
     return colors[Math.abs(hash) % colors.length];
   };
 
-  const username = notification.data.pwd ? notification.data.pwd.split('/').pop() || '' : '';
+  const username = notification.pwd ? notification.pwd.split('/').pop() || '' : '';
   const initials = getInitials(username);
   const bgColor = getColorFromName(username);
 
@@ -74,11 +75,11 @@ function NotificationCard({ notification }: NotificationCardProps) {
 
         <div className="notification-title-time">
           <div className="notification-title-and">
-            <Text className="notification-text1 subheadline-emphasized">{notification.data.message}</Text>
+            <Text className="notification-text1 subheadline-emphasized">{notification.message}</Text>
             <Text className="notification-text-time">{formatTimestamp(notification.timestamp)}</Text>
           </div>
 
-          <Text className="notification-text2 subheadline-regular">{notification.data.pwd || "Notification details"}</Text>
+          <Text className="notification-text2 subheadline-regular">{notification.pwd || "Notification details"}</Text>
         </div>
       </div>
     </div>
