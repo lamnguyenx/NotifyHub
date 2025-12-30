@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Container, Alert, Title, Box } from '@mantine/core';
+import { motion, AnimatePresence } from 'framer-motion';
 import NotificationCard from './components/NotificationCard';
 import Notification from './models/NotificationData';
 const submarineAudio = '/audio/Submarine.mp3';
@@ -175,8 +176,8 @@ function App() {
   };
 
   return (
-    <Box bg="body" p="md" mih="100vh">
-      <Container size="lg">
+    <Box bg="body" p="md" mih="100vh" style={{ display: 'flex', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: '500px' }}>
         {/* Header */}
         <Title order={1} ta="center" mb="md">
           ★ NotifyHub
@@ -206,12 +207,19 @@ function App() {
         )}
 
         {/* Notifications */}
-        <div>
-          {notifications.map(notification => (
-            <NotificationCard key={notification.id} notification={notification} />
-          ))}
-        </div>
-      </Container>
+        <AnimatePresence mode="popLayout">
+          <motion.div layout>
+            {notifications.map((notification, index) => (
+              <NotificationCard
+                key={notification.id}
+                notification={notification}
+                index={index}
+                total={notifications.length}
+              />
+            ))}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </Box>
   );
 }

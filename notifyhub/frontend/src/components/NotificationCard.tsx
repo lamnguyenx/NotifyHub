@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Avatar, Text } from '@mantine/core';
+import { motion } from 'framer-motion';
 
 import Notification from '../models/NotificationData';
 import { formatTimestamp } from '../utils/timestampUtils';
@@ -13,9 +14,11 @@ interface INotification {
 
 interface NotificationCardProps {
   notification: INotification;
+  index: number;
+  total: number;
 }
 
-function NotificationCard({ notification }: NotificationCardProps) {
+function NotificationCard({ notification, index, total }: NotificationCardProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -59,30 +62,52 @@ function NotificationCard({ notification }: NotificationCardProps) {
   const initials = getInitials(username);
   const bgColor = getColorFromName(username);
 
+  // Calculate depth effects (newer = less depth) - only when 8+ notifications
+  const shouldApplyDepth = total >= 8;
+  const depthFactor = shouldApplyDepth ? Math.min(index / Math.max(total - 1, 1), 1) : 0;
+  const opacity = 1 - (depthFactor * 0.1); // 10% opacity reduction
+  const scale = 1 - (depthFactor * 0.025); // 2.5% scaling reduction
+
   return (
-    <div className="notification">
-      <div className="notification-row">
-        <div className="notification-bg">
-          <div className="notification-notification"></div>
-        </div>
-
-        <Avatar
-          className="notification-app-icon"
-          style={{ backgroundColor: bgColor }}
-        >
-          {initials}
-        </Avatar>
-
-        <div className="notification-title-time">
-          <div className="notification-title-and">
-            <Text className="notification-text1 subheadline-emphasized">{notification.message}</Text>
-            <Text className="notification-text-time">{formatTimestamp(notification.timestamp)}</Text>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: opacity, y: 0, scale: scale }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+        layout: { type: "spring", stiffness: 400, damping: 35 }
+      }}
+      style={{
+        filter: `drop-shadow(0 ${depthFactor * 2}px ${depthFactor * 4}px rgba(0,0,0,${depthFactor * 0.1}))`,
+      }}
+    >
+      <div className="notification">
+        <div className="notification-row">
+          <div className="notification-bg">
+            <div className="notification-notification"></div>
           </div>
 
-          <Text className="notification-text2 subheadline-regular">{notification.pwd || "Notification details"}</Text>
+          <Avatar
+            className="notification-app-icon"
+            style={{ backgroundColor: bgColor }}
+          >
+            {initials}
+          </Avatar>
+
+          <div className="notification-title-time">
+            <div className="notification-title-and">
+              <Text className="notification-text1 subheadline-emphasized">{notification.message}</Text>
+              <Text className="notification-text-time">{formatTimestamp(notification.timestamp)}</Text>
+            </div>
+
+            <Text className="notification-text2 subheadline-regular">{notification.pwd || "Notification details"}</Text>
+          </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
