@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Avatar, Text } from '@mantine/core';
 
 import NotificationData from '../models/NotificationData';
+import { formatTimestamp } from '../utils/timestampUtils';
 
 interface Notification {
   id: string;
@@ -14,9 +15,15 @@ interface NotificationCardProps {
 }
 
 function NotificationCard({ notification }: NotificationCardProps) {
-  const formatTime = (timestamp: string): string => {
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
 
   const getInitials = (name: string): string => {
     const words = name.trim().split(/\s+/);
@@ -68,7 +75,7 @@ function NotificationCard({ notification }: NotificationCardProps) {
         <div className="notification-title-time">
           <div className="notification-title-and">
             <Text className="notification-text1 subheadline-emphasized">{notification.data.message}</Text>
-            <Text className="notification-text-time">{formatTime(notification.timestamp)}</Text>
+            <Text className="notification-text-time">{formatTimestamp(notification.timestamp)}</Text>
           </div>
 
           <Text className="notification-text2 subheadline-regular">{notification.data.pwd || "Notification details"}</Text>
