@@ -3,11 +3,18 @@ from typing import List, Optional
 import uuid
 import asyncio
 import json
+from pydantic import BaseModel, ConfigDict
+
+class NotificationData(BaseModel):
+    model_config = ConfigDict(extra='allow')
+
+    message: str
+    pwd: Optional[str] = None
 
 class Notification:
-    def __init__(self, message: str):
+    def __init__(self, data: NotificationData):
         self.id = str(uuid.uuid4())
-        self.message = message
+        self.data = data.model_dump(exclude_none=True)
         self.timestamp = datetime.now()
 
 class NotificationStore:
@@ -16,8 +23,8 @@ class NotificationStore:
         self.max_notifications = 1000
         self.sse_manager = sse_manager
 
-    def add(self, message: str) -> str:
-        notification = Notification(message)
+    def add(self, data: NotificationData) -> str:
+        notification = Notification(data)
         self.notifications.insert(0, notification)  # Newest first
 
         # Broadcast to SSE clients
@@ -26,7 +33,7 @@ class NotificationStore:
                 "event": "notification",
                 "data": json.dumps({
                     "id": notification.id,
-                    "message": notification.message,
+                    "data": notification.data,
                     "timestamp": notification.timestamp.isoformat()
                 })
             }

@@ -12,9 +12,10 @@ import asyncio
 from typing import List
 import logging
 import json
+import os
 from datetime import datetime
 
-from .models import NotificationStore
+from .models import NotificationStore, NotificationData
 
 class SSEManager:
     def __init__(self):
@@ -44,7 +45,7 @@ class SSEManager:
             self.disconnect(queue)
 
 class NotifyRequest(BaseModel):
-    message: str
+    data: dict
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -70,14 +71,16 @@ app.add_middleware(
 )
 
 # Static files and templates setup
-app.mount("/static", StaticFiles(directory="notifyhub/frontend/static"), name="static")
-app.mount("/icons", StaticFiles(directory="notifyhub/frontend/static/icons"), name="icons")
-app.mount("/audio", StaticFiles(directory="notifyhub/frontend/static/audio"), name="audio")
-templates = Jinja2Templates(directory="notifyhub/frontend/templates")
+frontend_dir = os.path.join(os.path.dirname(__file__), "../frontend")
+app.mount("/static", StaticFiles(directory=os.path.join(frontend_dir, "public")), name="static")
+app.mount("/icons", StaticFiles(directory=os.path.join(frontend_dir, "public/icons")), name="icons")
+app.mount("/audio", StaticFiles(directory=os.path.join(frontend_dir, "public/audio")), name="audio")
+templates = Jinja2Templates(directory=os.path.join(frontend_dir, "templates"))
 
 @app.post("/api/notify")
 async def notify(request: NotifyRequest):
-    notification_id = store.add(request.message)
+    data = NotificationData.model_validate(request.data)
+    notification_id = store.add(data)
     return {"success": True, "id": notification_id}
 
 @app.get("/api/notifications")
@@ -106,7 +109,7 @@ async def events():
             current_notifications = [
                 {
                     "id": n.id,
-                    "message": n.message,
+                    "data": n.data,
                     "timestamp": n.timestamp.isoformat()
                 }
                 for n in store.notifications

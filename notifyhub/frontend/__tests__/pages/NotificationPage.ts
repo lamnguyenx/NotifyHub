@@ -7,8 +7,8 @@ export class NotificationPage extends BasePage {
   }
 
   async getNotificationCount(): Promise<number> {
-    // Count star icons which are in each notification card
-    const notifications = this.page.locator('img[alt="star"]');
+    // Count notification elements
+    const notifications = this.page.locator('.notification');
     return await notifications.count();
   }
 

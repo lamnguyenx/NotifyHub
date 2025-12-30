@@ -1,15 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Container, Alert, Title, Card, Text, Group, Box } from '@mantine/core';
-
-const starIcon = '/icons/star-icon.svg';
+import { Button, Container, Alert, Title, Box } from '@mantine/core';
+import NotificationCard from './components/NotificationCard';
+import NotificationData from './models/NotificationData';
 const submarineAudio = '/audio/Submarine.mp3';
 
+interface Notification {
+  id: string;
+  data: NotificationData;
+  timestamp: string;
+}
+
 function App() {
-  const [notifications, setNotifications] = useState([]);
-  const [connectionError, setConnectionError] = useState(false);
-  const [eventSource, setEventSource] = useState(null);
-  const audioRef = useRef(null);
-  const [audioBlocked, setAudioBlocked] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [connectionError, setConnectionError] = useState<boolean>(false);
+  const [eventSource, setEventSource] = useState<EventSource | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioBlocked, setAudioBlocked] = useState<boolean>(false);
 
   // Enable audio on user interaction
   useEffect(() => {
@@ -38,8 +44,10 @@ function App() {
   // Audio setup
   useEffect(() => {
     audioRef.current = new Audio(submarineAudio);
-    audioRef.current.volume = 0.5;
-    audioRef.current.load();
+    if (audioRef.current) {
+      audioRef.current.volume = 0.5;
+      audioRef.current.load();
+    }
   }, []);
 
   // SSE connection
@@ -48,49 +56,78 @@ function App() {
     const es = new EventSource('/events');
     setEventSource(es);
 
-    es.onmessage = (event) => {
+    es.onmessage = (event: MessageEvent) => {
       console.log('SSE message received:', event.data);
     };
 
-    es.addEventListener('init', (event) => {
-      const initData = JSON.parse(event.data);
-      // Filter out any potential duplicates by ID
-      const uniqueNotifications = initData.filter((n, index, arr) =>
-        arr.findIndex(x => x.id === n.id) === index
-      );
+    es.addEventListener('init', (event: MessageEvent) => {
+      const initData = JSON.parse(event.data) as Array<{
+        id: string;
+        data: any;
+        timestamp: string;
+      }>;
+      // Wrap data with NotificationData and filter duplicates
+      const uniqueNotifications: Notification[] = initData
+        .map(raw => {
+          try {
+            return {
+              ...raw,
+              data: new NotificationData(raw.data),
+            };
+          } catch (error) {
+            console.error('Invalid notification data in init:', error);
+            return null;
+          }
+        })
+        .filter((n): n is Notification => n !== null)
+        .filter((n, index, arr) => arr.findIndex(x => x.id === n.id) === index);
       setNotifications(uniqueNotifications);
       setConnectionError(false);
     });
 
-    es.addEventListener('notification', (event) => {
-      const notification = JSON.parse(event.data);
-      setNotifications(prev => {
-        // Prevent duplicate notifications by checking existing IDs
-        if (prev.some(n => n.id === notification.id)) {
-          return prev;
-        }
-        return [notification, ...prev];
-      });
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(e => {
-          console.log('Audio play failed:', e);
-          setAudioBlocked(true);
+    es.addEventListener('notification', (event: MessageEvent) => {
+      const rawNotification = JSON.parse(event.data) as {
+        id: string;
+        data: any;
+        timestamp: string;
+      };
+      try {
+        const notificationData = new NotificationData(rawNotification.data);
+        const notification: Notification = {
+          ...rawNotification,
+          data: notificationData,
+        };
+        setNotifications(prev => {
+          // Prevent duplicate notifications by checking existing IDs
+          if (prev.some(n => n.id === notification.id)) {
+            return prev;
+          }
+          return [notification, ...prev];
         });
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(e => {
+            console.log('Audio play failed:', e);
+            setAudioBlocked(true);
+          });
+        }
+        setConnectionError(false);
+      } catch (error) {
+        console.error('Invalid notification data:', error);
+        // Optionally, ignore invalid notifications or show an error
       }
-      setConnectionError(false);
     });
 
-    es.addEventListener('clear', (event) => {
+    es.addEventListener('clear', (event: MessageEvent) => {
       setNotifications([]);
       setConnectionError(false);
     });
 
-    es.addEventListener('heartbeat', (event) => {
+    es.addEventListener('heartbeat', (event: MessageEvent) => {
       setConnectionError(false);
     });
 
-    es.onerror = (error) => {
+    es.onerror = (error: Event) => {
       console.error('SSE connection error:', error);
       setConnectionError(true);
     };
@@ -110,10 +147,6 @@ function App() {
     };
   }, []);
 
-  const formatDate = (timestamp) => {
-    return new Date(timestamp).toLocaleString();
-  };
-
   const clearAllNotifications = async () => {
     try {
       const response = await fetch('/api/notifications', {
@@ -131,15 +164,12 @@ function App() {
     }
   };
 
-
-
   return (
     <Box bg="body" p="md" mih="100vh">
-
       <Container size="lg">
         {/* Header */}
         <Title order={1} ta="center" mb="md">
-           ★ NotifyHub
+          ★ NotifyHub
         </Title>
 
         {/* Clear All Button */}
@@ -168,17 +198,7 @@ function App() {
         {/* Notifications */}
         <div>
           {notifications.map(notification => (
-            <Card key={notification.id} shadow="sm" p="md" mb="sm" bg="default">
-              <Group justify="space-between">
-                <div>
-                  <Text fw={500}>{notification.message}</Text>
-                  <Text size="sm" c="dimmed">
-                    {formatDate(notification.timestamp)}
-                  </Text>
-                </div>
-                 <img src={starIcon} alt="star" width="20" height="20" />
-              </Group>
-            </Card>
+            <NotificationCard key={notification.id} notification={notification} />
           ))}
         </div>
       </Container>

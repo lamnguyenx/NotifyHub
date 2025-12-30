@@ -39,10 +39,10 @@ test-backend:
 	python -m pytest notifyhub/backend/__tests__/ -v
 
 test-frontend:
-	cd notifyhub/frontend && export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
+	cd notifyhub/frontend && ./__tests__/run.sh prod
 
 test-frontend-dev:
-	cd notifyhub/frontend && export BASE_URL=http://localhost:9070 && export CDP_WEBSOCKET_ENDPOINT=`curl -s http://localhost:9222/json/version | jq -r .webSocketDebuggerUrl` && echo "CDP_WEBSOCKET_ENDPOINT: $$CDP_WEBSOCKET_ENDPOINT" && npx playwright test --headed
+	cd notifyhub/frontend && ./__tests__/run.sh dev
 
 # -----------------------------------
 #        Plugin Management

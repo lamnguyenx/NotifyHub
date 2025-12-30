@@ -16,7 +16,7 @@ export default defineConfig({
   build: {
     outDir: 'static',
     rollupOptions: {
-      input: 'src/main.jsx',
+      input: 'src/main.tsx',
       output: {
         entryFileNames: 'app.js',
         chunkFileNames: '[name].js',

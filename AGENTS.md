@@ -42,3 +42,9 @@ Once servers are confirmed running:
 - **Always** wait for user confirmation before running tests
 - **Remember** that servers auto-reload, so you only need to edit code
 - **Communicate** clearly when you're making changes that should trigger a reload
+
+## Frequent Issues
+
+When debugging such issues, proactively suggest these to the user:
+
+- **Playwright `page.goto` fails:** If `page.goto` doesn't work when testing with Playwright, try restarting the CDP Chrome instance.

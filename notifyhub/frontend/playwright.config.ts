@@ -1,7 +1,7 @@
 import { defineConfig, PlaywrightTestConfig } from '@playwright/test';
 
 const config: PlaywrightTestConfig = {
-  testDir: './__tests__/ui',
+  testDir: './__tests__',
   timeout: 30000,
   expect: {
     timeout: 2000,

@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { chromium } from '@playwright/test';
 import { AppPage } from '../pages/AppPage';
 import { NotificationPage } from '../pages/NotificationPage';
+import * as fs from 'fs';
 
 const customTest = test.extend({
   browser: async ({}, use) => {
@@ -33,7 +34,7 @@ const customTest = test.extend({
  * - Tests reuse this initial state across the linear test sequence
  * - Each test may modify state (e.g., clearing notifications)
  * - afterEach cleans up all notifications
- * - After the last test, restores the backed up notifications to preserve user's state
+ * - The final test restores the backed up notifications and verifies integrity
  * - This setup allows for testing various notification states and prepares for future
  *   individual notification removal tests
  */
@@ -42,6 +43,7 @@ customTest.describe('Notification Management', () => {
     let notificationPage: NotificationPage;
     let testIndex = 0;
     let backupNotifications: any[] = [];
+    const backupFile = '/tmp/notifyhub_test_backup.json';
 
       customTest.beforeEach(async ({ page }) => {
         testIndex++;
@@ -53,17 +55,24 @@ customTest.describe('Notification Management', () => {
           errors.push(`Page error: ${error.message}`);
         });
 
-         await page.goto('http://localhost:9080/', { timeout: 10000 });
+          await page.goto(`${process.env.BASE_URL}/`, { timeout: 10000 });
          await page.waitForLoadState('load', { timeout: 10000 });
 
-         // Backup existing notifications and add mock ones (only once at the start)
-         if (testIndex === 1) {
-           const response = await page.request.get('http://localhost:9080/api/notifications');
-           backupNotifications = await response.json();
-           for (let i = 1; i <= 4; i++) {
-             await page.request.post('http://localhost:9080/api/notify', { data: { message: `Test notification ${i}` } });
-           }
-         }
+          // Backup existing notifications and add mock ones (only once at the start)
+          if (testIndex === 1) {
+            const response = await page.request.get('http://localhost:9080/api/notifications');
+            backupNotifications = await response.json();
+            fs.writeFileSync(backupFile, JSON.stringify(backupNotifications));
+            for (let i = 1; i <= 4; i++) {
+              await page.evaluate(async (msg) => {
+                await fetch('/api/notify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ data: { message: msg } })
+                });
+              }, `Test notification ${i}`);
+            }
+          }
 
          // Wait for dust to settle
          await new Promise(resolve => setTimeout(resolve, 2000));
@@ -73,16 +82,12 @@ customTest.describe('Notification Management', () => {
         }
       });
 
-      customTest.afterEach(async ({ page }) => {
-        // Clean up notifications after each test
-        await page.request.delete('http://localhost:9080/api/notifications');
-        // Restore backed up notifications after the last test
-        if (testIndex === 4) {
-          for (const noti of backupNotifications) {
-            await page.request.post('http://localhost:9080/api/notify', { data: { message: noti.message } });
-          }
-        }
-      });
+       customTest.afterEach(async ({ page }) => {
+         // Clean up notifications after each test (except the last one which handles restore)
+         if (testIndex < 5) {
+           await page.request.delete('http://localhost:9080/api/notifications');
+         }
+       });
 
     customTest('displays existing notifications', async () => {
      // Verify notification count is non-negative
@@ -113,7 +118,52 @@ customTest.describe('Notification Management', () => {
     //   expect(newEditState).not.toBe(initialEditState);
     // });
 
-   customTest('connection status', async () => {
-     await appPage.expectConnectionError(false);
-   });
+    customTest('connection status', async () => {
+      await appPage.expectConnectionError(false);
+    });
+
+    customTest('notification backup and restore integrity', async ({ page }) => {
+      // Fetch current notifications (should be 0 after previous clear)
+      const currentResponse = await page.evaluate(async () => {
+        const res = await fetch('/api/notifications');
+        return await res.json();
+      });
+      expect(currentResponse.length).toBe(0);
+
+      // Load backup
+      const backup = JSON.parse(fs.readFileSync(backupFile, 'utf8'));
+
+      // Restore notifications
+      for (const noti of backup) {
+        await page.evaluate(async (data) => {
+          await fetch('/api/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data })
+          });
+        }, noti.data);
+      }
+
+      // Fetch notifications after restore
+      const restoredResponse = await page.evaluate(async () => {
+        const res = await fetch('/api/notifications');
+        return await res.json();
+      });
+
+      // Compare counts
+      expect(restoredResponse.length).toBe(backup.length);
+
+      // Sort both arrays by id to ensure order-independent comparison
+      backup.sort((a, b) => a.id.localeCompare(b.id));
+      restoredResponse.sort((a, b) => a.id.localeCompare(b.id));
+
+      // Compare content (message and pwd)
+      for (let i = 0; i < backup.length; i++) {
+        expect(restoredResponse[i].data.message).toBe(backup[i].data.message);
+        expect(restoredResponse[i].data.pwd).toBe(backup[i].data.pwd);
+      }
+
+      // Clean up backup file
+      fs.unlinkSync(backupFile);
+    });
 });
