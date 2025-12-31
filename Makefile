@@ -22,7 +22,7 @@ frontend-dev:
 	cd notifyhub/frontend && bun run dev
 
 noti:
-	python -m notifyhub.cli --port 9080 "Hello"
+	./local/noti.sh "make noti"
 
 chrome:
 	open -a "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-dev-profile

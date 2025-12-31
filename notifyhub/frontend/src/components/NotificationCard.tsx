@@ -95,9 +95,9 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
     return colors[Math.abs(hash) % colors.length];
   };
 
-  const username = notification.pwd ? notification.pwd.split('/').pop() || '' : '';
-  const initials = getInitials(username);
-  const bgColor = getColorFromName(username);
+  const notiTitle = notification.pwd ? notification.pwd.split('/').pop() || '' : '';
+  const initials = getInitials(notiTitle);
+  const bgColor = getColorFromName(notiTitle);
 
   // Age-based depth (newer = less depth)
   const ageFactor = Math.min(index / Math.max(total - 1, 1), 1);
@@ -145,11 +145,12 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
 
           <div className="notification-title-time">
             <div className="notification-title-and">
-              <Text className="notification-text1 subheadline-emphasized">{notification.message}</Text>
+              <Text className="notification-text1 subheadline-emphasized">{notiTitle}</Text>
               <Text className="notification-text-time">{formatTimestamp(notification.timestamp)}</Text>
             </div>
 
             <Text className="notification-text2 subheadline-regular">{notification.pwd || "Notification details"}</Text>
+            <Text className="notification-text2 message">{notification.message || "Message"}</Text>
           </div>
         </div>
       </div>
