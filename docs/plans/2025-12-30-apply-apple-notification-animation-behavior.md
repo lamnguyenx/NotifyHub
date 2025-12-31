@@ -1,8 +1,8 @@
-# Apply Apple-Style Notification Stacking Animation Implementation Plan
+# Apply Apple Notification Animation Behavior Implementation Plan
 
 ## Overview
 
-Implement Apple iOS-style notification stacking animations in NotifyHub's web UI, where new notifications appear at the top with fluid spring animations and existing notifications smoothly push down with visual depth effects.
+Implement Apple's complete iOS notification system animation behaviors in NotifyHub's web UI, including both "Bubble Up" arrival animations and "Fan-In" stacking compression effects with material design principles, spring physics, and progressive depth layering.
 
 ## Current State Analysis
 
@@ -21,12 +21,12 @@ Implement Apple iOS-style notification stacking animations in NotifyHub's web UI
 ## Desired End State
 
 After implementation:
-- New notifications appear at the top with smooth insertion animation
-- Existing notifications animate downward as a group with spring physics
-- Visual depth applied: 20% opacity reduction and 5% scaling for older notifications
-- Subtle drop shadows for layering effect
-- Animations complete within 500ms for perceived responsiveness
-- Smooth performance maintained with 50+ notifications
+- **Bubble Up Behavior**: New notifications roll-in from bottom with spring animation, pushing existing notifications down as a fluid unit
+- **Fan-In Compression**: Notifications progressively scale (90-95%) and fade at bottom with z-axis layering and blur effects
+- Visual depth: opacity reduction (20% for older, progressive for stack), scaling (95% for older, 90-95% for compressed)
+- Material effects: drop shadows, transparency layers, glass-like appearance
+- Spring physics: natural motion with 300-400ms completion for responsiveness
+- Performance: smooth 60fps with 50+ notifications, GPU acceleration
 
 ### Key Discoveries:
 - Current notification insertion happens immediately without transitions
@@ -36,20 +36,21 @@ After implementation:
 
 ## What We're NOT Doing
 
-- Not implementing complex 3D transforms (too performance-heavy)
-- Not adding custom animation timing curves beyond spring physics
-- Not modifying notification data structure or backend logic
-- Not implementing gesture-based interactions
-- Not adding sound animation synchronization
+- Not implementing full 3D transforms (focus on 2.5D layering)
+- Not modifying backend notification logic or data structures
+- Not adding gesture-based dismissal animations (separate feature)
+- Not synchronizing with audio playback timing
+- Not implementing platform-specific iOS-only features
 
 ## Implementation Approach
 
 **Animation Strategy:**
-1. Use Framer Motion for layout animations and spring physics
-2. Implement AnimatePresence for enter/exit animations
-3. Use layout prop for automatic list reordering animations
-4. Apply staggered animations for the push-down effect
-5. Add visual depth effects based on notification index/age
+1. Framer Motion for spring physics and layout animations
+2. AnimatePresence for bubble-up arrival animations
+3. Layout animations for push-down effect on existing notifications
+4. Progressive transforms for fan-in compression (scale, opacity, blur)
+5. Z-index management and drop shadows for depth layering
+6. Material design principles with transparency and glass effects
 
 **Performance Optimizations:**
 - Leverage Framer Motion's GPU acceleration
@@ -68,14 +69,7 @@ Install Framer Motion and prepare the animation foundation.
 **File**: `notifyhub/frontend/package.json`
 **Changes**: Add Framer Motion to dependencies
 
-```json
-{
-  "dependencies": {
-    "framer-motion": "^11.0.0",
-    // ... existing dependencies
-  }
-}
-```
+- Add "framer-motion": "^11.0.0" to dependencies object
 
 ### Success Criteria:
 
@@ -103,26 +97,16 @@ Wrap the notification list with AnimatePresence and motion components to enable 
 **File**: `notifyhub/frontend/src/App.tsx`
 **Changes**: Add Framer Motion imports
 
-```typescript
-import { motion, AnimatePresence } from 'framer-motion';
-import NotificationCard from './components/NotificationCard';
-// ... existing imports
-```
+- Import motion and AnimatePresence from framer-motion
+- Import NotificationCard component
 
 #### 2. Wrap notification list with animation components
 **File**: `notifyhub/frontend/src/App.tsx`
 **Changes**: Replace static list with animated container
 
-```tsx
-{/* Notifications */}
-<AnimatePresence mode="popLayout">
-  <motion.div layout>
-    {notifications.map(notification => (
-      <NotificationCard key={notification.id} notification={notification} />
-    ))}
-  </motion.div>
-</AnimatePresence>
-```
+- Wrap notification list with AnimatePresence (mode: popLayout)
+- Wrap list items with motion.div (layout: true)
+- Map notifications to NotificationCard components with keys
 
 ### Success Criteria:
 
@@ -139,10 +123,10 @@ import NotificationCard from './components/NotificationCard';
 
 ---
 
-## Phase 3: Spring Animation and Stacking Effect
+## Phase 3: Spring Animation and Bubble Up Effect
 
 ### Overview
-Implement spring-based animations for the stacking effect where new notifications push older ones down.
+Implement spring-based bubble up animations for new notifications and push-down effect on existing notifications.
 
 ### Changes Required:
 
@@ -150,31 +134,12 @@ Implement spring-based animations for the stacking effect where new notification
 **File**: `notifyhub/frontend/src/components/NotificationCard.tsx`
 **Changes**: Wrap notification card with motion.div
 
-```tsx
-import { motion } from 'framer-motion';
-// ... existing imports
-
-function NotificationCard({ notification }: NotificationCardProps) {
-  // ... existing code
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{
-        type: "spring",
-        stiffness: 300,
-        damping: 30,
-        layout: { type: "spring", stiffness: 400, damping: 35 }
-      }}
-    >
-      {/* existing notification JSX */}
-    </motion.div>
-  );
-}
-```
+- Import motion from framer-motion
+- Wrap return JSX with motion.div
+- Set layout=true for automatic layout animations
+- Configure initial/animate/exit states with opacity and y transforms
+- Use spring transition with stiffness 300, damping 30
+- Set layout transition with higher stiffness for push-down effect
 
 ### Success Criteria:
 
@@ -192,83 +157,36 @@ function NotificationCard({ notification }: NotificationCardProps) {
 
 ---
 
-## Phase 4: Visual Depth Effects
+## Phase 4: Visual Depth and Fan-In Effects
 
 ### Overview
-Add visual depth effects including opacity reduction, scaling, and shadows for older notifications.
+Add visual depth effects for older notifications and implement fan-in compression for bottom stacking with progressive scaling, opacity, and blur.
 
 ### Changes Required:
 
-#### 1. Add depth-based styling
+#### 1. Add depth and compression styling
 **File**: `notifyhub/frontend/src/components/NotificationCard.tsx`
-**Changes**: Add index prop and depth calculations
+**Changes**: Add index prop and layered depth/compression calculations
 
-```tsx
-interface NotificationCardProps {
-  notification: INotification;
-  index: number; // Add index for depth calculation
-  total: number; // Add total for depth calculation
-}
-
-function NotificationCard({ notification, index, total }: NotificationCardProps) {
-  // ... existing code
-
-  // Calculate depth effects (newer = less depth)
-  const depthFactor = Math.min(index / Math.max(total - 1, 1), 1);
-  const opacity = 1 - (depthFactor * 0.2); // 20% opacity reduction
-  const scale = 1 - (depthFactor * 0.05); // 5% scaling reduction
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: opacity, y: 0, scale: scale }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{
-        type: "spring",
-        stiffness: 300,
-        damping: 30,
-        layout: { type: "spring", stiffness: 400, damping: 35 }
-      }}
-      style={{
-        filter: `drop-shadow(0 ${depthFactor * 2}px ${depthFactor * 4}px rgba(0,0,0,${depthFactor * 0.1}))`,
-      }}
-    >
-      {/* existing notification JSX */}
-    </motion.div>
-  );
-}
-```
+- Add index and total props to NotificationCardProps interface
+- Calculate age-based depth factor (0 for newest, 1 for oldest)
+- Calculate age-based opacity (1 to 0.8) and scale (1 to 0.95)
+- Calculate compression factor for bottom items (simulate y-position based compression)
+- Combine age and compression effects for final opacity, scale, blur
+- Update motion.div animate prop with calculated values and blur/drop-shadow filters
+- Set zIndex based on recency (newer on top)
 
 #### 2. Update App.tsx to pass index and total
 **File**: `notifyhub/frontend/src/App.tsx`
 **Changes**: Pass index and total props to NotificationCard
 
-```tsx
-<AnimatePresence mode="popLayout">
-  <motion.div layout>
-    {notifications.map((notification, index) => (
-      <NotificationCard
-        key={notification.id}
-        notification={notification}
-        index={index}
-        total={notifications.length}
-      />
-    ))}
-  </motion.div>
-</AnimatePresence>
-```
+- In notification map, pass index and notifications.length as total to NotificationCard
 
 #### 3. Add CSS optimizations
 **File**: `notifyhub/frontend/src/notification.css`
 **Changes**: Add GPU acceleration hints
 
-```css
-.notification {
-  /* ... existing styles */
-  will-change: transform, opacity;
-}
-```
+- Add "will-change: transform, opacity" to .notification class for GPU optimization
 
 ### Success Criteria:
 
@@ -297,12 +215,7 @@ Test performance with large notification loads and optimize as needed.
 **File**: `notifyhub/frontend/src/App.tsx`
 **Changes**: Add performance logging for animation timing
 
-```tsx
-// Add performance monitoring in development
-if (process.env.NODE_ENV === 'development') {
-  console.log(`Rendering ${notifications.length} notifications`);
-}
-```
+- Add development-only console logging of notification count
 
 ### Success Criteria:
 
@@ -331,25 +244,15 @@ Fine-tune animation timing, add final polish, and comprehensive testing.
 **File**: `notifyhub/frontend/src/components/NotificationCard.tsx`
 **Changes**: Adjust spring parameters for optimal feel
 
-```tsx
-transition={{
-  type: "spring",
-  stiffness: 350, // Slightly snappier
-  damping: 35,    // Smoother damping
-  layout: { type: "spring", stiffness: 450, damping: 40 }
-}}
-```
+- Increase stiffness to 350 for snappier response
+- Adjust damping to 35 for smoother motion
+- Fine-tune layout spring parameters (stiffness 450, damping 40)
 
 #### 2. Add CSS containment for performance
 **File**: `notifyhub/frontend/src/notification.css`
 **Changes**: Add CSS containment for better performance
 
-```css
-.notification {
-  /* ... existing styles */
-  contain: layout style paint;
-}
-```
+- Add "contain: layout style paint" to .notification class
 
 ### Success Criteria:
 
@@ -401,4 +304,5 @@ transition={{
 
 - Framer Motion documentation: https://motion.dev/docs
 - Apple Human Interface Guidelines: Notification patterns
-- Issue: `docs/issues/2025-12-30-apply-apple-notification-stacking.md`
+- Reference: `docs/refs/apple_notification_animation_behavior.md`
+- Issue: `docs/issues/2025-12-30-apply-apple-notification-animation-behavior.md`

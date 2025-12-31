@@ -207,6 +207,11 @@ function App() {
         )}
 
         {/* Notifications */}
+        {process.env.NODE_ENV === 'development' && (
+          <div style={{ fontSize: '12px', color: 'gray', marginBottom: '8px' }}>
+            Rendering {notifications.length} notifications
+          </div>
+        )}
         <AnimatePresence mode="popLayout">
           <motion.div layout>
             {notifications.map((notification, index) => (

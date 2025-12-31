@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Avatar, Text } from '@mantine/core';
 import { motion } from 'framer-motion';
 
@@ -20,6 +20,8 @@ interface NotificationCardProps {
 
 function NotificationCard({ notification, index, total }: NotificationCardProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [compressionFactor, setCompressionFactor] = useState(0);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -27,6 +29,41 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
     }, 60000); // Update every minute
 
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const updateCompression = () => {
+      if (!cardRef.current) return;
+
+      const rect = cardRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+
+      // Check if card is in bottom 15% of viewport
+      const bottomThreshold = viewportHeight * 0.85; // 85% from top = bottom 15%
+      const cardBottom = rect.bottom;
+
+      if (cardBottom > bottomThreshold) {
+        // Calculate how far into the bottom 15% it is
+        const distanceIntoBottom = cardBottom - bottomThreshold;
+        const bottomRegionHeight = viewportHeight * 0.15;
+        const factor = Math.min(1, distanceIntoBottom / bottomRegionHeight);
+        setCompressionFactor(factor);
+      } else {
+        setCompressionFactor(0);
+      }
+    };
+
+    // Initial calculation
+    updateCompression();
+
+    // Update on scroll and resize
+    window.addEventListener('scroll', updateCompression, { passive: true });
+    window.addEventListener('resize', updateCompression, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', updateCompression);
+      window.removeEventListener('resize', updateCompression);
+    };
   }, []);
 
   const getInitials = (name: string): string => {
@@ -62,27 +99,36 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
   const initials = getInitials(username);
   const bgColor = getColorFromName(username);
 
-  // Calculate depth effects (newer = less depth) - only when 8+ notifications
-  const shouldApplyDepth = total >= 8;
-  const depthFactor = shouldApplyDepth ? Math.min(index / Math.max(total - 1, 1), 1) : 0;
-  const opacity = 1 - (depthFactor * 0.1); // 10% opacity reduction
-  const scale = 1 - (depthFactor * 0.025); // 2.5% scaling reduction
+  // Age-based depth (newer = less depth)
+  const ageFactor = Math.min(index / Math.max(total - 1, 1), 1);
+  const ageOpacity = 1 - (ageFactor * 0.2);
+  const ageScale = 1 - (ageFactor * 0.05);
+
+  // Viewport-based compression for bottom 15%
+  // compressionFactor is calculated in useEffect based on scroll position
+
+  const finalOpacity = Math.max(0.3, ageOpacity * (1 - compressionFactor * 0.7));
+  const finalScale = Math.max(0.85, ageScale * (1 - compressionFactor * 0.15));
 
   return (
     <motion.div
+      ref={cardRef}
       layout
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: opacity, y: 0, scale: scale }}
-      exit={{ opacity: 0, y: -20 }}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }} // Roll-in from bottom
+      animate={{
+        opacity: finalOpacity,
+        y: 0,
+        scale: finalScale,
+        filter: `drop-shadow(0 ${ageFactor * 2}px ${ageFactor * 4}px rgba(0,0,0,${ageFactor * 0.1}))`
+      }}
+      exit={{ opacity: 0, y: -20, scale: 0.95 }}
       transition={{
         type: "spring",
-        stiffness: 300,
-        damping: 30,
-        layout: { type: "spring", stiffness: 400, damping: 35 }
+        stiffness: 350, // Slightly snappier
+        damping: 35,    // Smoother damping
+        layout: { type: "spring", stiffness: 450, damping: 40 }
       }}
-      style={{
-        filter: `drop-shadow(0 ${depthFactor * 2}px ${depthFactor * 4}px rgba(0,0,0,${depthFactor * 0.1}))`,
-      }}
+      style={{ zIndex: total - index }} // Newer on top
     >
       <div className="notification">
         <div className="notification-row">
