@@ -120,4 +120,4 @@ When adding new plugins:
 - [OpenCode](https://opencode.ai) - The coding agent these plugins extend
 - [NotifyHub](https://github.com/sst/notifyhub) - Notification system for the NotifyHub plugin
 - [OpenCode Plugin Docs](https://opencode.ai/docs/plugins) - Official plugin documentation</content>
-<parameter name="filePath">chat_plugins/opencode/README.md
+<parameter name="filePath">src/notifyhub/plugins/opencode/README.md

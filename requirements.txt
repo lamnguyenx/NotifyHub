@@ -5,3 +5,6 @@ python-multipart
 aiofiles
 requests
 sse-starlette
+py_mini_logger
+mini_bash
+booleanify

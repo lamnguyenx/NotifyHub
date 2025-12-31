@@ -99,7 +99,7 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
   const initials = getInitials(notiTitle);
   const bgColor = getColorFromName(notiTitle);
 
-  // Age-based depth (newer = less depth)
+  // Age-based depth (newer = less depth) - only applied during compression
   const ageFactor = Math.min(index / Math.max(total - 1, 1), 1);
   const ageOpacity = 1 - (ageFactor * 0.2);
   const ageScale = 1 - (ageFactor * 0.05);
@@ -107,12 +107,16 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
   // Viewport-based compression for bottom 15%
   // compressionFactor is calculated in useEffect based on scroll position
 
-  const finalOpacity = Math.max(0.3, ageOpacity * (1 - compressionFactor * 0.7));
-  const finalScale = Math.max(0.85, ageScale * (1 - compressionFactor * 0.15));
+  const baseOpacity = compressionFactor > 0 ? ageOpacity : 1;
+  const baseScale = compressionFactor > 0 ? ageScale : 1;
+
+  const finalOpacity = Math.max(0.3, baseOpacity * (1 - compressionFactor * 0.7));
+  const finalScale = Math.max(0.85, baseScale * (1 - compressionFactor * 0.15));
 
   return (
     <motion.div
       ref={cardRef}
+      data-id={notification.id}
       layout
       initial={{ opacity: 0, y: 20, scale: 0.95 }} // Roll-in from bottom
       animate={{

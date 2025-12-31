@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -Eeuo pipefaile
+set -Eeuo pipefail
 
 function noti() {
 	local message="${@:-Done}"

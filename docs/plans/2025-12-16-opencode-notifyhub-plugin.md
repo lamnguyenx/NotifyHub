@@ -37,11 +37,11 @@ Set up the development environment and create the basic plugin structure with Ty
 ### Changes Required:
 
 #### 1. Create Plugin Directory Structure
-**File**: `chat_plugins/opencode/`
+**File**: `src/notifyhub/plugins/opencode/`
 **Changes**: Create organized directory for OpenCode plugins
 
 ```
-chat_plugins/opencode/
+src/notifyhub/plugins/opencode/
 ├── notifyhub-plugin.ts      # Main plugin code
 ├── package.json             # TypeScript dependencies
 ├── tsconfig.json           # TypeScript configuration
@@ -49,7 +49,7 @@ chat_plugins/opencode/
 ```
 
 #### 2. Plugin TypeScript Code
-**File**: `chat_plugins/opencode/notifyhub-plugin.ts`
+**File**: `src/notifyhub/plugins/opencode/notifyhub-plugin.ts`
 **Changes**: Implement the core plugin logic
 
 ```typescript
@@ -83,7 +83,7 @@ export const NotifyHub: Plugin = async ({ project, client, $, directory, worktre
 ```
 
 #### 3. TypeScript Configuration
-**File**: `chat_plugins/opencode/tsconfig.json`
+**File**: `src/notifyhub/plugins/opencode/tsconfig.json`
 **Changes**: Configure TypeScript for plugin development
 
 ```json
@@ -111,7 +111,7 @@ export const NotifyHub: Plugin = async ({ project, client, $, directory, worktre
 ```
 
 #### 4. Dependencies Configuration
-**File**: `chat_plugins/opencode/package.json`
+**File**: `src/notifyhub/plugins/opencode/package.json`
 **Changes**: Add required TypeScript dependencies
 
 ```json
@@ -127,9 +127,9 @@ export const NotifyHub: Plugin = async ({ project, client, $, directory, worktre
 ### Success Criteria:
 
 #### Automated Verification:
-- [x] Plugin compiles without TypeScript errors: `cd chat_plugins/opencode && bun run --check notifyhub-plugin.ts`
-- [x] Dependencies install correctly: `cd chat_plugins/opencode && npm install`
-- [x] TypeScript configuration is valid: `cd chat_plugins/opencode && npx tsc --noEmit notifyhub-plugin.ts`
+- [x] Plugin compiles without TypeScript errors: `cd src/notifyhub/plugins/opencode && bun run --check notifyhub-plugin.ts`
+- [x] Dependencies install correctly: `cd src/notifyhub/plugins/opencode && npm install`
+- [x] TypeScript configuration is valid: `cd src/notifyhub/plugins/opencode && npx tsc --noEmit notifyhub-plugin.ts`
 
 #### Manual Verification:
 - [x] Plugin file structure is correct and organized
@@ -154,7 +154,7 @@ Create easy installation methods and comprehensive documentation for the plugin.
 install-plugin:
 	@echo "Installing NotifyHub plugin to OpenCode..."
 	mkdir -p ~/.config/opencode/plugin
-	cp chat_plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/
+	cp src/notifyhub/plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/
 	@echo "Plugin installed! Start NotifyHub server with 'make sv'"
 
 remove-plugin:
@@ -164,7 +164,7 @@ remove-plugin:
 ```
 
 #### 2. Comprehensive Documentation
-**File**: `chat_plugins/opencode/README.md`
+**File**: `src/notifyhub/plugins/opencode/README.md`
 **Changes**: Create detailed documentation for plugin usage
 
 ```markdown
