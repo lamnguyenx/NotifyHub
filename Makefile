@@ -4,7 +4,7 @@
 #            Dependencies
 # -----------------------------------
 frontend-deps:
-	cd notifyhub/frontend && bun install
+	cd src/notifyhub/frontend && bun install
 
 # -----------------------------------
 #            Production
@@ -13,13 +13,13 @@ backend:
 	python -m notifyhub.backend.backend --port 9080
 
 frontend:
-	cd notifyhub/frontend && bun run build
+	cd src/notifyhub/frontend && bun run build
 
 # -----------------------------------
 #            Development
 # -----------------------------------
 frontend-dev:
-	cd notifyhub/frontend && bun run dev
+	cd src/notifyhub/frontend && bun run dev
 
 noti:
 	./local/noti.sh "make noti"
@@ -33,16 +33,16 @@ chrome:
 test-all: test-chrome test-backend test-frontend test-frontend-dev
 
 test-chrome:
-	cd notifyhub/frontend && npx tsx __tests__/ui/utils/test_chrome_connection.ts
+	cd src/notifyhub/frontend && npx tsx __tests__/ui/utils/test_chrome_connection.ts
 
 test-backend:
 	python -m pytest notifyhub/backend/__tests__/ -v
 
 test-frontend:
-	cd notifyhub/frontend && ./__tests__/run.sh prod
+	cd src/notifyhub/frontend && ./__tests__/run.py prod
 
 test-frontend-dev:
-	cd notifyhub/frontend && ./__tests__/run.sh dev
+	cd src/notifyhub/frontend && ./__tests__/run.py dev
 
 # -----------------------------------
 #        Plugin Management
@@ -50,7 +50,7 @@ test-frontend-dev:
 install-plugin:
 	@echo "Installing NotifyHub plugin to OpenCode..."
 	mkdir -p ~/.config/opencode/plugin
-	cp chat_plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/
+	cp src/notifyhub/plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/
 	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
 
 remove-plugin:

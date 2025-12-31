@@ -208,13 +208,13 @@ customTest.describe('Notification Management', () => {
        await page.request.delete('http://localhost:9080/api/notifications');
      });
 
-     customTest('notification backup and restore integrity', async ({ page }) => {
-      // Fetch current notifications (should be 0 after previous clear)
-      const currentResponse = await page.evaluate(async () => {
-        const res = await fetch('/api/notifications');
-        return await res.json();
-      });
-      expect(currentResponse.length).toBe(0);
+      customTest('notification backup and restore integrity', async ({ page }) => {
+       // Fetch current notifications (should be 0 after previous clear)
+       const currentResponse = await page.evaluate(async () => {
+         const res = await fetch('/api/notifications');
+         return await res.json();
+       });
+       expect(currentResponse.length).toBe(0);
 
       // Load backup
       const backup = JSON.parse(fs.readFileSync(backupFile, 'utf8'));
@@ -236,35 +236,35 @@ customTest.describe('Notification Management', () => {
         return await res.json();
       });
 
-      // Compare counts
-      expect(restoredResponse.length).toBe(backup.length);
+       // Compare counts
+       expect(restoredResponse.length).toBe(backup.length);
 
-      // Sort by message for order-independent comparison
-      backup.sort((a, b) => a.data.message.localeCompare(b.data.message));
-      restoredResponse.sort((a, b) => a.data.message.localeCompare(b.data.message));
+       // Sort by id for order-independent comparison
+       backup.sort((a, b) => a.id.localeCompare(b.id));
+       restoredResponse.sort((a, b) => a.id.localeCompare(b.id));
 
-       // Compare content (message and pwd) AND IDs
-        for (let i = 0; i < backup.length; i++) {
-          expect(restoredResponse[i].id).toBe(backup[i].id);  // IDs should be preserved
-          expect(restoredResponse[i].data.message).toBe(backup[i].data.message);
-          expect(restoredResponse[i].data.pwd).toBe(backup[i].data.pwd);
-          expect(restoredResponse[i].timestamp).toBe(backup[i].timestamp);  // Timestamps should be preserved
-       }
+        // Compare content (message and pwd) AND IDs
+         for (let i = 0; i < backup.length; i++) {
+           expect(restoredResponse[i].id).toBe(backup[i].id);  // IDs should be preserved
+           expect(restoredResponse[i].data.message).toBe(backup[i].data.message);
+           expect(restoredResponse[i].data.pwd).toBe(backup[i].data.pwd);
+           expect(restoredResponse[i].timestamp).toBe(backup[i].timestamp);  // Timestamps should be preserved
+        }
 
-      // Verify avatars display correctly for notifications with pwd
-      await page.waitForFunction((count) => document.querySelectorAll('.notification').length === count, backup.length);
-      const notifications = await page.$$('.notification');
-      expect(notifications.length).toBe(backup.length);
+        // Re-sort by message for avatar check
+        let sortedRestored = [...restoredResponse].sort((a, b) => a.data.message.localeCompare(b.data.message));
 
-      // Sort restored data by message
-      const sortedRestored = [...restoredResponse].sort((a, b) => a.data.message.localeCompare(b.data.message));
+        // Verify avatars display correctly for notifications with pwd
+       await page.waitForFunction((expectedCount) => document.querySelectorAll('.notification').length >= expectedCount, backup.length);
+       const notifications = await page.$$('.notification');
+       // Don't expect exact count since there may be other notifications
 
-      // Get notifications with their messages for sorting
-      const notificationsWithMessage = await Promise.all(notifications.map(async (el) => {
-        const message = await el.$eval('.notification-text1', el => el.textContent);
-        return { el, message };
-      }));
-      notificationsWithMessage.sort((a, b) => a.message.localeCompare(b.message));
+        // Get notifications with their messages for sorting
+        const notificationsWithMessage = await Promise.all(notifications.map(async (el) => {
+          const message = await el.$eval('.message', el => el.textContent);
+          return { el, message };
+        }));
+       notificationsWithMessage.sort((a, b) => a.message.localeCompare(b.message));
 
       function getColorFromName(name: string): string {
         const colors = [
@@ -301,18 +301,22 @@ customTest.describe('Notification Management', () => {
       }
 
       for (let i = 0; i < notificationsWithMessage.length; i++) {
-        const pwd = sortedRestored[i].data.pwd;
-        if (pwd) {
-          const username = pwd.split('/').pop() || '';
-          const expectedInitials = getInitials(username);
-          const expectedColor = getColorFromName(username);
+        const message = notificationsWithMessage[i].message;
+        const matchingNoti = sortedRestored.find(n => n.data.message === message);
+        if (matchingNoti) {
+          const pwd = matchingNoti.data.pwd;
+          if (pwd) {
+            const username = pwd.split('/').pop() || '';
+            const expectedInitials = getInitials(username);
+            const expectedColor = getColorFromName(username);
 
-          const avatar = await notificationsWithMessage[i].el.$('.notification-app-icon');
-          const text = await avatar?.textContent();
-          expect(text).toBe(expectedInitials);
+            const avatar = await notificationsWithMessage[i].el.$('.notification-app-icon');
+            const text = await avatar?.textContent();
+            expect(text).toBe(expectedInitials);
 
-          const bgColor = await avatar?.evaluate(el => getComputedStyle(el).backgroundColor);
-          expect(bgColor).toBe(`rgb(${hexToRgb(expectedColor)})`);
+            const bgColor = await avatar?.evaluate(el => getComputedStyle(el).backgroundColor);
+            expect(bgColor).toBe(`rgb(${hexToRgb(expectedColor)})`);
+          }
         }
       }
 

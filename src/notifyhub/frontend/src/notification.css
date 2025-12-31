@@ -21,13 +21,12 @@
   position: relative;
   display: flex;
   align-items: flex-start;
-  gap: var(--mantine-spacing-xs);
+  gap: 0;
   padding: var(--mantine-spacing-sm);
   background-color: var(--mantine-color-gray-5);
   border-radius: var(--mantine-radius-lg);
-  width: calc(95vw - 2 * var(--mantine-spacing-md));
-  max-width: 500px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
 }
 
 
@@ -46,6 +45,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-right: var(--mantine-spacing-xs);
 }
 
 .notification-title-time {
@@ -141,8 +141,8 @@
 }
 
 .notification-wrapper {
-  width: 100%;
-  max-width: 500px;
+  width: 95vw;
+  max-width: var(--mantine-breakpoint-xs);
 }
 
 .notification-header {

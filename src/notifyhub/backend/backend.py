@@ -17,18 +17,28 @@ from datetime import datetime
 
 from .models import NotificationStore, Notification
 
+
+
 class SSEManager:
+
+
     def __init__(self):
         self.active_connections: List[asyncio.Queue] = []
+
+
 
     async def connect(self) -> asyncio.Queue:
         queue = asyncio.Queue()
         self.active_connections.append(queue)
         return queue
 
+
+
     def disconnect(self, queue: asyncio.Queue):
         if queue in self.active_connections:
             self.active_connections.remove(queue)
+
+
 
     async def broadcast(self, event_data: dict):
         """Broadcast event to all connected clients"""
@@ -44,9 +54,14 @@ class SSEManager:
         for queue in disconnected:
             self.disconnect(queue)
 
+
+
 class NotifyRequest(BaseModel):
+
     id: Optional[str] = None
     data: dict
+
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -54,10 +69,14 @@ async def lifespan(app: FastAPI):
     # Shutdown: notify all SSE connections to close
     for queue in sse_manager.active_connections:
         try:
-            queue.put_nowait({"event": "shutdown", "data": json.dumps({"message": "Server shutting down"})})
+            queue.put_nowait(
+                {"event": "shutdown", "data": json.dumps({"message": "Server shutting down"})}
+            )
         except:
             pass
     sse_manager.active_connections.clear()
+
+
 
 app = FastAPI(lifespan=lifespan)
 sse_manager = SSEManager()
@@ -66,9 +85,9 @@ store = NotificationStore(sse_manager=sse_manager)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins = ["*"],
+    allow_methods = ["*"],
+    allow_headers = ["*"],
 )
 
 # Static files and templates setup
@@ -78,35 +97,40 @@ app.mount("/icons", StaticFiles(directory=os.path.join(frontend_dir, "public/ico
 app.mount("/audio", StaticFiles(directory=os.path.join(frontend_dir, "public/audio")), name="audio")
 templates = Jinja2Templates(directory=os.path.join(frontend_dir, "templates"))
 
+
+
 @app.post("/api/notify")
 async def notify(request: NotifyRequest):
-    data = Notification.model_validate(request.data)
-    custom_id = request.id
+    data            = Notification.model_validate(request.data)
+    custom_id       = request.id
     notification_id = store.add(data, custom_id)
     return {"success": True, "id": notification_id}
+
+
 
 @app.get("/api/notifications")
 async def get_notifications():
     return [
-        {
-            "id": n.id,
-            "data": n.model_dump(exclude={'id', 'timestamp'}),
-            "timestamp": n.timestamp
-        }
+        {"id": n.id, "data": n.model_dump(exclude={'id', 'timestamp'}), "timestamp": n.timestamp}
         for n in store.notifications
     ]
 
+
+
 @app.delete("/api/notifications")
 async def delete_notifications(id: Optional[str] = None):
+
     """Delete notifications - all if no id provided, specific if id given"""
     if id:
         # Delete specific notification
         if store.delete_by_id(id):
             # Broadcast delete event with ID
-            await sse_manager.broadcast({
-                "event": "delete",
-                "data": json.dumps({"id": id, "message": f"Notification {id} deleted"})
-            })
+            await sse_manager.broadcast(
+                {
+                    "event": "delete",
+                    "data": json.dumps({"id": id, "message": f"Notification {id} deleted"}),
+                }
+            )
             return {"success": True, "message": f"Notification {id} deleted"}
         else:
             # Notification not found
@@ -115,25 +139,29 @@ async def delete_notifications(id: Optional[str] = None):
     else:
         # Clear all notifications (existing behavior)
         store.clear_all()
-        await sse_manager.broadcast({
-            "event": "clear",
-            "data": json.dumps({"message": "All notifications cleared"})
-        })
+        await sse_manager.broadcast(
+            {"event": "clear", "data": json.dumps({"message": "All notifications cleared"})}
+        )
         return {"success": True, "message": "All notifications cleared"}
+
+
 
 @app.get("/events")
 async def events():
     """SSE endpoint for real-time notifications"""
     queue = await sse_manager.connect()
 
+
+
     async def event_generator():
+
         try:
             # Send current notifications on connect
             current_notifications = [
                 {
-                    "id": n.id,
-                    "data": n.model_dump(exclude={'id', 'timestamp'}),
-                    "timestamp": n.timestamp
+                    "id"        : n.id,
+                    "data"      : n.model_dump(exclude={'id', 'timestamp'}),
+                    "timestamp" : n.timestamp,
                 }
                 for n in store.notifications
             ]
@@ -143,7 +171,10 @@ async def events():
             while True:
                 # Send heartbeat every 30 seconds
                 if heartbeat_count % 30 == 0:
-                    yield {"event": "heartbeat", "data": json.dumps({"timestamp": datetime.now().isoformat()})}
+                    yield {
+                        "event": "heartbeat",
+                        "data": json.dumps({"timestamp": datetime.now().isoformat()}),
+                    }
 
                 # Wait for new events or timeout for heartbeat
                 try:
@@ -161,9 +192,13 @@ async def events():
 
     return EventSourceResponse(event_generator())
 
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return templates.TemplateResponse(request, "index.fastapi.html")
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='Start NotifyHub server')
@@ -173,6 +208,8 @@ def main():
     config = Config(app, host="0.0.0.0", port=args.port, timeout_graceful_shutdown=1)
     server = Server(config)
     server.run()
+
+
 
 if __name__ == "__main__":
     main()

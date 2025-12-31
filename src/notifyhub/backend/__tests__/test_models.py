@@ -3,12 +3,17 @@ from datetime import datetime
 from notifyhub.backend.models import Notification, NotificationStore
 
 
+
 class TestNotificationStore:
+
+
     def test_initialization(self):
         store = NotificationStore()
         assert len(store.notifications) == 0
         assert store.max_notifications == 1000
-    
+
+
+
     def test_add_single_notification(self):
         store = NotificationStore()
         data = Notification(message="Test notification")
@@ -19,8 +24,11 @@ class TestNotificationStore:
         assert n.message == "Test notification"
         assert n.id == notification_id
         assert isinstance(n.timestamp, str)
-    
+
+
+
     def test_add_multiple_notifications_order(self):
+
         store = NotificationStore()
 
         # Add notifications
@@ -38,7 +46,9 @@ class TestNotificationStore:
         assert store.notifications[0].id == id3
         assert store.notifications[1].id == id2
         assert store.notifications[2].id == id1
-    
+
+
+
     def test_max_notifications_limit(self):
         store = NotificationStore()
         store.max_notifications = 3
@@ -52,7 +62,9 @@ class TestNotificationStore:
         assert store.notifications[0].message == "Message 4"
         assert store.notifications[1].message == "Message 3"
         assert store.notifications[2].message == "Message 2"
-    
+
+
+
     def test_notification_limit_edge_case(self):
         store = NotificationStore()
         store.max_notifications = 2
@@ -68,7 +80,10 @@ class TestNotificationStore:
         assert store.notifications[0].message == "Third"
         assert store.notifications[1].message == "Second"
 
+
+
     def test_delete_by_id_existing_notification(self):
+
         store = NotificationStore()
 
         # Add notifications
@@ -88,6 +103,8 @@ class TestNotificationStore:
         # Verify deleted notification is gone
         assert not any(n.id == id2 for n in store.notifications)
 
+
+
     def test_delete_by_id_nonexistent_notification(self):
         store = NotificationStore()
 
@@ -100,6 +117,8 @@ class TestNotificationStore:
 
         # Should still have the original notification
         assert len(store.notifications) == 1
+
+
 
     def test_delete_by_id_empty_store(self):
         store = NotificationStore()

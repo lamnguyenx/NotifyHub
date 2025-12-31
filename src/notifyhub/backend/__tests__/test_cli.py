@@ -5,7 +5,10 @@ from unittest.mock import patch, MagicMock
 import notifyhub.cli
 
 
+
 class TestCLIArgumentParsing:
+
+
     def test_default_port(self):
         with patch('sys.argv', ['notifyhub-push', '{"message": "test message"}']):
             with patch('notifyhub.cli.requests.post') as mock_post:
@@ -21,6 +24,8 @@ class TestCLIArgumentParsing:
                     args, kwargs = mock_post.call_args
                     assert 'http://localhost:9080/api/notify' == args[0]
 
+
+
     def test_custom_port(self):
         with patch('sys.argv', ['notifyhub-push', '--port', '9999', '{"message": "test message"}']):
             with patch('notifyhub.cli.requests.post') as mock_post:
@@ -35,6 +40,8 @@ class TestCLIArgumentParsing:
                     mock_post.assert_called_once()
                     args, kwargs = mock_post.call_args
                     assert 'http://localhost:9999/api/notify' == args[0]
+
+
 
     def test_data_argument(self):
         with patch('sys.argv', ['notifyhub-push', '{"message": "my test message"}']):
@@ -52,7 +59,10 @@ class TestCLIArgumentParsing:
                     assert kwargs['json'] == {"data": {"message": "my test message"}}
 
 
+
 class TestCLISuccessBehavior:
+
+
     def test_successful_notification(self, capsys):
         with patch('sys.argv', ['notifyhub-push', '{"message": "success message"}']):
             with patch('notifyhub.cli.requests.post') as mock_post:
@@ -67,6 +77,8 @@ class TestCLISuccessBehavior:
                     captured = capsys.readouterr()
                     assert '✓ Notification sent successfully' in captured.out
                     mock_exit.assert_called_once_with(0)
+
+
 
     def test_server_response_false(self, capsys):
         with patch('sys.argv', ['notifyhub-push', '{"message": "test"}']):
@@ -84,7 +96,10 @@ class TestCLISuccessBehavior:
                     mock_exit.assert_called_once_with(1)
 
 
+
 class TestCLIErrorHandling:
+
+
     def test_invalid_json(self, capsys):
         with patch('sys.argv', ['notifyhub-push', 'invalid json']):
             with patch('sys.exit') as mock_exit:
@@ -95,10 +110,14 @@ class TestCLIErrorHandling:
                 assert '✗ Invalid JSON:' in captured.out
                 mock_exit.assert_called_once_with(1)
 
+
+
     def test_connection_error(self, capsys):
         with patch('sys.argv', ['notifyhub-push', '{"message": "test"}']):
             with patch('notifyhub.cli.requests.post') as mock_post:
-                mock_post.side_effect = notifyhub.cli.requests.exceptions.RequestException("Connection failed")
+                mock_post.side_effect = notifyhub.cli.requests.exceptions.RequestException(
+                    "Connection failed"
+                )
 
                 with patch('sys.exit') as mock_exit:
                     notifyhub.cli.main()
@@ -107,6 +126,8 @@ class TestCLIErrorHandling:
                     captured = capsys.readouterr()
                     assert '✗ Error: Connection failed' in captured.out
                     mock_exit.assert_called_once_with(1)
+
+
 
     def test_timeout_error(self, capsys):
         with patch('sys.argv', ['notifyhub-push', '{"message": "test"}']):
@@ -121,11 +142,15 @@ class TestCLIErrorHandling:
                     assert '✗ Error:' in captured.out
                     mock_exit.assert_called_once_with(1)
 
+
+
     def test_http_error(self, capsys):
         with patch('sys.argv', ['notifyhub-push', '{"message": "test"}']):
             with patch('notifyhub.cli.requests.post') as mock_post:
                 mock_response = MagicMock()
-                mock_response.raise_for_status.side_effect = notifyhub.cli.requests.exceptions.HTTPError("404 Not Found")
+                mock_response.raise_for_status.side_effect = (
+                    notifyhub.cli.requests.exceptions.HTTPError("404 Not Found")
+                )
                 mock_post.return_value = mock_response
 
                 with patch('sys.exit') as mock_exit:
@@ -137,7 +162,9 @@ class TestCLIErrorHandling:
                     mock_exit.assert_called_once_with(1)
 
 
+
 class TestCLIHelp:
+
     def test_help_output(self, capsys):
         with patch('sys.argv', ['notifyhub-push', '--help']):
             with pytest.raises(SystemExit):

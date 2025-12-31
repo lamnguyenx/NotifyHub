@@ -109,7 +109,7 @@ make install-plugin
 make remove-plugin
 ```
 
-This copies the plugin file from `chat_plugins/opencode/notifyhub-plugin.ts` to `~/.config/opencode/plugin/` and enables NotifyHub notifications in OpenCode.
+This copies the plugin file from `src/notifyhub/plugins/opencode/notifyhub-plugin.ts` to `~/.config/opencode/plugin/` and enables NotifyHub notifications in OpenCode.
 
 ---
 
@@ -187,7 +187,7 @@ To run the application as it would appear in production (serving built static as
 1. **Build Assets:**
 ```bash
 make frontend
-# Builds React app to notifyhub/frontend/static/
+# Builds React app to src/notifyhub/frontend/static/
 
 ```
 
@@ -251,7 +251,7 @@ Before running UI tests, ensure Playwright browsers are installed:
 
 ```bash
 # Install dependencies
-cd notifyhub/frontend && bun install
+cd src/notifyhub/frontend && bun install
 
 # Install Playwright browsers
 npx playwright install
@@ -275,7 +275,7 @@ You can run tests via standard NPM commands or the provided Makefile shortcuts.
 The project follows the Page Object Model (POM) design pattern:
 
 ```text
-notifyhub/frontend/__tests__/ui/
+src/notifyhub/frontend/__tests__/ui/
 ├── pages/                  # Page Object Model classes
 │   ├── AppPage.ts          # App-wide interactions
 │   ├── BasePage.ts         # Base class with common methods
@@ -286,7 +286,7 @@ notifyhub/frontend/__tests__/ui/
 │   └── test_chrome_connection.ts
 └── tsconfig.json           # TypeScript configuration
 
-notifyhub/backend/__tests__/
+src/notifyhub/backend/__tests__/
 ├── test_cli.py             # CLI tests
 ├── test_models.py          # Model tests
 └── test_server.py         # Server tests
@@ -295,7 +295,7 @@ notifyhub/backend/__tests__/
 
 #### Notification Test Strategy
 
-The `notification.spec.ts` test suite implements a backup-and-restore approach for testing. See the detailed documentation in the test file itself (`notifyhub/frontend/__tests__/ui/specs/notification.spec.ts`) for the complete strategy.
+The `notification.spec.ts` test suite implements a backup-and-restore approach for testing. See the detailed documentation in the test file itself (`src/notifyhub/frontend/__tests__/ui/specs/notification.spec.ts`) for the complete strategy.
 
 ### 5.4 Chrome Remote Debugging (CDP)
 
