@@ -64,7 +64,7 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
       window.removeEventListener('scroll', updateCompression);
       window.removeEventListener('resize', updateCompression);
     };
-  }, []);
+  }, [index, total]); // Recalculate when notification position changes
 
   const getInitials = (name: string): string => {
     const words = name.trim().split(/\s+/);
