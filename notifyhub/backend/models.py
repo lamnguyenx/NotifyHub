@@ -30,8 +30,10 @@ class NotificationStore:
         self.sse_manager = sse_manager
 
     def add(self, data: Notification, custom_id: Optional[str] = None) -> str:
-        if not data.id:
-            data.id = custom_id or get_time_uid()
+        if custom_id:
+            data.id = custom_id
+        elif not data.id:
+            data.id = get_time_uid()
         if not data.timestamp:
             data.timestamp = datetime.now(timezone.utc).isoformat()
         else:

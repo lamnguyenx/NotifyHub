@@ -13,7 +13,7 @@ export class NotificationPage extends BasePage {
   }
 
   async clearAllNotifications() {
-    const clearButton = this.page.locator('button').filter({ hasText: 'Clear All' });
+    const clearButton = this.page.locator('.clear-all-button');
     await clearButton.click();
   }
 
@@ -23,14 +23,13 @@ export class NotificationPage extends BasePage {
   }
 
    async expectClearButtonEnabled(enabled: boolean) {
-     const clearButton = this.page.locator('button').filter({ hasText: 'Clear All' });
-     await expect(clearButton).toBeVisible();
+     const clearButton = this.page.locator('.clear-all-button');
      if (enabled) {
+       await expect(clearButton).toBeVisible();
        await expect(clearButton).toBeEnabled();
      } else {
-       // Check if button is disabled by checking for disabled attribute
-       const isDisabled = await clearButton.evaluate((el: HTMLButtonElement) => el.disabled);
-       expect(isDisabled).toBe(true);
+       // When disabled, the button is hidden (display: none)
+       await expect(clearButton).not.toBeVisible();
      }
    }
 }

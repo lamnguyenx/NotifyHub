@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Container, Alert, Title, Box } from '@mantine/core';
 import { motion, AnimatePresence } from 'framer-motion';
+import { IconX } from '@tabler/icons-react';
 import NotificationCard from './components/NotificationCard';
 import Notification from './models/NotificationData';
 const submarineAudio = '/audio/Submarine.mp3';
@@ -39,7 +40,7 @@ function App() {
 
   // Update page title based on audio status
   useEffect(() => {
-    document.title = audioBlocked ? "NotifyHub | Muted. Please click to enable audio notifications" : "★ NotifyHub";
+    document.title = audioBlocked ? "Notification Center | Muted. Please click to enable audio notifications" : "Notification Center";
   }, [audioBlocked]);
 
 
@@ -176,22 +177,24 @@ function App() {
   };
 
   return (
-    <Box bg="body" p="md" mih="100vh" style={{ display: 'flex', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: '500px' }}>
+    <Box bg="body" p="md" mih="100vh" className="app-main">
+      <div className="notification-wrapper">
         {/* Header */}
-        <Title order={1} ta="center" mb="md">
-          ★ NotifyHub
-        </Title>
-
-        {/* Clear All Button */}
-        <Button
-          onClick={clearAllNotifications}
-          disabled={notifications.length === 0}
-          variant="default"
-          className="clear-all"
-        >
-          Clear All
-        </Button>
+        <div className="notification-header">
+          <Title order={4} className="notification-center-title">
+            Notification Center
+          </Title>
+          <Button
+            onClick={clearAllNotifications}
+            disabled={notifications.length === 0}
+            variant="filled"
+            size="sm"
+            radius="xl"
+            className="clear-all-button"
+          >
+            <IconX size={16} stroke={2} />
+          </Button>
+        </div>
 
         {/* Status Alerts */}
         {audioBlocked && (
@@ -207,11 +210,6 @@ function App() {
         )}
 
         {/* Notifications */}
-        {process.env.NODE_ENV === 'development' && (
-          <div style={{ fontSize: '12px', color: 'gray', marginBottom: '8px' }}>
-            Rendering {notifications.length} notifications
-          </div>
-        )}
         <AnimatePresence mode="popLayout">
           <motion.div layout>
             {notifications.map((notification, index) => (

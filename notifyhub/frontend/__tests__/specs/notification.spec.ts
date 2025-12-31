@@ -219,16 +219,16 @@ customTest.describe('Notification Management', () => {
       // Load backup
       const backup = JSON.parse(fs.readFileSync(backupFile, 'utf8'));
 
-       // Restore notifications with original IDs
-       for (const noti of backup) {
-         await page.evaluate(async (notification) => {
-           await fetch('/api/notify', {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ id: notification.id, data: notification.data })
-           });
-         }, noti);
-       }
+        // Restore notifications with original IDs
+        for (const noti of backup) {
+          await page.evaluate(async (notification) => {
+            await fetch('/api/notify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: notification.id, data: { ...notification.data, timestamp: notification.timestamp } })
+            });
+          }, noti);
+        }
 
       // Fetch notifications after restore
       const restoredResponse = await page.evaluate(async () => {
@@ -244,10 +244,11 @@ customTest.describe('Notification Management', () => {
       restoredResponse.sort((a, b) => a.data.message.localeCompare(b.data.message));
 
        // Compare content (message and pwd) AND IDs
-       for (let i = 0; i < backup.length; i++) {
-         expect(restoredResponse[i].id).toBe(backup[i].id);  // IDs should be preserved
-         expect(restoredResponse[i].data.message).toBe(backup[i].data.message);
-         expect(restoredResponse[i].data.pwd).toBe(backup[i].data.pwd);
+        for (let i = 0; i < backup.length; i++) {
+          expect(restoredResponse[i].id).toBe(backup[i].id);  // IDs should be preserved
+          expect(restoredResponse[i].data.message).toBe(backup[i].data.message);
+          expect(restoredResponse[i].data.pwd).toBe(backup[i].data.pwd);
+          expect(restoredResponse[i].timestamp).toBe(backup[i].timestamp);  // Timestamps should be preserved
        }
 
       // Verify avatars display correctly for notifications with pwd
