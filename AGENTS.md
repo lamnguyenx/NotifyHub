@@ -14,9 +14,9 @@ When developing and testing a web service, follow this workflow:
 > This will start FastAPI on port 9080 with auto-reload enabled."
 
 **Then tell the user:**
-> "Please start the frontend dev server in another separate terminal by running:
+> "Please start the frontend hotload server in another separate terminal by running:
 > ```bash
-> make frontend-dev
+> make frontend-hotload
 > ```
 > This will start Vite on port 9070 with hot-reloading and proxy to the backend."
 
@@ -31,8 +31,8 @@ Do not proceed until the user confirms both servers are running successfully.
 
 Once servers are confirmed running:
 - Make code changes to files as needed
-- Run automated tests: `make test-frontend-dev`
-- **Frontend** (`make frontend-dev`): Automatically detects changes and hot-reloads
+- Run automated tests: `make test-frontend-hotload`
+- **Frontend** (`make frontend-hotload`): Automatically detects changes and hot-reloads
 - **Backend** (`make backend`): Does NOT auto-reload Python code changes
 - If you modify backend Python files, **prompt the user to restart the backend server**
 - Frontend changes are visible immediately at `http://localhost:9070`
@@ -43,6 +43,7 @@ Once servers are confirmed running:
 - **Always** wait for user confirmation before running tests
 - **Remember** that servers auto-reload, so you only need to edit code
 - **Communicate** clearly when you're making changes that should trigger a reload
+- **Check actual date** when naming files that require dates (e.g., plan documents). Use `date +%Y-%m-%d` in a subshell to get the current date in YYYY-MM-DD format
 
 ## Frequent Issues
 

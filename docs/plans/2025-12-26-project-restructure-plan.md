@@ -64,7 +64,7 @@ notifyhub/
 - Update `Makefile`:
   - `backend`: `python -m notifyhub.backend.backend --port 9080`
   - `frontend`: `cd notifyhub/frontend && bun run build`
-  - `frontend-dev`: `cd notifyhub/frontend && bun run dev`
+  - `frontend-hotload`: `cd notifyhub/frontend && bun run dev`
   - `noti`: `python -m notifyhub.cli --port 9080 "Hello"` (unchanged)
 
 ### Phase 5: Documentation Updates

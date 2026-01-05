@@ -8,10 +8,10 @@
     - [Prerequisites](#prerequisites)
     - [Initial Install](#initial-install)
     - [OpenCode Plugin Installation (Optional)](#opencode-plugin-installation-optional)
-  - [3. Development Workflow](#3-development-workflow)
-    - [Development Diagram](#development-diagram)
-    - [Why the Proxy is Needed](#why-the-proxy-is-needed)
-    - [Commands](#commands)
+  - [3. Frontend Loading Modes](#3-frontend-loading-modes)
+    - [Hot-reload Diagram](#hot-reload-diagram)
+  - [Why the Proxy is Needed](#why-the-proxy-is-needed)
+  - [Commands](#commands)
   - [4. Production Usage](#4-production-usage)
   - [5. Testing Strategy](#5-testing-strategy)
     - [Test Architecture (Page Object Model)](#test-architecture-page-object-model)
@@ -51,13 +51,13 @@ graph LR
 
 ### Technology Stack
 
-| Layer        | Technology                 | Role                                  |
-| ------------ | -------------------------- | ------------------------------------- |
-| **Backend**  | **Python + FastAPI**       | Server, REST API, Static File Serving |
-| **Frontend** | **React**                  | UI                                    |
-| **Styling**  | **Mantine**                | UI Components & Styling               |
-| **Build**    | **Bun + Vite**             | Package Management & Bundling         |
-| **Testing**  | **pytest + Playwright**    | Backend Unit Tests & E2E UI Tests     |
+| Layer        | Technology              | Role                                  |
+| ------------ | ----------------------- | ------------------------------------- |
+| **Backend**  | **Python + FastAPI**    | Server, REST API, Static File Serving |
+| **Frontend** | **React**               | UI                                    |
+| **Styling**  | **Mantine**             | UI Components & Styling               |
+| **Build**    | **Bun + Vite**          | Package Management & Bundling         |
+| **Testing**  | **pytest + Playwright** | Backend Unit Tests & E2E UI Tests     |
 
 ### Project Structure
 
@@ -76,10 +76,10 @@ The repository includes a `__refmodules__/` directory containing cloned third-pa
 
 ### Prerequisites
 
-* Python 3.x
-* Bun (JavaScript runtime/package manager)
-* VSCode Extensions:
-  * [CSS Navigation](https://marketplace.visualstudio.com/items?itemName=pucelle.vscode-css-navigation) - Enables Ctrl+click navigation for CSS imports and variable definitions
+- Python 3.x
+- Bun (JavaScript runtime/package manager)
+- VSCode Extensions:
+  - [CSS Navigation](https://marketplace.visualstudio.com/items?itemName=pucelle.vscode-css-navigation) - Enables Ctrl+click navigation for CSS imports and variable definitions
 
 ### Initial Install
 
@@ -113,11 +113,11 @@ This copies the plugin file from `src/notifyhub/plugins/opencode/notifyhub-plugi
 
 ---
 
-## 3. Development Workflow
+## 3. Frontend Loading Modes
 
-For active development, run the backend and frontend in separate terminals to enable hot-reloading.
+For hot-reloading, run the backend and frontend in separate terminals.
 
-### Development Diagram
+### Hot-reload Diagram
 
 ```mermaid
 sequenceDiagram
@@ -128,7 +128,7 @@ sequenceDiagram
 
      Dev->>Term1: make backend
      Note right of Term1: Runs FastAPI on :9080
-     Dev->>Term2: make frontend-dev
+     Dev->>Term2: make frontend-hotload
      Note right of Term2: Runs Vite on :9070<br/>Proxies API calls to :9080
 
     Browser->>Term2: Access http://localhost:9070
@@ -139,21 +139,23 @@ sequenceDiagram
 
 ### Why the Proxy is Needed
 
-In development, frontend runs on port 9070 and backend on port 9080. Since browsers block requests between different ports (CORS), the Vite dev server acts as a proxy—intercepting API calls from the browser, forwarding them to the backend on port 9080, and returning the response. The browser only sees port 9070, avoiding CORS issues.
+In hot-reload mode, frontend runs on port 9070 and backend on port 9080. Since browsers block requests between different ports (CORS), the Vite dev server acts as a proxy—intercepting API calls from the browser, forwarding them to the backend on port 9080, and returning the response. The browser only sees port 9070, avoiding CORS issues.
 
 **Setup:**
 
-| Environment | Frontend | Backend | Proxy Needed? |
-| ----------- | -------- | ------- | ------------- |
-| Development | `:9070`  | `:9080` | Yes |
-| Production  | `:9080`  | `:9080` | No (served together) |
+| Mode       | Frontend | Backend | Proxy Needed?        |
+| ---------- | -------- | ------- | -------------------- |
+| Hot-reload | `:9070`  | `:9080` | Yes                  |
+| Static     | `:9080`  | `:9080` | No (served together) |
 
-**Development flow:**
+**Hot-reload flow:**
+
 ```
 Browser → Frontend (:9070) → Proxy → Backend (:9080)
 ```
 
 **Benefits:**
+
 - No CORS configuration needed on backend
 - Frontend hot-reloading enabled
 - Clean separation of concerns
@@ -171,12 +173,12 @@ make backend
 **Terminal 2: Start Frontend (Hot-Reload)**
 
 ```bash
-make frontend-dev
+make frontend-hotload
 # Serves on http://localhost:9070 (Proxies to backend)
 
 ```
 
-> **Note:** Access the UI at **`http://localhost:9070`** for development.
+> **Note:** Access the UI at **`http://localhost:9070`** for hot-reloading.
 
 ---
 
@@ -185,6 +187,7 @@ make frontend-dev
 To run the application as it would appear in production (serving built static assets via FastAPI):
 
 1. **Build Assets:**
+
 ```bash
 make frontend
 # Builds React app to src/notifyhub/frontend/static/
@@ -192,6 +195,7 @@ make frontend
 ```
 
 2. **Start Server:**
+
 ```bash
 make backend
 # FastAPI serves static files from static/ at:
@@ -203,14 +207,13 @@ make backend
 ```
 
 3. **Access:**
-Open **`http://localhost:9080`**. (Default: Dark Theme).
+   Open **`http://localhost:9080`**. (Default: Dark Theme).
 4. **Send Test Notification (CLI):**
+
 ```bash
 make noti
 
 ```
-
-
 
 ---
 
@@ -262,13 +265,13 @@ npx playwright install
 
 You can run tests via standard NPM commands or the provided Makefile shortcuts.
 
-| Scope          | Command                 | Description                                      |
-| -------------- | ----------------------- | ------------------------------------------------ |
-| **Backend**    | `make test-backend`     | Run pytest (backend only)                        |
-| **UI (Prod)**  | `make test-frontend`    | Run Playwright tests against port 9080 (headed) |
-| **UI (Dev)**   | `make test-frontend-dev`| Run Playwright tests against port 9070 (headed) |
-| **Connection** | `make test-chrome`      | Test Chrome CDP connection utility               |
-| **All**        | `make test-all`         | Run entire test suite                            |
+| Scope            | Command                      | Description                                     |
+| ---------------- | ---------------------------- | ----------------------------------------------- |
+| **Backend**      | `make test-backend`          | Run pytest (backend only)                       |
+| **UI (Prod)**    | `make test-frontend`         | Run Playwright tests against port 9080 (headed) |
+| **UI (Hotload)** | `make test-frontend-hotload` | Run Playwright tests against port 9070 (headed) |
+| **Connection**   | `make test-chrome`           | Test Chrome CDP connection utility              |
+| **All**          | `make test-all`              | Run entire test suite                           |
 
 ### 5.3 Test Organization
 

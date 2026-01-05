@@ -1,24 +1,24 @@
-.PHONY: backend frontend frontend-dev frontend-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-dev install-plugin remove-plugin test-bg clean
+.PHONY: backend frontend frontend-hotload frontend-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin remove-plugin test-bg clean fe fh beh t tb tf tfh tc
 
 # -----------------------------------
 #            Dependencies
 # -----------------------------------
-frontend-deps:
+frontend-deps fed:
 	cd src/notifyhub/frontend && bun install
 
 # -----------------------------------
-#            Production
+#            Static
 # -----------------------------------
-backend:
+backend be:
 	python -m notifyhub.backend.backend --port 9080
 
-frontend:
+frontend fe:
 	cd src/notifyhub/frontend && bun run build
 
 # -----------------------------------
-#            Development
+#            Hotload
 # -----------------------------------
-frontend-dev:
+frontend-hotload fehl:
 	cd src/notifyhub/frontend && bun run dev
 
 noti:
@@ -30,18 +30,18 @@ chrome:
 # -----------------------------------
 #             Testing
 # -----------------------------------
-test-all: test-chrome test-backend test-frontend test-frontend-dev
+test-all ta: test-chrome test-backend test-frontend test-frontend-hotload
 
-test-chrome:
+test-chrome tc:
 	cd src/notifyhub/frontend && npx tsx __tests__/ui/utils/test_chrome_connection.ts
 
-test-backend:
+test-backend tbe:
 	python -m pytest notifyhub/backend/__tests__/ -v
 
-test-frontend:
+test-frontend tfe:
 	cd src/notifyhub/frontend && ./__tests__/run.py prod
 
-test-frontend-dev:
+test-frontend-hotload tfehl:
 	cd src/notifyhub/frontend && ./__tests__/run.py dev
 
 # -----------------------------------

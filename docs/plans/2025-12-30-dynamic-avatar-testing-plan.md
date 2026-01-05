@@ -72,8 +72,8 @@ Modify the existing Playwright test suite in `notifyhub/frontend/__tests__/specs
 
 ## Execution Steps
 1. Start backend: `make backend`
-2. Start frontend dev server: `make frontend-dev`
-3. Run tests: `make test-frontend-dev`
+2. Start frontend hotload server: `make frontend-hotload`
+3. Run tests: `make test-frontend-hotload`
 4. Verify: Check Playwright output; new test should pass, confirming avatars render correctly.
 
 ## Edge Cases Covered
