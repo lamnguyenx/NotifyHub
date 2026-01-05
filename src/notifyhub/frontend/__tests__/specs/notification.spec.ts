@@ -149,16 +149,16 @@ customTest.describe('Notification Management', () => {
        const notifications = await page.$$('.notification');
        expect(notifications.length).toBe(8);
 
-       const expectedAvatars = [
-         { initials: '@', pwd: '@special#dir!' },
-         { initials: 'LPNH', pwd: 'Long Project Name Here' },
-         { initials: 'P', pwd: 'Project-123' },
-         { initials: 'A', pwd: 'A' },
-         { initials: 'FBB', pwd: 'Foo Bar Baz' },
-         { initials: 'M', pwd: 'my-app' },
-         { initials: 'TP', pwd: 'Test Project' },
-         { initials: 'N', pwd: 'NotifyHub' }
-       ];
+        const expectedAvatars = [
+          { initials: '@', pwd: '@special#dir!' },
+          { initials: 'LPN', pwd: 'Long Project Name Here' },
+          { initials: 'P', pwd: 'Project-123' },
+          { initials: 'A', pwd: 'A' },
+          { initials: 'FBB', pwd: 'Foo Bar Baz' },
+          { initials: 'M', pwd: 'my-app' },
+          { initials: 'TP', pwd: 'Test Project' },
+          { initials: 'N', pwd: 'NotifyHub' }
+        ];
 
        function getColorFromName(name: string): string {
          const colors = [

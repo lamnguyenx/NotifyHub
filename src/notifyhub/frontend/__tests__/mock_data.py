@@ -21,4 +21,24 @@ MOCK_NOTIFICATIONS = (
         "message": "The code review process is complete with all feedback addressed and approvals granted.",
         "pwd": "/workspace/A",
     },
+    {
+        "message": "Database migration has been applied successfully with no data loss or conflicts.",
+        "pwd": "/app/Long Project Name Here",
+    },
+    {
+        "message": "Security vulnerabilities have been patched and the application is now compliant with industry standards.",
+        "pwd": "/dev/Secure App With Many Words",
+    },
+    {
+        "message": "Performance optimization completed with significant improvements in load times and memory usage.",
+        "pwd": "/src/Project-123",
+    },
+    {
+        "message": "Documentation has been updated and is now available in multiple languages.",
+        "pwd": "/docs/@special#dir!",
+    },
+    {
+        "message": "Continuous integration pipeline is now running smoothly with automated deployment enabled.",
+        "pwd": "/ci/my-app",
+    },
 )

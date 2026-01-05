@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Avatar, Text } from '@mantine/core';
 import { motion } from 'framer-motion';
+import MD5 from 'crypto-js/md5';
 
 import Notification from '../models/NotificationData';
 import { formatTimestamp } from '../utils/timestampUtils';
@@ -69,26 +70,38 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
   const getInitials = (name: string): string => {
     const words = name.trim().split(/\s+/);
     if (words.length > 1) {
-      return words.map(word => word[0]).join('').toUpperCase().slice(0, 4);
+      return words.map(word => word[0]).join('').toUpperCase().slice(0, 3);
     } else {
       return name[0]?.toUpperCase() || '';
     }
   };
 
-  const getColorFromName = (name: string): string => {
+  /**
+   * Maps a pwd string to a consistent background color for avatar.
+   * Uses MD5 hash to ensure same pwd always gets same color.
+   * @param pwd - The pwd string from notification payload
+   * @returns Hex color string from Google's Letter Tile palette
+   */
+  const getColorFromName = (pwd: string): string => {
+    const shortHash = MD5(pwd).toString().slice(0, 10);
     const colors = [
-      '#34A853', // Green
-      '#4285F4', // Blue
-      '#EA4335', // Red
-      '#FBBC05', // Yellow
-      '#AB47BC', // Purple
-      '#FF7043', // Orange
-      '#00ACC1', // Cyan
-      '#7B1FA2', // Deep Purple
-      '#F06292', // Pink
-      '#26A69A', // Teal
+      '#7B1FA2', // Royal Purple
+      '#77919D', // Slate Gray
+      '#455A65', // Charcoal Blue
+      '#EC417A', // Neon Pink
+      '#C1175C', // Crimson Rose
+      '#5D6AC0', // Indigo Blue
+      '#0388D2', // Sky Blue
+      '#00579B', // Navy
+      '#0098A7', // Teal Blue
+      '#00897B', // Deep Teal
+      '#004D40', // Forest Green
+      '#68A039', // Leaf Green
+      '#EF6C00', // Vivid Orange
+      '#F6511E', // Fiery Coral
+      '#BE360B', // Brick Red
     ];
-    const hash = name.split('').reduce((a, b) => {
+    const hash = shortHash.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
@@ -97,7 +110,7 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
 
   const notiTitle = notification.pwd ? notification.pwd.split('/').pop() || '' : '';
   const initials = getInitials(notiTitle);
-  const bgColor = getColorFromName(notiTitle);
+  const bgColor = getColorFromName(notification.pwd || '');
 
   // Age-based depth (newer = less depth) - only applied during compression
   const ageFactor = Math.min(index / Math.max(total - 1, 1), 1);

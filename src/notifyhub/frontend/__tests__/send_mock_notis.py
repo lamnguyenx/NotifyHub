@@ -9,6 +9,9 @@ from datetime import datetime
 import requests
 from mini_logger import getLogger
 
+# Add the script's directory to sys.path to import mock_data
+sys.path.insert(0, os.path.dirname(__file__))
+
 from mock_data import MOCK_NOTIFICATIONS
 
 # Create logger
@@ -50,8 +53,8 @@ def main():
     for i, noti in enumerate(MOCK_NOTIFICATIONS):
         logger.debug(f"\t[{i}]: {noti}")
 
-    # Select random notifications
-    selected = random.sample(MOCK_NOTIFICATIONS, min(num_to_send, len(MOCK_NOTIFICATIONS)))
+    # Select random notifications (with replacement if needed)
+    selected = random.choices(MOCK_NOTIFICATIONS, k=num_to_send)
 
     logger.info(f"Selected {len(selected)} notifications for creation:")
     for i, noti in enumerate(selected, 1):
