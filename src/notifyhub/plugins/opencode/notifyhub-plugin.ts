@@ -1,6 +1,12 @@
-import type { Plugin } from "@opencode-ai/plugin"
+import type { Plugin } from "@opencode-ai/plugin";
 
-export const NotifyHub: Plugin = ({ project, client, $, directory, worktree }) => {
+export const NotifyHub: Plugin = ({
+  project,
+  client,
+  $,
+  directory,
+  worktree,
+}) => {
   return Promise.resolve({
     event: async ({ event }) => {
       if (event.type === "session.idle") {
@@ -11,17 +17,20 @@ export const NotifyHub: Plugin = ({ project, client, $, directory, worktree }) =
               "Content-Type": "application/json",
             },
              body: JSON.stringify({
-               message: `${process.env.HOST_ID || 'HOST_ID'} (opencode) : ${directory}`
-             })
-          })
+               data: {
+                 message: `${process.env.HOST_ID || "HOST_ID"} (opencode)`,
+                 pwd: directory,
+               },
+             }),
+          });
 
           if (!response.ok) {
-            console.error(`NotifyHub notification failed: ${response.status}`)
+            console.error(`NotifyHub notification failed: ${response.status}`);
           }
         } catch (error) {
-          console.error(`NotifyHub notification error: ${error}`)
+          console.error(`NotifyHub notification error: ${error}`);
         }
       }
-    }
-  })
-}
+    },
+  });
+};
