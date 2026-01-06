@@ -217,6 +217,43 @@ make noti
 
 ---
 
+## 6. CLI Usage
+
+NotifyHub provides two CLI options for sending notifications:
+
+### Python CLI (cli.py)
+For full-featured notification sending with client-side validation:
+```bash
+python src/notifyhub/cli.py --port 9080 '{"message": "Hello World"}'
+```
+
+### Shell Script CLI (notifyhub-push.sh)
+For lightweight notification sending without Python dependencies. Always constructs a notification with the current directory (PWD) and the provided message:
+
+```bash
+./src/notifyhub/notifyhub-push.sh "Task completed"
+# Sends: {"pwd": "/current/directory", "message": "Task completed"}
+```
+
+Environment variables:
+- `NOTIFYHUB_ADDRESS`: Full server URL (default: http://localhost:9080)
+- `PWD`: Current directory (automatically set by shell)
+
+Examples:
+```bash
+# Simple message
+./src/notifyhub/notifyhub-push.sh "Build finished"
+
+# Multi-word message
+./src/notifyhub/notifyhub-push.sh "Long running task" completed
+
+# Custom address
+export NOTIFYHUB_ADDRESS=http://myhost.com:8080
+./src/notifyhub/notifyhub-push.sh "Hello from shell!"
+```
+
+---
+
 ## 5. Testing Strategy
 
 NotifyHub uses a combination of `pytest` for the backend and `Playwright` for frontend UI testing.

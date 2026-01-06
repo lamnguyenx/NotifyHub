@@ -47,13 +47,18 @@ test-frontend-hotload tfehl:
 # -----------------------------------
 #        Plugin Management
 # -----------------------------------
+check-plugin:
+	ls -ltra ~/.config/opencode/plugin/
+
 install-plugin:
 	@echo "Installing NotifyHub plugin to OpenCode..."
 	mkdir -p ~/.config/opencode/plugin
 	gln -sfvrn src/notifyhub/plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/notifyhub-plugin.ts
+	gln -sfvrn src/notifyhub/notifyhub-push.sh ~/.config/opencode/plugin/notifyhub-push.sh
 	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
 
-remove-plugin:
+uninstall-plugin remove-plugin rm-plugin:
 	@echo "Removing NotifyHub plugin from OpenCode..."
-	rm -f ~/.config/opencode/plugin/notifyhub-plugin.ts
+	rm ~/.config/opencode/plugin/notifyhub-plugin.ts
+	rm ~/.config/opencode/plugin/notifyhub-push.sh
 	@echo "Plugin removed."

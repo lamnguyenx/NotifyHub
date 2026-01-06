@@ -1,4 +1,7 @@
 import type { Plugin } from "@opencode-ai/plugin";
+import { spawn } from "child_process";
+import { homedir } from 'os';
+import { join } from 'path';
 
 export const NotifyHub: Plugin = ({
   project,
@@ -10,26 +13,21 @@ export const NotifyHub: Plugin = ({
   return Promise.resolve({
     event: async ({ event }) => {
       if (event.type === "session.idle") {
-        try {
-          const response = await fetch("http://localhost:9080/api/notify", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-             body: JSON.stringify({
-               data: {
-                 message: `${process.env.HOST_ID || "HOST_ID"} (opencode)`,
-                 pwd: directory,
-               },
-             }),
-          });
-
-          if (!response.ok) {
-            console.error(`NotifyHub notification failed: ${response.status}`);
+        const configPluginsDir = join(homedir(), '.config', 'opencode', 'plugin');
+        const message = `${process.env.HOST_ID || "HOST_ID"} (opencode)`;
+        const child = spawn(
+          join(configPluginsDir, 'notifyhub-push.sh'),
+          [message],
+          { cwd: directory, stdio: "inherit", env: { VERBOSE_INT: '0', ...process.env } }
+        );
+        child.on("close", (code) => {
+          if (code !== 0) {
+            console.error(`NotifyHub notification failed: exit code ${code}`);
           }
-        } catch (error) {
+        });
+        child.on("error", (error) => {
           console.error(`NotifyHub notification error: ${error}`);
-        }
+        });
       }
     },
   });

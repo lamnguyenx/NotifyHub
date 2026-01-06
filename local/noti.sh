@@ -7,7 +7,7 @@ function noti() {
 	local port="${NOTI_PORT:-9080}"
 	local json_data
 	json_data=$(printf '{"pwd":"%s","message":"%s"}' "$PWD" "$message")
-	python -m notifyhub.cli --port "$port" "$json_data"
+	~/git/NotifyHub/src/notifyhub/notifyhub-push.sh "$json_data"
 }
 
 noti $@

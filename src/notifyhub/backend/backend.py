@@ -13,6 +13,7 @@ import logging
 import json
 import os
 import textwrap
+import traceback
 from datetime import datetime
 
 from .models import NotificationStore, Notification
@@ -133,10 +134,13 @@ def load_and_transform_template():
 
 @app.post("/api/notify")
 async def notify(request: NotifyRequest):
-    data            = Notification.model_validate(request.data)
-    custom_id       = request.id
-    notification_id = store.add(data, custom_id)
-    return {"success": True, "id": notification_id}
+    try:
+        data            = Notification.model_validate(request.data)
+        custom_id       = request.id
+        notification_id = store.add(data, custom_id)
+        return {"success": True, "id": notification_id}
+    except Exception as e:
+        return {"error": traceback.format_exc().split('\n')}
 
 
 
