@@ -1,0 +1,8 @@
+services:
+  notifyhub:
+    image: docker.io/lamnguyenx/notifyhub:latest
+    build: .
+    ports:
+      - "9080:9080"
+    restart: unless-stopped
+    command: "python -m notifyhub.backend.backend --port 9080"
