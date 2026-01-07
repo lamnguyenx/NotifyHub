@@ -6,15 +6,8 @@ import NotificationCard from './components/NotificationCard';
 import Notification from './models/NotificationData';
 const submarineAudio = '/audio/Submarine.mp3';
 
-interface INotification {
-  id: string;
-  message: string;
-  pwd?: string | null;
-  timestamp: string;
-}
-
 function App() {
-  const [notifications, setNotifications] = useState<INotification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connectionError, setConnectionError] = useState<boolean>(false);
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -70,7 +63,7 @@ function App() {
         timestamp: string;
       }>;
       // Create Notification instances and filter duplicates
-      const uniqueNotifications: INotification[] = initData
+      const uniqueNotifications: Notification[] = initData
         .map(raw => {
           try {
             return new Notification({
@@ -84,7 +77,7 @@ function App() {
             return null;
           }
         })
-        .filter((n): n is INotification => n !== null)
+        .filter((n): n is Notification => n !== null)
         .filter((n, index, arr) => arr.findIndex(x => x.id === n.id) === index);
       setNotifications(uniqueNotifications);
       setConnectionError(false);

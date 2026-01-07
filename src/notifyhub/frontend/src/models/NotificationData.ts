@@ -1,4 +1,4 @@
-interface INotification {
+export interface INotification {
   id: string;
   message: string;
   pwd?: string | null;

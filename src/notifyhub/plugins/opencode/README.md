@@ -17,8 +17,9 @@ A plugin that sends notifications to [NotifyHub](https://github.com/sst/notifyhu
 
 **What it does:**
 - Hooks into OpenCode's `session.idle` event
-- Sends POST requests to `/api/notify` with session completion messages
-- Logs errors if NotifyHub server is unreachable
+- Executes the `notifyhub-push.sh` shell script with session completion details
+- The shell script handles sending notifications to NotifyHub
+- Logs errors if the script execution fails
 
 ### 🔔 Terminal Bell (Example)
 

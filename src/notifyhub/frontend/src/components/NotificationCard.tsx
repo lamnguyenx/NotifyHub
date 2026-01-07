@@ -6,15 +6,8 @@ import MD5 from 'crypto-js/md5';
 import Notification from '../models/NotificationData';
 import { formatTimestamp } from '../utils/timestampUtils';
 
-interface INotification {
-  id: string;
-  message: string;
-  pwd?: string | null;
-  timestamp: string;
-}
-
 interface NotificationCardProps {
-  notification: INotification;
+  notification: Notification;
   index: number;
   total: number;
 }

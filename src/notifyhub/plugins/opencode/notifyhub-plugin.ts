@@ -13,8 +13,10 @@ export const NotifyHub: Plugin = ({
   return Promise.resolve({
     event: async ({ event }) => {
       if (event.type === "session.idle") {
+        const sessionID = (event.properties as { sessionID: string }).sessionID;
+        console.log("Session idle, conversation ID:", sessionID);
         const configPluginsDir = join(homedir(), '.config', 'opencode', 'plugin');
-        const message = `${process.env.HOST_ID || "HOST_ID"} (opencode)`;
+        const message = `${process.env.HOST_ID || "HOST_ID"} (opencode) - Session: ${sessionID}`;
         const child = spawn(
           join(configPluginsDir, 'notifyhub-push.sh'),
           [message],
