@@ -1,5 +1,7 @@
 # NotifyHub
 
+> **Summary**: NotifyHub is a single-page notification app for developers, combining Python FastAPI backend with React frontend. Uses Server-Sent Events for real-time alerts and includes audio notifications with autoplay. Features CLI integration, Mantine UI, and Playwright testing. Supports hot-reload development and production static serving.
+
 - [NotifyHub](#notifyhub)
   - [1. System Overview \& Tech Stack](#1-system-overview--tech-stack)
     - [Architecture Diagram](#architecture-diagram)

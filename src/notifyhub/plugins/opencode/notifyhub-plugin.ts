@@ -14,11 +14,25 @@ export const NotifyHub: Plugin = ({
     event: async ({ event }) => {
       if (event.type === "session.idle") {
         const sessionID = (event.properties as { sessionID: string }).sessionID;
-        console.log("Session idle, conversation ID:", sessionID);
+        // console.log("Session idle, conversation ID:", sessionID);
         const configPluginsDir = join(homedir(), '.config', 'opencode', 'plugin');
-        const message = `${process.env.HOST_ID || "HOST_ID"} (opencode) - Session: ${sessionID}`;
+        const traceChild = spawn(
+          join(configPluginsDir, 'opencode-trace.py'),
+          [directory, '--notifyhub', '--session', sessionID],
+          { cwd: directory, stdio: ['inherit', 'pipe', 'inherit'], env: { VERBOSE_INT: '0', ...process.env } }
+        );
+        const output = await new Promise<string>((resolve, reject) => {
+          let output = '';
+          traceChild.stdout.on('data', (data) => { output += data.toString(); });
+          traceChild.on("close", (code) => {
+            if (code === 0) resolve(output.replace(/\s+$/, ''));
+            else reject(new Error(`opencode-trace.py failed: ${code}`));
+          });
+          traceChild.on("error", reject);
+        });
+        const message = output;
         const child = spawn(
-          join(configPluginsDir, 'notifyhub-push.sh'),
+          join(configPluginsDir, 'notifyhub-push.py'),
           [message],
           { cwd: directory, stdio: "inherit", env: { VERBOSE_INT: '0', ...process.env } }
         );

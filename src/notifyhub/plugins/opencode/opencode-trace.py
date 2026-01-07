@@ -7,6 +7,7 @@ import json
 import argparse
 import typing as tp
 import yaml
+import re
 from mini_logger import getLogger
 
 logger = getLogger(__name__)
@@ -251,19 +252,26 @@ def retrieve_message(
         yaml.dump({"messages": message_dict}, default_flow_style=False, sort_keys=False)
     )
 
-    # Process user message
-    user_cleaned = ""
-    logger.debug("message:")
-    if user_data and user_data["text_texts"]:
-        text = user_data["text_texts"]
-        joined = "\n".join(text)
+    # Function to process message texts
+    def process_message_texts(text_texts):
+        if not text_texts:
+            return ""
+        joined = "\n".join(text_texts)
         lines = joined.split("\n")
+        original_lines = len(lines)
         if max_lines:
             lines = lines[-max_lines:]
+        truncated_lines = max(0, original_lines - len(lines))
         cleaned = "\n".join(lines).rstrip("\n")
-        logger.debug("single_line:", single_line)
         if single_line:
             cleaned = cleaned.replace("\n", "\\n")
+        # cleaned = re.sub(
+        #     r"(\\n)+",
+        #     lambda m: f"[#truncated:↵ × {len(m.group(0)) // 2}]",
+        #     cleaned,
+        # )
+
+        original_cleaned_len = len(cleaned)
         if max_chars and len(cleaned) > max_chars:
             target_pos = max_chars
             search_start = target_pos
@@ -277,42 +285,27 @@ def retrieve_message(
                 cleaned = cleaned[: snap_pos + 1].rstrip(" \n")
             else:
                 cleaned = cleaned[:target_pos]
-        user_cleaned = cleaned.strip()
+        truncated_chars = max(0, original_cleaned_len - len(cleaned))
+        prefix = ""
+        if truncated_lines > 0:
+            prefix += f"[#truncated:+{truncated_lines} LINES]"
+        if truncated_chars > 0:
+            prefix += f"[#truncated:+{truncated_chars} CHARS]"
+        return (prefix + cleaned).strip()
+
+    # Process user message
+    logger.debug("message:")
+    user_cleaned = process_message_texts(user_data["text_texts"] if user_data else [])
 
     # Process assistant message
-    assistant_cleaned = ""
-    if assistant_data["text_texts"]:
-        text = assistant_data["text_texts"]
-        joined = "\n".join(text)
-        lines = joined.split("\n")
-        if max_lines:
-            lines = lines[-max_lines:]
-        cleaned = "\n".join(lines).rstrip("\n")
-        logger.debug("single_line:", single_line)
-        if single_line:
-            cleaned = cleaned.replace("\n", "\\n")
-        if max_chars and len(cleaned) > max_chars:
-            target_pos = max_chars
-            search_start = target_pos
-            search_end = min(len(cleaned), target_pos + max_chars_tolerance)
-            snap_pos = None
-            for i in range(search_start, search_end):
-                if cleaned[i] in " \n":
-                    snap_pos = i
-                    break
-            if snap_pos is not None:
-                cleaned = cleaned[: snap_pos + 1].rstrip(" \n")
-            else:
-                cleaned = cleaned[:target_pos]
-        assistant_cleaned = cleaned.strip()
+    assistant_cleaned = process_message_texts(assistant_data["text_texts"])
 
     return user_cleaned, assistant_cleaned
 
 
 def print_message(user_msg: str, assistant_msg: str) -> None:
-    print(user_msg)
-    print("# <<<<<<<<<<<<<<<<<<<<< user / assistant >>>>>>>>>>>>>>>>>>>>")
-    print(assistant_msg)
+    print("[#tag:@USER]", user_msg)
+    print("[#tag:@ASSISTANT]", assistant_msg)
 
 
 def main() -> None:
@@ -357,7 +350,17 @@ def main() -> None:
         default=8,
         help="Tolerance for auto-snapping --max-chars truncation to nearest space or newline (default: 8)",
     )
+    parser.add_argument(
+        "--notifyhub",
+        action="store_true",
+        help="Shortcut for notifyhub",
+    )
     args = parser.parse_args()
+
+    if args.notifyhub:
+        args.max_lines = 5
+        args.max_chars = 200
+        # args.single_line = True
 
     directory = os.path.realpath(args.directory)
     if not os.path.isdir(directory):

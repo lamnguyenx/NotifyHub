@@ -54,11 +54,13 @@ install-plugin:
 	@echo "Installing NotifyHub plugin to OpenCode..."
 	mkdir -p ~/.config/opencode/plugin
 	gln -sfvrn src/notifyhub/plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/notifyhub-plugin.ts
-	gln -sfvrn src/notifyhub/notifyhub-push.sh ~/.config/opencode/plugin/notifyhub-push.sh
+	gln -sfvrn src/notifyhub/notifyhub-push.py ~/.config/opencode/plugin/notifyhub-push.py
+	gln -sfvrn src/notifyhub/plugins/opencode/opencode-trace.py ~/.config/opencode/plugin/opencode-trace.py
 	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
 
 uninstall-plugin remove-plugin rm-plugin:
 	@echo "Removing NotifyHub plugin from OpenCode..."
 	rm ~/.config/opencode/plugin/notifyhub-plugin.ts
-	rm ~/.config/opencode/plugin/notifyhub-push.sh
+	rm ~/.config/opencode/plugin/notifyhub-push.py
+	rm ~/.config/opencode/plugin/opencode-trace.py
 	@echo "Plugin removed."

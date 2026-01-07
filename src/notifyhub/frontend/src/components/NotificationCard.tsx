@@ -105,6 +105,41 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
   const initials = getInitials(notiTitle);
   const bgColor = getColorFromName(notification.pwd || '');
 
+  const parseMessageWithTags = (message: string) => {
+    const lines = message.split('\n');
+    const result: React.ReactNode[] = [];
+    let keyCounter = 0;
+
+    lines.forEach((line, lineIndex) => {
+      const combinedRegex = /\[#(?:tag|truncated):(.*?)\]/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = combinedRegex.exec(line)) !== null) {
+        // Add text before match
+        if (match.index > lastIndex) {
+          result.push(line.slice(lastIndex, match.index));
+        }
+        // Add the span
+        if (match[0].startsWith('[#tag:')) {
+          result.push(<span key={keyCounter++} className="notification-tag">{match[1]}</span>);
+        } else if (match[0].startsWith('[#truncated:')) {
+          result.push(<span key={keyCounter++} className="notification-truncated">{match[1]}</span>);
+        }
+        lastIndex = combinedRegex.lastIndex;
+      }
+      // Add remaining text
+      if (lastIndex < line.length) {
+        result.push(line.slice(lastIndex));
+      }
+
+      if (lineIndex < lines.length - 1) {
+        result.push(<br key={keyCounter++} />);
+      }
+    });
+
+    return result;
+  };
+
   // Age-based depth (newer = less depth) - only applied during compression
   const ageFactor = Math.min(index / Math.max(total - 1, 1), 1);
   const ageOpacity = 1 - (ageFactor * 0.2);
@@ -160,7 +195,7 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
             </div>
 
             <Text className="notification-text2 subheadline-regular">{notification.pwd || "Notification details"}</Text>
-            <Text className="notification-text2 message">{notification.message || "Message"}</Text>
+             <Text className="notification-text2 message">{parseMessageWithTags(notification.message || "Message")}</Text>
           </div>
         </div>
       </div>

@@ -151,3 +151,23 @@
   align-items: center;
   margin-bottom: var(--mantine-spacing-xs);
 }
+
+.notification-tag{
+  color: var(--mantine-color-gray-7);
+  font-size: calc(0.8 * var(--mantine-font-size-md));
+  font-weight: 500;
+  background-color: hsl(from var(--mantine-color-gray-3) h s l / 0.4);
+  padding: 0.05rem 0.2rem;
+  border-radius: var(--mantine-radius-sm);
+  margin-right: 0.1rem;
+}
+
+.notification-truncated {
+  color: var(--mantine-color-gray-8);
+  font-size: calc(0.7 * var(--mantine-font-size-md));
+  font-weight: 500;
+  background-color: hsl(from var(--mantine-color-gray-6) h s l / 0.4);
+  padding: 0.05rem 0.2rem;
+  border-radius: var(--mantine-radius-sm);
+  margin-right: 0.1rem;
+}
