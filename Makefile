@@ -1,10 +1,13 @@
-.PHONY: backend frontend frontend-hotload frontend-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin remove-plugin test-bg clean fe fh beh t tb tf tfh tc
+.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin remove-plugin test-bg clean fe fh beh t tb tf tfh tc
 
 # -----------------------------------
 #            Dependencies
 # -----------------------------------
 frontend-deps fed:
 	cd src/notifyhub/frontend && bun install
+
+plugin-deps:
+	cd src/notifyhub/plugins/opencode && npm install
 
 # -----------------------------------
 #            Static

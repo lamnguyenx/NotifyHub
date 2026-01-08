@@ -24,7 +24,7 @@ def get_project_id(directory: str) -> str:
             text=True,
             check=True,
         )
-        commits = result.stdout.strip().split("\n")
+        commits = sorted(result.stdout.strip().split("\n"))
         if commits:
             return commits[0]
     except (subprocess.CalledProcessError, FileNotFoundError):
