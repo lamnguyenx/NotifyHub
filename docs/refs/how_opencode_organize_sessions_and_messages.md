@@ -63,6 +63,14 @@ The storage is organized into three main subdirectories under the base path:
 
 - All operations (creating sessions, adding messages, updating parts) write synchronously to disk as atomic JSON files.
 - No manual saves; changes are persisted immediately.
+- For streamed responses, each part is written as a separate complete JSON file; data is not appended to existing JSON but creates new part files incrementally.
+- After `session.idle` event in opencode, files are guaranteed to be fully dumped to disk.
+
+## Exporting Data
+
+OpenCode provides an `opencode export [sessionID]` command to dump session data as JSON, including messages and their parts. This command reads the stored JSON files and outputs a structured export containing session info and message parts.
+
+**Note**: The export command always exports the entire session. There's no built-in option to export individual messages or parts selectively; for partial access, read the JSON files directly from the storage directories.
 
 ## Notes
 

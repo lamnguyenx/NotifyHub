@@ -7,7 +7,7 @@ import json
 import argparse
 import typing as tp
 import yaml
-import re
+import time
 from mini_logger import getLogger
 
 logger = getLogger(__name__)
@@ -32,7 +32,10 @@ def get_project_id(directory: str) -> str:
     return "global"
 
 
-def list_sessions(storage_base: str, project_id: str) -> None:
+def list_sessions(
+    storage_base: str,
+    project_id: str,
+) -> None:
     session_dir = os.path.join(storage_base, "session", project_id)
     if not os.path.exists(session_dir):
         print(f"No sessions found for project {project_id}")
@@ -140,8 +143,6 @@ def retrieve_message(
             return "", ""
         session_id = None  # Will scan all sessions
 
-    # Find the latest assistant message
-    assistant_messages = []
     sessions_to_check = [session_id] if session_id else []
     if not session_id:
         for session_file in glob.glob(os.path.join(session_dir, "*.json")):
@@ -149,37 +150,28 @@ def retrieve_message(
                 os.path.splitext(os.path.basename(session_file))[0]
             )
 
+    # Collect all messages, sort by time from latest to oldest
+    messages = []
     for sid in sessions_to_check:
         message_dir = os.path.join(storage_base, "message", sid)
         if os.path.exists(message_dir):
             for msg_file in glob.glob(os.path.join(message_dir, "*.json")):
-                with open(msg_file, mode="r") as f:
-                    data = json.load(f)
-                    if data.get("role") == "assistant":
-                        mtime = os.path.getmtime(msg_file)
-                        assistant_messages.append((mtime, msg_file))
+                mtime = os.path.getmtime(msg_file)
+                messages.append((mtime, msg_file))
+    messages.sort(key=lambda x: x[0], reverse=True)  # latest first
 
-    if not assistant_messages:
-        return "", ""
-
-    # Sort by mtime descending
-    assistant_messages.sort(key=lambda x: x[0], reverse=True)
-    latest_msg = assistant_messages[0][1]
-
-    # Find the preceding user message in the same session
-    message_dir = os.path.dirname(latest_msg)
-    msg_files = sorted(
-        glob.glob(os.path.join(message_dir, "*.json")), key=os.path.getmtime
-    )
+    # Browse from latest to oldest, find user and assistant messages
     user_msg = None
-    latest_basename = os.path.basename(latest_msg)
-    for msg_file in reversed(msg_files):
-        if os.path.basename(msg_file) == latest_basename:
-            continue
+    assistant_msg = None
+    for mtime, msg_file in messages:
         with open(msg_file, mode="r") as f:
             data = json.load(f)
-            if data.get("role") == "user":
+            role = data.get("role")
+            if role == "user" and user_msg is None:
                 user_msg = msg_file
+            elif role == "assistant" and assistant_msg is None:
+                assistant_msg = msg_file
+            if user_msg is not None and assistant_msg is not None:
                 break
 
     # Function to extract message content and parts
@@ -226,8 +218,11 @@ def retrieve_message(
             "text_texts": text_texts,
         }
 
+    if not assistant_msg:
+        return "", ""
+
     # Extract content for assistant message
-    assistant_data = extract_message_content(latest_msg)
+    assistant_data = extract_message_content(assistant_msg)
 
     # Find and extract user message if exists
     user_data = None
@@ -266,14 +261,14 @@ def retrieve_message(
         if single_line:
             cleaned = cleaned.replace("\n", "\\n")
         # cleaned = re.sub(
-        #     r"(\\n)+",
-        #     lambda m: f"[#truncated:↵ × {len(m.group(0)) // 2}]",
+        #     r'(\\n)+',
+        #     lambda m: f'[#truncated:↵ × {len(m.group(0)) // 2}]',
         #     cleaned,
         # )
 
         original_cleaned_len = len(cleaned)
         if max_chars and len(cleaned) > max_chars:
-            target_pos = max_chars
+            target_pos = len(cleaned) - max_chars
             search_start = target_pos
             search_end = min(len(cleaned), target_pos + max_chars_tolerance)
             snap_pos = None
@@ -282,9 +277,9 @@ def retrieve_message(
                     snap_pos = i
                     break
             if snap_pos is not None:
-                cleaned = cleaned[: snap_pos + 1].rstrip(" \n")
+                cleaned = cleaned[snap_pos + 1:].lstrip(" \n")
             else:
-                cleaned = cleaned[:target_pos]
+                cleaned = cleaned[-max_chars:]
         truncated_chars = max(0, original_cleaned_len - len(cleaned))
         prefix = ""
         if truncated_lines > 0:
@@ -303,7 +298,10 @@ def retrieve_message(
     return user_cleaned, assistant_cleaned
 
 
-def print_message(user_msg: str, assistant_msg: str) -> None:
+def print_message(
+    user_msg: str,
+    assistant_msg: str,
+) -> None:
     print("[#tag:@USER]", user_msg)
     print("[#tag:@ASSISTANT]", assistant_msg)
 
