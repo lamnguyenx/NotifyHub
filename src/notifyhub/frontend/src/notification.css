@@ -97,6 +97,8 @@
   line-height: var(--mantine-h1-line-height);
   letter-spacing: -0.23px;
   padding-bottom: calc(0.4rem * var(--mantine-scale));
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .notification .subheadline-emphasized {

@@ -1,6 +1,6 @@
 services:
   notifyhub:
-    image: docker.io/lamnguyenx/notifyhub:2025.01.08rev01
+    image: docker.io/lamnguyenx/notifyhub:2025.01.09rev01
     build: .
     platform: linux/amd64
     ports:
