@@ -1,6 +1,7 @@
 # .dockerignore generated from .gitignore
 # Generated: 2026-01-08 09:35:41
 
+.project-untracked.sh
 test-results
 **/static/
 exp

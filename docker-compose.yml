@@ -1,9 +1,25 @@
 services:
   notifyhub:
-    image: docker.io/lamnguyenx/notifyhub:2025.01.09rev01
-    build: .
-    platform: linux/amd64
-    ports:
-      - "9080:9080"
+    image: lamnguyenx/notifyhub:2025.01.09rev01
+    network_mode: host
+    build:
+      context: .
+      target: backend
     restart: unless-stopped
     command: "python -m notifyhub.backend.backend --port 9080"
+
+  frontend-hotload:
+    image: lamnguyenx/notifyhub-frontend:2025.01.09rev01
+    network_mode: host
+    build:
+      context: .
+      target: frontend
+    volumes:
+      - ${PWD}/src/notifyhub/frontend:/app
+      - /app/node_modules
+    command: |
+      /bin/sh -c "
+        cd /app
+        set -Eeuo pipefail
+        bun run dev --host
+      "

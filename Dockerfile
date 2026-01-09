@@ -1,5 +1,5 @@
 # Build frontend
-FROM node:18-alpine AS frontend-builder
+FROM node:18-alpine AS frontend
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ WORKDIR /app
 
 
 # Production Python backend
-FROM python:3.11-slim
+FROM python:3.11-slim as backend
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ WORKDIR /app
     RUN --mount=type=cache,target=/root/.cache/pip \
         pip install --no-cache-dir -e .
 
-    COPY --from=frontend-builder /app/static ./src/notifyhub/frontend/static/
+    COPY --from=frontend /app/static ./src/notifyhub/frontend/static/
 
 EXPOSE 9080
 
