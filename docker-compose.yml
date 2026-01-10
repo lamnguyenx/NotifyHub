@@ -3,8 +3,11 @@ services:
     image: lamnguyenx/notifyhub:2025.01.09rev01
     network_mode: host
     build:
-      context: .
       target: backend
+      context: .
+      args:
+        NPM_EXTRA_ARGS: --no-ssl-check
+        PIP_EXTRA_ARGS: --trusted-host pypi.org --trusted-host files.pythonhosted.org
     restart: unless-stopped
     command: "python -m notifyhub.backend.backend --port 9080"
 
@@ -12,8 +15,11 @@ services:
     image: lamnguyenx/notifyhub-frontend:2025.01.09rev01
     network_mode: host
     build:
-      context: .
       target: frontend
+      context: .
+      args:
+        NPM_EXTRA_ARGS: --no-ssl-check
+        PIP_EXTRA_ARGS: --trusted-host pypi.org --trusted-host files.pythonhosted.org
     volumes:
       - ${PWD}/src/notifyhub/frontend:/app
       - /app/node_modules

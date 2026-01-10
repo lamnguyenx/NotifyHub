@@ -45,6 +45,33 @@ Once servers are confirmed running:
 - **Communicate** clearly when you're making changes that should trigger a reload
 - **Check actual date** when naming files that require dates (e.g., plan documents). Use `date +%Y-%m-%d` in a subshell to get the current date in YYYY-MM-DD format
 
+## Code Style Preferences
+
+User typically uses shortcut imports with aliases:
+```python
+Coloring_Book as CB
+concurrent.futures as cf
+dataclasses as dc
+Hanoi_Consts as HC
+Hanoi_Types as HT
+hanoi_utils as hu
+inspect as isp
+Kaldi_Consts as KC
+kaldi_dir as kbd
+kaldi_dir as kd
+kaldi_types as kt
+Mini_Test_Files as MTF
+multiprocessing as mp
+numpy as np
+pandas as pd
+pydantic as pdt
+pyplot as plt
+seaborn as sns
+typing as tp
+```
+
+or alias, or... whatever you call it
+
 ## Frequent Issues
 
 When debugging such issues, proactively suggest these to the user:

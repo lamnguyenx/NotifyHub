@@ -1,13 +1,16 @@
 # Build frontend
 FROM node:18-alpine AS frontend
 
+ARG NPM_EXTRA_ARGS
+ARG PIP_EXTRA_ARGS
+
 WORKDIR /app
 
     COPY src/notifyhub/frontend/package*.json ./
 
     RUN --mount=type=cache,target=/root/.npm \
-        npm install -g bun && \
-        bun install
+        npm install -g bun ${NPM_EXTRA_ARGS} && \
+        bun install ${NPM_EXTRA_ARGS}
 
     COPY src/notifyhub/frontend/ .
 
@@ -17,6 +20,9 @@ WORKDIR /app
 # Production Python backend
 FROM python:3.11-slim as backend
 
+ARG NPM_EXTRA_ARGS
+ARG PIP_EXTRA_ARGS
+
 WORKDIR /app
 
     COPY pyproject.toml .
@@ -24,7 +30,7 @@ WORKDIR /app
     COPY src/ ./src/
 
     RUN --mount=type=cache,target=/root/.cache/pip \
-        pip install --no-cache-dir -e .
+        pip install ${PIP_EXTRA_ARGS} -e .
 
     COPY --from=frontend /app/static ./src/notifyhub/frontend/static/
 
