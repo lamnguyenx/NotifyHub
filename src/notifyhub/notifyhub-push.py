@@ -76,7 +76,7 @@ def main() -> None:
     )
     parser.add_argument(
         "message",
-        nargs="?",
+        nargs="*",
         help="Notification message (reads from stdin if not provided)",
     )
     parser.add_argument(
@@ -105,8 +105,8 @@ def main() -> None:
     args = parser.parse_args()
 
     # Determine message
-    if args.message is not None:
-        MESSAGE = args.message
+    if args.message:
+        MESSAGE = " ".join(args.message)
     else:
         MESSAGE = sys.stdin.read().strip() or DEFAULT_MESSAGE
 
