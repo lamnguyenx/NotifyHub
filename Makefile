@@ -28,7 +28,8 @@ noti:
 	./local/noti.sh "make noti"
 
 chrome:
-	open -a "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-dev-profile
+	mkdir -p exp/chrome-dev-profile && \
+	open -a "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=${PWD}/exp/chrome-dev-profile
 
 # -----------------------------------
 #             Testing
