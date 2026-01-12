@@ -1,0 +1,6 @@
+# This config override CLI defaults
+[backend]
+port = 9080
+host = "0.0.0.0"
+sse_heartbeat_interval = 30
+# notifications_max_count = 1000  # Leave unset for unlimited

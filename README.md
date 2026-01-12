@@ -6,21 +6,29 @@
   - [1. System Overview \& Tech Stack](#1-system-overview--tech-stack)
     - [Architecture Diagram](#architecture-diagram)
     - [Technology Stack](#technology-stack)
+    - [Project Structure](#project-structure)
   - [2. Installation \& Setup](#2-installation--setup)
     - [Prerequisites](#prerequisites)
     - [Initial Install](#initial-install)
     - [OpenCode Plugin Installation (Optional)](#opencode-plugin-installation-optional)
-  - [3. Frontend Loading Modes](#3-frontend-loading-modes)
+  - [3. Backend Configuration](#3-backend-configuration)
+    - [Command-Line Options](#command-line-options)
+    - [Configuration File](#configuration-file)
+  - [4. Frontend Loading Modes](#4-frontend-loading-modes)
     - [Hot-reload Diagram](#hot-reload-diagram)
-  - [Why the Proxy is Needed](#why-the-proxy-is-needed)
-  - [Commands](#commands)
-  - [4. Production Usage](#4-production-usage)
-  - [5. Testing Strategy](#5-testing-strategy)
+    - [Why the Proxy is Needed](#why-the-proxy-is-needed)
+    - [Commands](#commands)
+  - [5. Production Usage](#5-production-usage)
+  - [7. CLI Usage](#7-cli-usage)
+    - [Python CLI (cli.py)](#python-cli-clipy)
+    - [Shell Script CLI (notifyhub-push.sh)](#shell-script-cli-notifyhub-pushsh)
+  - [6. Testing Strategy](#6-testing-strategy)
     - [Test Architecture (Page Object Model)](#test-architecture-page-object-model)
-    - [5.1 UI Test Setup](#51-ui-test-setup)
-    - [5.2 Running Tests](#52-running-tests)
-    - [5.3 Test Organization](#53-test-organization)
-    - [5.4 Chrome Remote Debugging (CDP)](#54-chrome-remote-debugging-cdp)
+    - [6.1 UI Test Setup](#61-ui-test-setup)
+    - [6.2 Running Tests](#62-running-tests)
+    - [6.3 Test Organization](#63-test-organization)
+      - [Notification Test Strategy](#notification-test-strategy)
+    - [6.4 Chrome Remote Debugging (CDP)](#64-chrome-remote-debugging-cdp)
 
 ## 1. System Overview & Tech Stack
 
@@ -115,7 +123,60 @@ This copies the plugin file from `src/notifyhub/plugins/opencode/notifyhub-plugi
 
 ---
 
-## 3. Frontend Loading Modes
+## 3. Backend Configuration
+
+NotifyHub backend supports configuration via command-line arguments and a TOML config file for flexible deployment options.
+
+### Command-Line Options
+
+The backend accepts the following CLI arguments:
+
+```bash
+python -m notifyhub.backend.backend [options]
+```
+
+| Option                      | Default   | Description                                                   |
+| --------------------------- | --------- | ------------------------------------------------------------- |
+| `--port`                    | 9080      | Port to run the server on                                     |
+| `--host`                    | "0.0.0.0" | Host to bind the server to                                    |
+| `--sse-heartbeat-interval`  | 30        | SSE heartbeat interval in seconds                             |
+| `--notifications-max-count` | None      | Maximum number of notifications to store (None for unlimited) |
+
+**Examples:**
+
+```bash
+# Run with custom port and host
+python -m notifyhub.backend.backend --port 8080 --host 127.0.0.1
+
+# Limit notifications to 100 and faster heartbeat
+python -m notifyhub.backend.backend --notifications-max-count 100 --sse-heartbeat-interval 15
+```
+
+### Configuration File
+
+For persistent configuration, create a TOML file at `~/.config/notifyhub/config.toml`:
+
+```toml
+# This config overrides CLI defaults
+[backend]
+port = 9080
+host = "0.0.0.0"
+sse_heartbeat_interval = 30
+# notifications_max_count = 1000  # Leave unset for unlimited
+```
+
+**Configuration Hierarchy:**
+1. Hardcoded defaults
+2. Config file values (if file exists)
+3. CLI arguments (highest priority)
+
+**Example config location:**
+- macOS/Linux: `~/.config/notifyhub/config.toml`
+- Copy from: `src/notifyhub/example_config.toml`
+
+---
+
+## 4. Frontend Loading Modes
 
 For hot-reloading, run the backend and frontend in separate terminals.
 
@@ -184,7 +245,7 @@ make frontend-hotload
 
 ---
 
-## 4. Production Usage
+## 5. Production Usage
 
 To run the application as it would appear in production (serving built static assets via FastAPI):
 
@@ -219,7 +280,7 @@ make noti
 
 ---
 
-## 6. CLI Usage
+## 7. CLI Usage
 
 NotifyHub provides two CLI options for sending notifications:
 
@@ -256,7 +317,7 @@ export NOTIFYHUB_ADDRESS=http://myhost.com:8080
 
 ---
 
-## 5. Testing Strategy
+## 6. Testing Strategy
 
 NotifyHub uses a combination of `pytest` for the backend and `Playwright` for frontend UI testing.
 
@@ -287,7 +348,7 @@ classDiagram
 
 ```
 
-### 5.1 UI Test Setup
+### 6.1 UI Test Setup
 
 Before running UI tests, ensure Playwright browsers are installed:
 
@@ -300,7 +361,7 @@ npx playwright install
 
 ```
 
-### 5.2 Running Tests
+### 6.2 Running Tests
 
 You can run tests via standard NPM commands or the provided Makefile shortcuts.
 
@@ -312,7 +373,7 @@ You can run tests via standard NPM commands or the provided Makefile shortcuts.
 | **Connection**   | `make test-chrome`           | Test Chrome CDP connection utility              |
 | **All**          | `make test-all`              | Run entire test suite                           |
 
-### 5.3 Test Organization
+### 6.3 Test Organization
 
 The project follows the Page Object Model (POM) design pattern:
 
@@ -339,7 +400,7 @@ src/notifyhub/backend/__tests__/
 
 The `notification.spec.ts` test suite implements a backup-and-restore approach for testing. See the detailed documentation in the test file itself (`src/notifyhub/frontend/__tests__/ui/specs/notification.spec.ts`) for the complete strategy.
 
-### 5.4 Chrome Remote Debugging (CDP)
+### 6.4 Chrome Remote Debugging (CDP)
 
 Tests can connect to an existing Chrome instance via the Chrome DevTools Protocol (CDP). This requires launching Chrome with specific flags.
 

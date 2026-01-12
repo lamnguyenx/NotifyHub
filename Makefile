@@ -40,7 +40,7 @@ test-chrome tc:
 	cd src/notifyhub/frontend && npx tsx __tests__/ui/utils/test_chrome_connection.ts
 
 test-backend tbe:
-	python -m pytest notifyhub/backend/__tests__/ -v
+	python -m pytest src/notifyhub/backend/__tests__/ -v
 
 test-frontend tfe:
 	cd src/notifyhub/frontend && ./__tests__/run.py prod

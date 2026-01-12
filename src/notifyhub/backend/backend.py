@@ -15,6 +15,7 @@ import os
 import textwrap
 import traceback
 from datetime import datetime
+import tomllib
 
 from .models import NotificationStore, Notification
 
@@ -23,8 +24,9 @@ from .models import NotificationStore, Notification
 class SSEManager:
 
 
-    def __init__(self):
+    def __init__(self, heartbeat_interval=30):
         self.active_connections: List[asyncio.Queue] = []
+        self.heartbeat_interval = heartbeat_interval
 
 
 
@@ -205,8 +207,8 @@ async def events():
 
             heartbeat_count = 0
             while True:
-                # Send heartbeat every 30 seconds
-                if heartbeat_count % 30 == 0:
+                # Send heartbeat every heartbeat_interval seconds
+                if heartbeat_count % sse_manager.heartbeat_interval == 0:
                     yield {
                         "event": "heartbeat",
                         "data": json.dumps({"timestamp": datetime.now().isoformat()}),
@@ -238,11 +240,38 @@ async def root():
 
 
 def main():
+    # Load config file defaults
+    config_defaults = {
+        'port': 9080,
+        'host': "0.0.0.0",
+        'sse_heartbeat_interval': 30,
+        'notifications_max_count': None
+    }
+    config_file = os.path.expanduser("~/.config/notifyhub/config.toml")
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'rb') as f:
+                config = tomllib.load(f)
+            if 'backend' in config:
+                backend_config = config['backend']
+                for key in config_defaults:
+                    if key in backend_config and backend_config[key] is not None:
+                        config_defaults[key] = backend_config[key]
+        except Exception as e:
+            logging.warning(f"Failed to load config file {config_file}: {e}")
+
     parser = argparse.ArgumentParser(description='Start NotifyHub server')
-    parser.add_argument('--port', type=int, default=9080, help='Port to run server on')
+    parser.add_argument('--port', type=int, default=config_defaults['port'], help='Port to run server on')
+    parser.add_argument('--host', type=str, default=config_defaults['host'], help='Host to bind server to')
+    parser.add_argument('--sse-heartbeat-interval', type=int, default=config_defaults['sse_heartbeat_interval'], help='SSE heartbeat interval in seconds')
+    parser.add_argument('--notifications-max-count', type=int, default=config_defaults['notifications_max_count'], help='Maximum number of notifications to store (None for unlimited)')
     args = parser.parse_args()
 
-    config = Config(app, host="0.0.0.0", port=args.port, timeout_graceful_shutdown=1)
+    global sse_manager, store
+    sse_manager = SSEManager(heartbeat_interval=args.sse_heartbeat_interval)
+    store = NotificationStore(sse_manager=sse_manager, max_count=args.notifications_max_count)
+
+    config = Config(app, host=args.host, port=args.port, timeout_graceful_shutdown=1)
     server = Server(config)
     server.run()
 

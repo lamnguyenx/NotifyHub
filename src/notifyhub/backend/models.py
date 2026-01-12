@@ -33,9 +33,9 @@ class Notification(BaseModel):
 class NotificationStore:
 
 
-    def __init__(self, sse_manager=None):
+    def __init__(self, sse_manager=None, max_count=None):
         self.notifications: List[Notification] = []
-        self.max_notifications = 1000
+        self.max_notifications = max_count if max_count is not None else 1000
         self.sse_manager = sse_manager
 
 
@@ -74,7 +74,7 @@ class NotificationStore:
             # Schedule broadcast (don't block notification creation)
             asyncio.create_task(self.sse_manager.broadcast(event_data))
 
-        if len(self.notifications) > self.max_notifications:
+        if self.max_notifications is not None and len(self.notifications) > self.max_notifications:
             self.notifications.pop()
 
         return data.id
