@@ -3,7 +3,7 @@
 
 MOCK_NOTIFICATIONS = (
     {
-        "__comment__" : "this data make \"mantine-focus-auto notification-text2 message m_b6d8b162 mantine-Text-root\" break out of the container card",
+        "__comment__": 'this data make "mantine-focus-auto notification-text2 message m_b6d8b162 mantine-Text-root" break out of the container card',
         "message": "\n".join(
             [
                 '[#tag:@USER][#truncated:+395 LINES]00394| \n\n(End of file - total 394 lines)\n&lt;/file&gt;\nCalled the Read tool with the following input: {"filePath":"/home/lamnt45/git/NotifyHub/src/notifyhub/plugins/opencode/opencode-trace.py"}\n[#tag:@ASSISTANT][#truncated:+8 LINES][#truncated:+129 CHARS]session/message/part data\n6. **YAML Output**: Supports YAML-formatted listing of messages\n\nThe script is well-structured with clear separation of concerns between listing and retrieving functionality.',

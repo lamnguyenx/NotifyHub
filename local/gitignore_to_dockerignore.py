@@ -20,27 +20,27 @@ def parse_arguments():
         description="Convert .gitignore to .dockerignore with Docker-specific additions."
     )
     parser.add_argument(
-        "-i", "--input",
-        help="Path to the input .gitignore file (default: stdin if no file provided)"
+        "-i",
+        "--input",
+        help="Path to the input .gitignore file (default: stdin if no file provided)",
     )
     parser.add_argument(
-        "-o", "--output",
-        help="Path to the output .dockerignore file (default: stdout if not provided)"
+        "-o",
+        "--output",
+        help="Path to the output .dockerignore file (default: stdout if not provided)",
     )
     parser.add_argument(
-        "-f", "--force",
+        "-f",
+        "--force",
         action="store_true",
-        help="Force overwrite if output file already exists"
+        help="Force overwrite if output file already exists",
     )
     parser.add_argument(
         "--no-backup",
         action="store_true",
-        help="Don't create backup if output file already exists"
+        help="Don't create backup if output file already exists",
     )
-    parser.add_argument(
-        "file_arg", nargs="?",
-        help="Input file as positional argument"
-    )
+    parser.add_argument("file_arg", nargs="?", help="Input file as positional argument")
     return parser.parse_args()
 
 
@@ -48,10 +48,10 @@ def read_input_content(input_file, file_arg):
     """Read the input content from file or stdin."""
     try:
         if input_file:
-            with open(input_file, 'r', encoding='utf-8') as f:
+            with open(input_file, "r", encoding="utf-8") as f:
                 return f.read()
         elif file_arg:
-            with open(file_arg, 'r', encoding='utf-8') as f:
+            with open(file_arg, "r", encoding="utf-8") as f:
                 return f.read()
         else:
             return sys.stdin.read()
@@ -73,25 +73,25 @@ def process_gitignore_patterns(content):
         stripped = line.strip()
         original = line.rstrip()
 
-        if not stripped or stripped.startswith('#'):
+        if not stripped or stripped.startswith("#"):
             processed_lines.append(original)
             continue
 
-        negation = stripped.startswith('!')
+        negation = stripped.startswith("!")
         pattern = stripped[1:].lstrip() if negation else stripped
-        had_leading_slash = pattern.startswith('/')
+        had_leading_slash = pattern.startswith("/")
 
         # Remove leading slash and process directory patterns
-        pattern = pattern.lstrip('/')
-        if stripped.endswith('/'):
-            if not had_leading_slash and not pattern.startswith('**/'):
-                pattern = f'**/{pattern}'
+        pattern = pattern.lstrip("/")
+        if stripped.endswith("/"):
+            if not had_leading_slash and not pattern.startswith("**/"):
+                pattern = f"**/{pattern}"
 
         # Reconstruct line with proper negation
-        processed = f'!{pattern}' if negation else pattern
+        processed = f"!{pattern}" if negation else pattern
         processed_lines.append(processed)
 
-    return '\n'.join(processed_lines)
+    return "\n".join(processed_lines)
 
 
 def get_docker_specific_patterns():
@@ -146,16 +146,24 @@ bitbucket-pipelines.yml
 
 def check_for_duplicates(content, docker_patterns):
     """Remove duplicate Docker patterns already present in content."""
-    existing = {line.strip() for line in content.splitlines()
-               if line.strip() and not line.strip().startswith('#')}
-    return [line for line in docker_patterns.splitlines()
-           if line.strip() not in existing and line.strip()]
+    existing = {
+        line.strip()
+        for line in content.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
+    return [
+        line
+        for line in docker_patterns.splitlines()
+        if line.strip() not in existing and line.strip()
+    ]
 
 
 def create_dockerignore(gitignore_content, docker_patterns):
     """Create final .dockerignore content."""
     processed_gitignore = process_gitignore_patterns(gitignore_content)
-    docker_section = '\n'.join(check_for_duplicates(processed_gitignore, docker_patterns))
+    docker_section = "\n".join(
+        check_for_duplicates(processed_gitignore, docker_patterns)
+    )
 
     return f"""# .dockerignore generated from .gitignore
 # Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -187,7 +195,7 @@ def write_output(content, output_file, force=False, no_backup=False):
             print(f"Overwriting existing {output_file}")
 
     try:
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(content)
         print(f"Successfully created {output_file}")
         return 0

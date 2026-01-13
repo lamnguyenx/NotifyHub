@@ -1,4 +1,4 @@
-.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin remove-plugin test-bg clean fe fh beh t tb tf tfh tc
+.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin test-bg clean fe fh beh t tb tf tfh tc
 
 # -----------------------------------
 #            Dependencies
@@ -13,7 +13,7 @@ plugin-deps:
 #            Static
 # -----------------------------------
 backend be:
-	python -m notifyhub.backend.backend --port 9080
+	python -m notifyhub.backend.backend
 
 frontend fe:
 	cd src/notifyhub/frontend && bun run build
@@ -54,12 +54,30 @@ test-frontend-hotload tfehl:
 check-plugin:
 	ls -ltra ~/.config/opencode/plugin/
 
-install-plugin:
+install-plugin: install-plugin-copy
+
+install-plugin-symlink:
 	@echo "Installing NotifyHub plugin to OpenCode..."
 	mkdir -p ~/.config/opencode/plugin
+	for file in notifyhub-plugin.ts notifyhub-push.py opencode-trace.py; do \
+		./bach_lite.sh archive ~/.config/opencode/plugin/$$file; \
+	done
 	gln -sfvrn src/notifyhub/plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/notifyhub-plugin.ts
-	gln -sfvrn src/notifyhub/notifyhub-push.py ~/.config/opencode/plugin/notifyhub-push.py
+	gln -sfvrn src/notifyhub/cli/cli.py ~/.config/opencode/plugin/notifyhub-push.py
 	gln -sfvrn src/notifyhub/plugins/opencode/opencode-trace.py ~/.config/opencode/plugin/opencode-trace.py
+	ls -ltra ~/.config/opencode/plugin/
+	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
+
+install-plugin-copy:
+	@echo "Installing NotifyHub plugin to OpenCode (copying files)..."
+	mkdir -p ~/.config/opencode/plugin
+	for file in notifyhub-plugin.ts notifyhub-push.py opencode-trace.py; do \
+		./bach_lite.sh archive ~/.config/opencode/plugin/$$file; \
+	done
+	cp src/notifyhub/plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/
+	cp src/notifyhub/cli/cli.py ~/.config/opencode/plugin/
+	cp src/notifyhub/plugins/opencode/opencode-trace.py ~/.config/opencode/plugin/
+	ls -ltra ~/.config/opencode/plugin/
 	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
 
 uninstall-plugin remove-plugin rm-plugin:

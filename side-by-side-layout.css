@@ -1,0 +1,237 @@
+/* Side-by-side layout: Input 40% on left, Chat 60% on right */
+
+/* Main container setup using CSS Grid */
+bard-sidenav-content[_ngcontent-ng-c2737697818] {
+  display: grid !important;
+  grid-template-columns: 40% 60% !important;
+  gap: 0 !important;
+  height: 100vh !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Content wrapper becomes the grid container */
+bard-sidenav-content[_ngcontent-ng-c2737697818] .content-wrapper[_ngcontent-ng-c2737697818] {
+  display: grid !important;
+  grid-template-columns: 40% 60% !important;
+  gap: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Main content area spans both columns initially, then we'll position children */
+.main-content[_ngcontent-ng-c3299329106] {
+  display: grid !important;
+  grid-template-columns: 40% 60% !important;
+  gap: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+/* Content container for positioning children */
+.content-container[_ngcontent-ng-c3299329106] {
+  display: grid !important;
+  grid-template-columns: 40% 60% !important;
+  gap: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+/* Chat window positioning - goes to column 2 (right side) */
+chat-window[_nghost-ng-c3363704923] {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.chat-container[_ngcontent-ng-c3363704923] {
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Input container positioning - goes to column 1 (left side) */
+input-container[_nghost-ng-c80114420] {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  position: sticky !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100vh !important;
+  width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  z-index: 10 !important;
+  background-color: var(--darkreader-background-ffffff, #0e1011) !important;
+  border-right: 1px solid var(--darkreader-border-4c4c4c, #72695b) !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+}
+
+/* Input area styling for left panel */
+.input-area-container[_ngcontent-ng-c80114420] {
+  max-width: none !important;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+input-area-v2[_nghost-ng-c2667621703] {
+  width: 100% !important;
+  height: auto !important;
+}
+
+.text-input-field[_ngcontent-ng-c2667621703] {
+  width: 100% !important;
+  min-height: 60px !important;
+  height: auto !important;
+}
+
+/* Text input area */
+.text-input-field_textarea-wrapper[_ngcontent-ng-c2667621703] {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.text-input-field_textarea-inner[_ngcontent-ng-c2667621703] {
+  width: 100% !important;
+  height: auto !important;
+}
+
+.rich-textarea[_ngcontent-ng-c2930095409] {
+  width: 100% !important;
+}
+
+.ql-editor {
+  min-height: 60px !important;
+  max-height: 300px !important;
+  overflow-y: auto !important;
+  width: 100% !important;
+}
+
+/* Chat history on the right side */
+.chat-history-scroll-container[_ngcontent-ng-c2507350163] {
+  height: 100% !important;
+  width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  position: relative !important;
+}
+
+.chat-history[_ngcontent-ng-c2507350163] {
+  height: auto !important;
+  width: 100% !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+}
+
+/* Hide desktop buffer and other spacing elements */
+.desktop-ogb-buffer[_ngcontent-ng-c2737697818] {
+  display: none !important;
+}
+
+/* Ensure banners don't interfere with grid layout */
+.app-upsell-banner[_ngcontent-ng-c3299329106],
+.announcement-banner-container[_ngcontent-ng-c3299329106] {
+  display: none !important;
+}
+
+/* Conversation container styling */
+.conversation-container[_ngcontent-ng-c2507350163] {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Response containers */
+.response-container[_ngcontent-ng-c623567544] {
+  margin-bottom: 20px !important;
+  width: 100% !important;
+}
+
+/* User query containers */
+user-query[_ngcontent-ng-c2507350163] {
+  margin-bottom: 20px !important;
+  width: 100% !important;
+}
+
+/* Adjust action buttons positioning */
+.actions-container-v2[_ngcontent-ng-c3226180721] {
+  position: relative !important;
+  z-index: 5 !important;
+}
+
+/* Hide hallucination disclaimer from left panel */
+.hallucination-disclaimer[_ngcontent-ng-c3864461170] {
+  display: none !important;
+}
+
+/* Condensed TOs disclaimer */
+condensed-tos-disclaimer[_ngcontent-ng-c80114420] {
+  display: none !important;
+}
+
+/* File drop indicator */
+file-drop-indicator[_ngcontent-ng-c80114420] {
+  position: relative !important;
+  bottom: auto !important;
+}
+
+/* Ensure proper scrolling for both panels */
+.chat-history-scroll-container[_ngcontent-ng-c2507350163]::-webkit-scrollbar,
+input-container[_nghost-ng-c80114420]::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+.chat-history-scroll-container[_ngcontent-ng-c2507350163]::-webkit-scrollbar-track,
+input-container[_nghost-ng-c80114420]::-webkit-scrollbar-track {
+  background: var(--darkreader-background-f1f1f1, #161a1b) !important;
+}
+
+.chat-history-scroll-container[_ngcontent-ng-c2507350163]::-webkit-scrollbar-thumb,
+input-container[_nghost-ng-c80114420]::-webkit-scrollbar-thumb {
+  background: var(--darkreader-background-b0b0b0, #3f4548) !important;
+  border-radius: 4px !important;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  bard-sidenav-content[_ngcontent-ng-c2737697818],
+  .content-wrapper[_ngcontent-ng-c2737697818],
+  .main-content[_ngcontent-ng-c3299329106],
+  .content-container[_ngcontent-ng-c3299329106] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  input-container[_nghost-ng-c80114420] {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    height: auto !important;
+    min-height: 150px !important;
+    position: relative !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--darkreader-border-4c4c4c, #72695b) !important;
+  }
+  
+  chat-window[_nghost-ng-c3363704923] {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    height: calc(100vh - 150px) !important;
+  }
+}

@@ -15,33 +15,25 @@ import os
 import textwrap
 import traceback
 from datetime import datetime
-import tomllib
 
 from .models import NotificationStore, Notification
-
+from ..config import NotifyHubConfig
 
 
 class SSEManager:
 
-
     def __init__(self, heartbeat_interval=30):
         self.active_connections: List[asyncio.Queue] = []
         self.heartbeat_interval = heartbeat_interval
-
-
 
     async def connect(self) -> asyncio.Queue:
         queue = asyncio.Queue()
         self.active_connections.append(queue)
         return queue
 
-
-
     def disconnect(self, queue: asyncio.Queue):
         if queue in self.active_connections:
             self.active_connections.remove(queue)
-
-
 
     async def broadcast(self, event_data: dict):
         """Broadcast event to all connected clients"""
@@ -58,12 +50,10 @@ class SSEManager:
             self.disconnect(queue)
 
 
-
 class NotifyRequest(BaseModel):
 
     id: Optional[str] = None
     data: dict
-
 
 
 @asynccontextmanager
@@ -73,12 +63,14 @@ async def lifespan(app: FastAPI):
     for queue in sse_manager.active_connections:
         try:
             queue.put_nowait(
-                {"event": "shutdown", "data": json.dumps({"message": "Server shutting down"})}
+                {
+                    "event": "shutdown",
+                    "data": json.dumps({"message": "Server shutting down"}),
+                }
             )
         except:
             pass
     sse_manager.active_connections.clear()
-
 
 
 app = FastAPI(lifespan=lifespan)
@@ -88,37 +80,53 @@ store = NotificationStore(sse_manager=sse_manager)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins = ["*"],
-    allow_methods = ["*"],
-    allow_headers = ["*"],
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Static files and templates setup
 frontend_dir = os.path.join(os.path.dirname(__file__), "../frontend")
-app.mount("/static", StaticFiles(directory=os.path.join(frontend_dir, "static")), name="static")
-app.mount("/icons", StaticFiles(directory=os.path.join(frontend_dir, "static/icons")), name="icons")
-app.mount("/audio", StaticFiles(directory=os.path.join(frontend_dir, "static/audio")), name="audio")
+app.mount(
+    "/static",
+    StaticFiles(directory=os.path.join(frontend_dir, "static")),
+    name="static",
+)
+app.mount(
+    "/icons",
+    StaticFiles(directory=os.path.join(frontend_dir, "static/icons")),
+    name="icons",
+)
+app.mount(
+    "/audio",
+    StaticFiles(directory=os.path.join(frontend_dir, "static/audio")),
+    name="audio",
+)
+
 
 def load_and_transform_template():
     """Load index.html and transform it for production use."""
     template_path = os.path.join(frontend_dir, "index.html")
     try:
-        with open(template_path, 'r', encoding='utf-8') as f:
+        with open(template_path, "r", encoding="utf-8") as f:
             html = f.read()
 
         # Replace dev script with production script
-        html = html.replace('/src/main.tsx', '/static/app.js')
+        html = html.replace("/src/main.tsx", "/static/app.js")
 
         # Ensure main.css is linked (add after Bootstrap if not present)
-        if '/static/main.css' not in html:
+        if "/static/main.css" not in html:
             bootstrap_link = 'bootstrap.min.css" rel="stylesheet">'
-            css_link = f'{bootstrap_link}\n    <link href="/static/main.css" rel="stylesheet">'
+            css_link = (
+                f'{bootstrap_link}\n    <link href="/static/main.css" rel="stylesheet">'
+            )
             html = html.replace(bootstrap_link, css_link)
 
         return html
     except FileNotFoundError:
         # Fallback if index.html doesn't exist
-        return textwrap.dedent("""
+        return textwrap.dedent(
+            """
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -130,34 +138,35 @@ def load_and_transform_template():
                 <p>Please ensure the frontend is properly set up.</p>
             </body>
             </html>
-            """).strip()
-
+            """
+        ).strip()
 
 
 @app.post("/api/notify")
 async def notify(request: NotifyRequest):
     try:
-        data            = Notification.model_validate(request.data)
-        custom_id       = request.id
+        data = Notification.model_validate(request.data)
+        custom_id = request.id
         notification_id = store.add(data, custom_id)
         return {"success": True, "id": notification_id}
     except Exception as e:
-        return {"error": traceback.format_exc().split('\n')}
-
+        return {"error": traceback.format_exc().split("\n")}
 
 
 @app.get("/api/notifications")
 async def get_notifications():
     return [
-        {"id": n.id, "data": n.model_dump(exclude={'id', 'timestamp'}), "timestamp": n.timestamp}
+        {
+            "id": n.id,
+            "data": n.model_dump(exclude={"id", "timestamp"}),
+            "timestamp": n.timestamp,
+        }
         for n in store.notifications
     ]
 
 
-
 @app.delete("/api/notifications")
 async def delete_notifications(id: Optional[str] = None):
-
     """Delete notifications - all if no id provided, specific if id given"""
     if id:
         # Delete specific notification
@@ -166,22 +175,27 @@ async def delete_notifications(id: Optional[str] = None):
             await sse_manager.broadcast(
                 {
                     "event": "delete",
-                    "data": json.dumps({"id": id, "message": f"Notification {id} deleted"}),
+                    "data": json.dumps(
+                        {"id": id, "message": f"Notification {id} deleted"}
+                    ),
                 }
             )
             return {"success": True, "message": f"Notification {id} deleted"}
         else:
             # Notification not found
             from fastapi import HTTPException
+
             raise HTTPException(status_code=404, detail="Notification not found")
     else:
         # Clear all notifications (existing behavior)
         store.clear_all()
         await sse_manager.broadcast(
-            {"event": "clear", "data": json.dumps({"message": "All notifications cleared"})}
+            {
+                "event": "clear",
+                "data": json.dumps({"message": "All notifications cleared"}),
+            }
         )
         return {"success": True, "message": "All notifications cleared"}
-
 
 
 @app.get("/events")
@@ -189,17 +203,15 @@ async def events():
     """SSE endpoint for real-time notifications"""
     queue = await sse_manager.connect()
 
-
-
     async def event_generator():
 
         try:
             # Send current notifications on connect
             current_notifications = [
                 {
-                    "id"        : n.id,
-                    "data"      : n.model_dump(exclude={'id', 'timestamp'}),
-                    "timestamp" : n.timestamp,
+                    "id": n.id,
+                    "data": n.model_dump(exclude={"id", "timestamp"}),
+                    "timestamp": n.timestamp,
                 }
                 for n in store.notifications
             ]
@@ -231,50 +243,52 @@ async def events():
     return EventSourceResponse(event_generator())
 
 
-
 @app.get("/", response_class=HTMLResponse)
 async def root():
     html_content = load_and_transform_template()
     return HTMLResponse(html_content)
 
 
-
 def main():
-    # Load config file defaults
-    config_defaults = {
-        'port': 9080,
-        'host': "0.0.0.0",
-        'sse_heartbeat_interval': 30,
-        'notifications_max_count': None
-    }
-    config_file = os.path.expanduser("~/.config/notifyhub/config.toml")
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, 'rb') as f:
-                config = tomllib.load(f)
-            if 'backend' in config:
-                backend_config = config['backend']
-                for key in config_defaults:
-                    if key in backend_config and backend_config[key] is not None:
-                        config_defaults[key] = backend_config[key]
-        except Exception as e:
-            logging.warning(f"Failed to load config file {config_file}: {e}")
-
-    parser = argparse.ArgumentParser(description='Start NotifyHub server')
-    parser.add_argument('--port', type=int, default=config_defaults['port'], help='Port to run server on')
-    parser.add_argument('--host', type=str, default=config_defaults['host'], help='Host to bind server to')
-    parser.add_argument('--sse-heartbeat-interval', type=int, default=config_defaults['sse_heartbeat_interval'], help='SSE heartbeat interval in seconds')
-    parser.add_argument('--notifications-max-count', type=int, default=config_defaults['notifications_max_count'], help='Maximum number of notifications to store (None for unlimited)')
+    # Parse CLI arguments first (needed for config loading)
+    parser = argparse.ArgumentParser(description="Start NotifyHub server")
+    parser.add_argument(
+        "--backend.port", type=int, dest="backend_port", help="Port to run server on"
+    )
+    parser.add_argument(
+        "--backend.host", type=str, dest="backend_host", help="Host to bind server to"
+    )
+    parser.add_argument(
+        "--backend.sse-heartbeat-interval",
+        type=int,
+        dest="backend_sse_heartbeat_interval",
+        help="SSE heartbeat interval in seconds",
+    )
+    parser.add_argument(
+        "--backend.notifications-max-count",
+        type=int,
+        dest="backend_notifications_max_count",
+        help="Maximum number of notifications to store (None for unlimited)",
+    )
     args = parser.parse_args()
 
+    # Load configuration using ConfigStack
+    config = NotifyHubConfig.load_config(args)
+
     global sse_manager, store
-    sse_manager = SSEManager(heartbeat_interval=args.sse_heartbeat_interval)
-    store = NotificationStore(sse_manager=sse_manager, max_count=args.notifications_max_count)
+    sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)
+    store = NotificationStore(
+        sse_manager=sse_manager, max_count=config.backend.notifications_max_count
+    )
 
-    config = Config(app, host=args.host, port=args.port, timeout_graceful_shutdown=1)
-    server = Server(config)
+    uvicorn_config = Config(
+        app,
+        host=config.backend.host,
+        port=config.backend.port,
+        timeout_graceful_shutdown=1,
+    )
+    server = Server(uvicorn_config)
     server.run()
-
 
 
 if __name__ == "__main__":

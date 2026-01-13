@@ -5,12 +5,10 @@ from notifyhub.backend.models import NotificationStore
 import notifyhub.backend.backend as backend
 
 
-
 @pytest.fixture(autouse=True)
 def reset_store():
     # Reset the global store before each test
     backend.store = NotificationStore()
-
 
 
 @pytest.fixture
@@ -18,12 +16,12 @@ def client():
     return TestClient(app)
 
 
-
 class TestNotifyAPI:
 
-
     def test_notify_post_success(self, client):
-        response = client.post("/api/notify", json={"data": {"message": "Test notification"}})
+        response = client.post(
+            "/api/notify", json={"data": {"message": "Test notification"}}
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -31,16 +29,12 @@ class TestNotifyAPI:
         assert "id" in data
         assert isinstance(data["id"], str)
 
-
-
     def test_notify_post_empty_message(self, client):
         response = client.post("/api/notify", json={"data": {"message": ""}})
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-
-
 
     def test_notify_post_stores_notification(self, client):
         data = {"message": "Stored notification"}
@@ -52,12 +46,10 @@ class TestNotifyAPI:
         assert len(backend.store.notifications) == 1
         assert (
             backend.store.notifications[0].model_dump(
-                exclude={'id', 'timestamp'}, exclude_none=True
+                exclude={"id", "timestamp"}, exclude_none=True
             )
             == data
         )
-
-
 
     def test_notify_post_multiple_notifications(self, client):
         # Send multiple notifications
@@ -72,9 +64,7 @@ class TestNotifyAPI:
         assert backend.store.notifications[2].message == "First"
 
 
-
 class TestNotificationsAPI:
-
 
     def test_get_notifications_empty(self, client):
         response = client.get("/api/notifications")
@@ -83,8 +73,6 @@ class TestNotificationsAPI:
         data = response.json()
         assert isinstance(data, list)
         assert len(data) == 0
-
-
 
     def test_get_notifications_with_data(self, client):
 
@@ -106,8 +94,6 @@ class TestNotificationsAPI:
         assert "timestamp" in notification
         assert notification["data"]["message"] == "Second"  # Newest first
 
-
-
     def test_get_notifications_returns_list_of_dicts(self, client):
         client.post("/api/notify", json={"data": {"message": "Test"}})
 
@@ -119,9 +105,7 @@ class TestNotificationsAPI:
         assert all(key in data[0] for key in ["id", "data", "timestamp"])
 
 
-
 class TestDeleteNotificationsAPI:
-
 
     def test_delete_notifications_bulk(self, client):
         # Add some notifications
@@ -139,8 +123,6 @@ class TestDeleteNotificationsAPI:
         # Verify store is empty
         assert len(backend.store.notifications) == 0
 
-
-
     def test_delete_notifications_individual_existing(self, client):
         # Add a notification
         create_response = client.post("/api/notify", json={"data": {"message": "Test"}})
@@ -157,8 +139,6 @@ class TestDeleteNotificationsAPI:
         # Verify notification is gone
         assert len(backend.store.notifications) == 0
 
-
-
     def test_delete_notifications_individual_nonexistent(self, client):
         # Try to delete non-existent notification
         response = client.delete("/api/notifications?id=nonexistent-id")
@@ -168,13 +148,13 @@ class TestDeleteNotificationsAPI:
         assert "detail" in data
         assert data["detail"] == "Notification not found"
 
-
-
     def test_delete_notifications_individual_preserves_others(self, client):
 
         # Add multiple notifications
         client.post("/api/notify", json={"data": {"message": "First"}})
-        create_response = client.post("/api/notify", json={"data": {"message": "Second"}})
+        create_response = client.post(
+            "/api/notify", json={"data": {"message": "Second"}}
+        )
         delete_id = create_response.json()["id"]
         client.post("/api/notify", json={"data": {"message": "Third"}})
 
@@ -193,7 +173,6 @@ class TestDeleteNotificationsAPI:
         assert "Third" in remaining_messages
 
 
-
 class TestRootEndpoint:
 
     def test_root_get_returns_html(self, client):
@@ -202,8 +181,6 @@ class TestRootEndpoint:
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
         assert "NotifyHub" in response.text
-
-
 
     def test_root_serves_react_app(self, client):
         response = client.get("/")

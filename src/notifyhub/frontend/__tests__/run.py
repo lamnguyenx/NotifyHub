@@ -12,12 +12,10 @@ from mini_logger import getLogger
 from mock_data import MOCK_NOTIFICATIONS
 
 # Create logger
-logger = getLogger('run.py', log_time=True)
-
+logger = getLogger("run.py", log_time=True)
 
 
 def run_cmd(cmd, capture_output=True, check=True):
-
     """Run a command and return the result"""
     try:
         result = subprocess.run(
@@ -32,7 +30,6 @@ def run_cmd(cmd, capture_output=True, check=True):
         if e.stderr:
             logger.debug(f"stderr: {e.stderr}")
         raise
-
 
 
 def main():
@@ -98,8 +95,8 @@ def main():
         logger.debug(f"\t\t{i}\t{noti}")
 
     fixture_start_time = time.time()
-    created_count      = 0
-    notification_ids   = []
+    created_count = 0
+    notification_ids = []
 
     # Process each selected notification
     for noti in selected:
@@ -137,7 +134,9 @@ def main():
         iteration_end = time.time()
         iteration_duration = int(iteration_end - iteration_start)
 
-        logger.info(f"Successfully added notification with ID: {noti_id} ({iteration_duration}s)")
+        logger.info(
+            f"Successfully added notification with ID: {noti_id} ({iteration_duration}s)"
+        )
 
     fixture_end_time = time.time()
     fixture_duration = int(fixture_end_time - fixture_start_time)
@@ -146,7 +145,9 @@ def main():
     logger.info(f"Results: {created_count} notifications created")
 
     # Run Playwright tests
-    logger.info(f"Starting Playwright tests with CDP endpoint: {cdp_websocket_endpoint}")
+    logger.info(
+        f"Starting Playwright tests with CDP endpoint: {cdp_websocket_endpoint}"
+    )
     run_cmd("npx playwright test --headed", capture_output=False)
 
     # Clean up
@@ -165,13 +166,15 @@ def main():
 
     if not notification_ids:
         logger.error("No notification IDs to clean up - array is empty")
-        logger.error("This may indicate fixture creation failed or IDs were not captured properly")
+        logger.error(
+            "This may indicate fixture creation failed or IDs were not captured properly"
+        )
         sys.exit(1)
 
     logger.info(f"Processing {len(notification_ids)} notification IDs for cleanup")
 
-    deleted_count    = 0
-    failed_count     = 0
+    deleted_count = 0
+    failed_count = 0
     total_start_time = time.time()
 
     for i, noti_id in enumerate(notification_ids):
@@ -225,7 +228,6 @@ def main():
     if failed_count > 0:
         logger.error(f"Cleanup completed with {failed_count} failures")
         sys.exit(1)
-
 
 
 if __name__ == "__main__":

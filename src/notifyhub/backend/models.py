@@ -6,11 +6,9 @@ import json
 from pydantic import BaseModel, ConfigDict
 
 
-
 def get_timeslug() -> str:
     """Get a timestamp-based slug for time-based IDs"""
-    return datetime.now(timezone.utc).strftime('%Y.%m.%d__%Hh%Mm%Ss.%f')[:-3]
-
+    return datetime.now(timezone.utc).strftime("%Y.%m.%d__%Hh%Mm%Ss.%f")[:-3]
 
 
 def get_time_uid() -> str:
@@ -18,10 +16,9 @@ def get_time_uid() -> str:
     return f"{get_timeslug()}-{str(uuid.uuid4())[:8]}"
 
 
-
 class Notification(BaseModel):
 
-    model_config = ConfigDict(extra='allow')
+    model_config = ConfigDict(extra="allow")
 
     id: Optional[str] = None
     message: str
@@ -29,16 +26,12 @@ class Notification(BaseModel):
     timestamp: Optional[str] = None
 
 
-
 class NotificationStore:
-
 
     def __init__(self, sse_manager=None, max_count=None):
         self.notifications: List[Notification] = []
         self.max_notifications = max_count if max_count is not None else 1000
         self.sse_manager = sse_manager
-
-
 
     def add(self, data: Notification, custom_id: Optional[str] = None) -> str:
 
@@ -65,21 +58,22 @@ class NotificationStore:
                 "event": "notification",
                 "data": json.dumps(
                     {
-                        "id"        : data.id,
-                        "data"      : data.model_dump(exclude={'id', 'timestamp'}),
-                        "timestamp" : data.timestamp,
+                        "id": data.id,
+                        "data": data.model_dump(exclude={"id", "timestamp"}),
+                        "timestamp": data.timestamp,
                     }
                 ),
             }
             # Schedule broadcast (don't block notification creation)
             asyncio.create_task(self.sse_manager.broadcast(event_data))
 
-        if self.max_notifications is not None and len(self.notifications) > self.max_notifications:
+        if (
+            self.max_notifications is not None
+            and len(self.notifications) > self.max_notifications
+        ):
             self.notifications.pop()
 
         return data.id
-
-
 
     def delete_by_id(self, notification_id: str) -> bool:
         """Delete a notification by ID. Returns True if found and deleted, False otherwise."""
@@ -88,8 +82,6 @@ class NotificationStore:
                 self.notifications.pop(i)
                 return True
         return False
-
-
 
     def clear_all(self):
         """Clear all notifications"""

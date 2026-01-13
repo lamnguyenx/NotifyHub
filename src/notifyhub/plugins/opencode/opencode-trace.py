@@ -277,7 +277,7 @@ def retrieve_message(
                     snap_pos = i
                     break
             if snap_pos is not None:
-                cleaned = cleaned[snap_pos + 1:].lstrip(" \n")
+                cleaned = cleaned[snap_pos + 1 :].lstrip(" \n")
             else:
                 cleaned = cleaned[-max_chars:]
         truncated_chars = max(0, original_cleaned_len - len(cleaned))
