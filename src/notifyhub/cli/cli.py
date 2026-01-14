@@ -8,6 +8,8 @@ import json
 import requests
 import typing as tp
 
+from notifyhub.config import NotifyHubConfig
+
 
 def send_notification(
     address: str,
@@ -52,13 +54,9 @@ def send_notification(
 
 
 def main() -> None:
-    # Default values from environment
-    DEFAULT_HOST = os.getenv("NOTIFYHUB_HOST", "localhost")
-    DEFAULT_PORT = int(os.getenv("NOTIFYHUB_PORT", os.getenv("NOTI_PORT", "9080")))
-    DEFAULT_PROXY = os.getenv("NOTIFYHUB_HTTP_PROXY", "")
-    DEFAULT_VERBOSE = int(os.getenv("VERBOSE_INT", "1"))
-    MESSAGE_DEFAULT = f"{os.getenv('HOST_ID', 'HOST_ID')} (opencode)"
-    DEFAULT_MESSAGE = os.getenv("MESSAGE", MESSAGE_DEFAULT)
+    config = NotifyHubConfig.load_config(None)
+    cli_config = config.cli
+    DEFAULT_MESSAGE = "HOST_ID (opencode)"
 
     epilog_text = textwrap.dedent(
         """\
@@ -81,25 +79,30 @@ def main() -> None:
     )
     parser.add_argument(
         "--host",
-        default=DEFAULT_HOST,
-        help=f"NotifyHub host (default: {DEFAULT_HOST})",
+        default=cli_config.host,
+        help=f"NotifyHub host (default: {cli_config.host})",
     )
     parser.add_argument(
         "--port",
         type=int,
-        default=DEFAULT_PORT,
-        help=f"NotifyHub port (default: {DEFAULT_PORT})",
+        default=cli_config.port,
+        help=f"NotifyHub port (default: {cli_config.port})",
     )
     parser.add_argument(
         "--proxy",
-        default=DEFAULT_PROXY,
-        help=f"HTTP proxy (default: {DEFAULT_PROXY})",
+        default=cli_config.proxy,
+        help=f"HTTP proxy (default: {cli_config.proxy})",
     )
     parser.add_argument(
         "--verbose",
         type=int,
-        default=DEFAULT_VERBOSE,
-        help=f"Verbosity level (default: {DEFAULT_VERBOSE})",
+        default=cli_config.verbose,
+        help=f"Verbosity level (default: {cli_config.verbose})",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be sent without actually sending",
     )
 
     args = parser.parse_args()
@@ -115,6 +118,11 @@ def main() -> None:
     ).rstrip("/")
     JSON_DATA = {"pwd": os.getcwd(), "message": MESSAGE}
     PAYLOAD = {"data": JSON_DATA}
+
+    if args.dry_run:
+        print("Dry run: Would send notification to", NOTIFYHUB_ADDRESS)
+        print("Payload:", json.dumps(PAYLOAD, indent=2))
+        exit(0)
 
     send_notification(
         address=NOTIFYHUB_ADDRESS,

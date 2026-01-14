@@ -16,6 +16,10 @@ LOWERCASE_DOTTED_MAPPINGS: tp.Mapping[str, str] = types.MappingProxyType(
         "notifyhub.backend.host": "backend.host",
         "notifyhub.backend.sse_heartbeat_interval": "backend.sse_heartbeat_interval",
         "notifyhub.backend.notifications_max_count": "backend.notifications_max_count",
+        "notifyhub.cli.host": "cli.host",
+        "notifyhub.cli.port": "cli.port",
+        "notifyhub.cli.proxy": "cli.proxy",
+        "notifyhub.cli.verbose": "cli.verbose",
     }
 )
 
@@ -25,6 +29,10 @@ UPPERCASE_UNDERSCORED_MAPPINGS: tp.Mapping[str, str] = types.MappingProxyType(
         "NOTIFYHUB_BACKEND_HOST": "backend.host",
         "NOTIFYHUB_BACKEND_SSE_HEARTBEAT_INTERVAL": "backend.sse_heartbeat_interval",
         "NOTIFYHUB_BACKEND_NOTIFICATIONS_MAX_COUNT": "backend.notifications_max_count",
+        "NOTIFYHUB_CLI_HOST": "cli.host",
+        "NOTIFYHUB_CLI_PORT": "cli.port",
+        "NOTIFYHUB_CLI_PROXY": "cli.proxy",
+        "NOTIFYHUB_CLI_VERBOSE": "cli.verbose",
     }
 )
 
@@ -36,16 +44,26 @@ UPPERCASE_UNDERSCORED_MAPPINGS: tp.Mapping[str, str] = types.MappingProxyType(
 class NotifyHubBackendConfig(pdt.BaseModel):
     model_config = pdt.ConfigDict(validate_assignment=True)
 
-    port: int = 9080
     host: str = "0.0.0.0"
+    port: int = 9080
     sse_heartbeat_interval: int = 30
     notifications_max_count: tp.Optional[int] = None
+
+
+class NotifyHubCliConfig(pdt.BaseModel):
+    model_config = pdt.ConfigDict(validate_assignment=True)
+
+    host: str = "0.0.0.0"
+    port: int = 9080
+    proxy: str = ""
+    verbose: int = 1
 
 
 class NotifyHubConfig(pdt.BaseModel):
     model_config = pdt.ConfigDict(validate_assignment=True)
 
     backend: NotifyHubBackendConfig = pdt.Field(default_factory=NotifyHubBackendConfig)
+    cli: NotifyHubCliConfig = pdt.Field(default_factory=NotifyHubCliConfig)
 
     @staticmethod
     def set_nested_attr(obj: tp.Any, path: str, value: tp.Any) -> None:
@@ -64,11 +82,19 @@ class NotifyHubConfig(pdt.BaseModel):
         - notifyhub.backend.host → backend.host (str)
         - notifyhub.backend.sse_heartbeat_interval → backend.sse_heartbeat_interval (int)
         - notifyhub.backend.notifications_max_count → backend.notifications_max_count (int or None)
+        - notifyhub.cli.host → cli.host (str)
+        - notifyhub.cli.port → cli.port (int)
+        - notifyhub.cli.proxy → cli.proxy (str)
+        - notifyhub.cli.verbose → cli.verbose (int)
 
         - NOTIFYHUB_BACKEND_PORT → backend.port (int)
         - NOTIFYHUB_BACKEND_HOST → backend.host (str)
         - NOTIFYHUB_BACKEND_SSE_HEARTBEAT_INTERVAL → backend.sse_heartbeat_interval (int)
         - NOTIFYHUB_BACKEND_NOTIFICATIONS_MAX_COUNT → backend.notifications_max_count (int or None)
+        - NOTIFYHUB_CLI_HOST → cli.host (str)
+        - NOTIFYHUB_CLI_PORT → cli.port (int)
+        - NOTIFYHUB_CLI_PROXY → cli.proxy (str)
+        - NOTIFYHUB_CLI_VERBOSE → cli.verbose (int)
 
         - --backend-port → backend.port
         - --backend-host → backend.host
@@ -89,6 +115,11 @@ class NotifyHubConfig(pdt.BaseModel):
                     for key, value in file_config["backend"].items():
                         if hasattr(config.backend, key) and value is not None:
                             setattr(config.backend, key, value)
+                if "cli" in file_config:
+                    # Update config.cli with file values
+                    for key, value in file_config["cli"].items():
+                        if hasattr(config.cli, key) and value is not None:
+                            setattr(config.cli, key, value)
             except Exception as e:
                 logging.warning(f"Failed to load config file {config_file}: {e}")
 
