@@ -4,10 +4,11 @@ import pydantic as pdt
 import typing as tp
 import os
 import logging
-import tomllib
+import json
 import pandas as pd
 import htpy as h
 import subprocess
+import inspect
 
 
 class ConfigStack(pdt.BaseModel):
@@ -24,12 +25,12 @@ class ConfigStack(pdt.BaseModel):
     def load_layer_02_config_file(cls, config_data: dict) -> None:
         """Load configuration from file."""
         config_file = os.path.expanduser(
-            f"~/.config/{cls.app_name.lower()}/config.toml"
+            f"~/.config/{cls.app_name.lower()}/config.json"
         )
         if os.path.exists(config_file):
             try:
-                with open(config_file, "rb") as f:
-                    file_config = tomllib.load(f)
+                with open(config_file, "r") as f:
+                    file_config = json.load(f)
                 sections = list(cls.model_fields.keys())
                 for section_name in sections:
                     if section_name in file_config:
@@ -156,17 +157,21 @@ class ConfigStack(pdt.BaseModel):
         return df
 
     @classmethod
-    def generate_config_mapping_html(
-        cls, output_path: str = "src/notifyhub/config_mapping.html"
+    def generate_markdown(
+        cls, output_path: tp.Optional[str] = None
     ) -> None:
+        if output_path is None:
+            module_file = inspect.getfile(cls)
+            output_path = os.path.splitext(module_file)[0] + '.md'
         default_dict = cls.model_validate({}).model_dump()
         df = cls.generate_config_mapping_pandas(default_dict)
+        df = df[["Config / CLI Args", "Default Value", "Lowercase Dotted Envs.", "Uppercase Underscored Envs."]]
         rows = [
             h.tr[
                 h.td[str(row["Config / CLI Args"])],
+                h.td[str(row["Default Value"])],
                 h.td[str(row["Lowercase Dotted Envs."])],
                 h.td[str(row["Uppercase Underscored Envs."])],
-                h.td[str(row["Default Value"])],
             ]
             for _, row in df.iterrows()
         ]
@@ -174,55 +179,26 @@ class ConfigStack(pdt.BaseModel):
             h.thead[
                 h.tr[
                     h.th["Config / CLI Args"],
+                    h.th["Default Value"],
                     h.th["Lowercase Dotted Envs."],
                     h.th["Uppercase Underscored Envs."],
-                    h.th["Default Value"],
                 ]
             ],
             h.tbody[rows],
         ]
-        html_doc = h.html(lang="en")[
-            h.head[
-                h.meta(charset="UTF-8"),
-                h.meta(
-                    name="viewport", content="width=device-width, initial-scale=1.0"
-                ),
-                h.title[f"{cls.app_name} Config Mappings"],
-                h.style[
-                    """
-                    table {
-                        border-collapse: collapse;
-                        width: 100%;
-                        margin-bottom: 20px;
-                    }
-                    th, td {
-                        border: 1px solid #ddd;
-                        padding: 8px;
-                        text-align: left;
-                    }
-                    th {
-                        background-color: #3d3d3d;
-                    }
-                    h1 {
-                        color: #333;
-                    }
-                    """
-                ],
-            ],
-            h.body[
-                h.h1[f"{cls.app_name} Config Mappings"],
-                table,
-            ],
-        ]
-        full_html = "<!doctype html>\n" + str(html_doc)
-        with open(output_path, "w") as f:
-            f.write(full_html)
+        table_html = str(table)
         try:
-            subprocess.run(
-                ["npx", "prettier", "--write", output_path],
-                check=True,
+            result = subprocess.run(
+                ["npx", "prettier", "--stdin-filepath", "dummy.html"],
+                input=table_html,
+                text=True,
                 capture_output=True,
+                check=True,
             )
+            formatted_table = result.stdout.strip()
         except (subprocess.CalledProcessError, FileNotFoundError):
-            pass  # prettier not available, skip beautification
-        print(f"Config mapping HTML generated at {output_path}")
+            formatted_table = table_html
+        md_content = f"# {cls.app_name} Config Mappings\n\n{formatted_table}\n"
+        with open(output_path, "w") as f:
+            f.write(md_content)
+        print(f"Config mapping Markdown generated at {output_path}")

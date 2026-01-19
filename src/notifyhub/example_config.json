@@ -1,0 +1,13 @@
+{
+  "backend": {
+    "port": 9080,
+    "host": "0.0.0.0",
+    "sse_heartbeat_interval": 30
+  },
+  "cli": {
+    "host": "localhost",
+    "port": 9080,
+    "proxy": "",
+    "verbose": 1
+  }
+}

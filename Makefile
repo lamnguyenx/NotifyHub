@@ -10,7 +10,13 @@ plugin-deps:
 	cd src/notifyhub/plugins/opencode && npm install
 
 # -----------------------------------
-#            Static
+#              Config
+# -----------------------------------
+config-markdown cm:
+	python -c "from notifyhub.config import NotifyHubConfig; NotifyHubConfig.generate_markdown()"
+
+# -----------------------------------
+#          Static Services
 # -----------------------------------
 backend be:
 	python -m notifyhub.backend.backend
@@ -18,11 +24,8 @@ backend be:
 frontend fe:
 	cd src/notifyhub/frontend && bun run build
 
-mapping m:
-	python -c "from notifyhub.config import NotifyHubConfig; NotifyHubConfig.generate_config_mapping_html()"
-
 # -----------------------------------
-#            Hotload
+#        Hotloadable Services
 # -----------------------------------
 frontend-hotload fehl:
 	cd src/notifyhub/frontend && bun run dev
