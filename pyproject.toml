@@ -12,7 +12,8 @@ dependencies = [
     "python-multipart",
     "aiofiles",
     "requests",
-    "sse-starlette"
+    "sse-starlette",
+    "pandas",
 ]
 
 [project.optional-dependencies]

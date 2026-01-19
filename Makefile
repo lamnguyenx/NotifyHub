@@ -1,4 +1,4 @@
-.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin test-bg clean fe fh beh t tb tf tfh tc
+.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin test-bg clean fe fh beh t tb tf tfh tc mapping m
 
 # -----------------------------------
 #            Dependencies
@@ -17,6 +17,9 @@ backend be:
 
 frontend fe:
 	cd src/notifyhub/frontend && bun run build
+
+mapping m:
+	python -c "from notifyhub.config import NotifyHubConfig; NotifyHubConfig.generate_config_mapping_html()"
 
 # -----------------------------------
 #            Hotload

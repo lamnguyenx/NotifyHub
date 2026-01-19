@@ -1,0 +1,90 @@
+&lt;!doctype html&gt; <!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NotifyHub Config Mappings</title>
+    <style>
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #3d3d3d;
+      }
+      h1 {
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>NotifyHub Config Mappings</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Config / CLI Args</th>
+          <th>Lowercase Dotted Envs.</th>
+          <th>Uppercase Underscored Envs.</th>
+          <th>Default Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>backend.host</td>
+          <td>notifyhub.backend.host</td>
+          <td>NOTIFYHUB_BACKEND_HOST</td>
+          <td>&#34;0.0.0.0&#34;</td>
+        </tr>
+        <tr>
+          <td>backend.port</td>
+          <td>notifyhub.backend.port</td>
+          <td>NOTIFYHUB_BACKEND_PORT</td>
+          <td>9080</td>
+        </tr>
+        <tr>
+          <td>backend.sse_heartbeat_interval</td>
+          <td>notifyhub.backend.sse_heartbeat_interval</td>
+          <td>NOTIFYHUB_BACKEND_SSE_HEARTBEAT_INTERVAL</td>
+          <td>30</td>
+        </tr>
+        <tr>
+          <td>backend.notifications_max_count</td>
+          <td>notifyhub.backend.notifications_max_count</td>
+          <td>NOTIFYHUB_BACKEND_NOTIFICATIONS_MAX_COUNT</td>
+          <td>null</td>
+        </tr>
+        <tr>
+          <td>cli.host</td>
+          <td>notifyhub.cli.host</td>
+          <td>NOTIFYHUB_CLI_HOST</td>
+          <td>&#34;0.0.0.0&#34;</td>
+        </tr>
+        <tr>
+          <td>cli.port</td>
+          <td>notifyhub.cli.port</td>
+          <td>NOTIFYHUB_CLI_PORT</td>
+          <td>9080</td>
+        </tr>
+        <tr>
+          <td>cli.proxy</td>
+          <td>notifyhub.cli.proxy</td>
+          <td>NOTIFYHUB_CLI_PROXY</td>
+          <td>&#34;&#34;</td>
+        </tr>
+        <tr>
+          <td>cli.verbose</td>
+          <td>notifyhub.cli.verbose</td>
+          <td>NOTIFYHUB_CLI_VERBOSE</td>
+          <td>1</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
