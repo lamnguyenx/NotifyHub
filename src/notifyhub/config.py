@@ -3,7 +3,7 @@ from __future__ import annotations
 import pydantic as pdt
 import typing as tp
 
-from .config_stack import ConfigStack
+from config_stack import ConfigStack
 
 
 # validate_assignment=True ensures that when assigning values to model attributes

@@ -12,7 +12,7 @@ plugin-deps:
 # -----------------------------------
 #              Config
 # -----------------------------------
-config-markdown cm:
+config-md cm:
 	python -c "from notifyhub.config import NotifyHubConfig; NotifyHubConfig.generate_markdown()"
 
 # -----------------------------------
