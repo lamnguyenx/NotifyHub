@@ -1,0 +1,6 @@
+{
+  "extraPaths": [
+    "./__submodules__/config_stack/src/",
+    "./src/"
+  ]
+}

@@ -1,0 +1,3 @@
+[submodule "__submodules__/config_stack"]
+	path = __submodules__/config_stack
+	url = git@github.com:lamnguyenx/config_stack.git
