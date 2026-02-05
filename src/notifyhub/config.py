@@ -3,7 +3,7 @@ from __future__ import annotations
 import pydantic as pdt
 import typing as tp
 
-from config_stack import ConfigStack
+from confstack import ConfStack
 
 
 # validate_assignment=True ensures that when assigning values to model attributes
@@ -13,10 +13,15 @@ from config_stack import ConfigStack
 class NotifyHubBackendConfig(pdt.BaseModel):
     model_config = pdt.ConfigDict(validate_assignment=True)
 
-    host: str = "0.0.0.0"
-    port: int = 9080
-    sse_heartbeat_interval: int = 30
-    notifications_max_count: tp.Optional[int] = None
+    host: str = pdt.Field("0.0.0.0", description="Host to bind server to")
+    port: int = pdt.Field(9080, description="Port to run server on")
+    sse_heartbeat_interval: int = pdt.Field(
+        30, description="SSE heartbeat interval in seconds"
+    )
+    notifications_max_count: tp.Optional[int] = pdt.Field(
+        None,
+        description="Maximum number of notifications to store (None for unlimited)",
+    )
 
 
 class NotifyHubCliConfig(pdt.BaseModel):
@@ -28,9 +33,11 @@ class NotifyHubCliConfig(pdt.BaseModel):
     verbose: int = 1
 
 
-class NotifyHubConfig(ConfigStack):
+class NotifyHubConfig(ConfStack):
     app_name: tp.ClassVar[str] = "NotifyHub"
     model_config = pdt.ConfigDict(validate_assignment=True)
 
-    backend: NotifyHubBackendConfig = pdt.Field(default_factory=NotifyHubBackendConfig)
-    cli: NotifyHubCliConfig = pdt.Field(default_factory=NotifyHubCliConfig)
+    backend: NotifyHubBackendConfig = pdt.Field(
+        default_factory=lambda: NotifyHubBackendConfig()
+    )
+    cli: NotifyHubCliConfig = pdt.Field(default_factory=lambda: NotifyHubCliConfig())

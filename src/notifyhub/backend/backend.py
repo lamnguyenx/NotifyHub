@@ -21,7 +21,6 @@ from ..config import NotifyHubConfig
 
 
 class SSEManager:
-
     def __init__(self, heartbeat_interval=30):
         self.active_connections: List[asyncio.Queue] = []
         self.heartbeat_interval = heartbeat_interval
@@ -51,7 +50,6 @@ class SSEManager:
 
 
 class NotifyRequest(BaseModel):
-
     id: Optional[str] = None
     data: dict
 
@@ -204,7 +202,6 @@ async def events():
     queue = await sse_manager.connect()
 
     async def event_generator():
-
         try:
             # Send current notifications on connect
             current_notifications = [
@@ -273,7 +270,7 @@ def main():
     args = parser.parse_args()
 
     # Load configuration using ConfigStack
-    config = NotifyHubConfig.load_config(args)
+    config = NotifyHubConfig.load_config(vars(args))
 
     global sse_manager, store
     sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)

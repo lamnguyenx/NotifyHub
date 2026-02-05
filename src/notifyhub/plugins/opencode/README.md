@@ -6,18 +6,18 @@ This directory contains plugins for [OpenCode](https://opencode.ai), an open sou
 
 ### 🔔 NotifyHub Plugin
 
-A plugin that sends notifications to [NotifyHub](https://github.com/sst/notifyhub) whenever OpenCode completes a session.
+A plugin that sends notifications to [NotifyHub](https://github.com/sst/notifyhub) whenever OpenCode completes a request (turn).
 
 **File:** `notifyhub-plugin.ts`
 
 **Features:**
-- Automatically detects when OpenCode finishes processing requests
+- Automatically detects when OpenCode finishes processing a request (turn)
 - Sends notifications to NotifyHub server on `localhost:9080`
 - Lightweight and non-intrusive with error handling
 
 **What it does:**
-- Hooks into OpenCode's `session.idle` event
-- Executes the `notifyhub-push.sh` shell script with session completion details
+- Hooks into OpenCode's `session.idle` event (fires when a turn/request completes)
+- Executes the `notifyhub-push.sh` shell script with completion details
 - The shell script handles sending notifications to NotifyHub
 - Logs errors if the script execution fails
 
@@ -61,7 +61,7 @@ open http://localhost:9080
 - To use a different port, modify the URL in `notifyhub-plugin.ts`
 
 **Usage:**
-The plugin automatically activates and sends notifications whenever an OpenCode session becomes idle (when OpenCode finishes processing a request). View notifications in the NotifyHub web dashboard.
+The plugin automatically activates and sends notifications whenever OpenCode finishes processing a request (when a turn becomes idle). View notifications in the NotifyHub web dashboard.
 
 **Troubleshooting:**
 - Ensure NotifyHub server is running: `make sv` (from NotifyHub directory)
