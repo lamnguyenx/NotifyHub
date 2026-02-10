@@ -54,7 +54,7 @@ def send_notification(
 
 
 def main() -> None:
-    config = NotifyHubConfig.load_config(None)
+    config = NotifyHubConfig.parse_args()
     cli_config = config.cli
     DEFAULT_MESSAGE = "HOST_ID (opencode)"
 

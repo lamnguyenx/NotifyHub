@@ -123,6 +123,21 @@ def list_messages(
     print(yaml.dump(output, default_flow_style=False, sort_keys=False))
 
 
+def find_session_across_projects(
+    storage_base: str,
+    session_id: str,
+) -> tp.Optional[str]:
+    """Find a session file across all project directories."""
+    session_base = os.path.join(storage_base, "session")
+    if not os.path.exists(session_base):
+        return None
+    for project_dir in glob.glob(os.path.join(session_base, "*")):
+        session_file = os.path.join(project_dir, f"{session_id}.json")
+        if os.path.exists(session_file):
+            return session_file
+    return None
+
+
 def retrieve_message(
     storage_base: str,
     project_id: str,
@@ -137,7 +152,10 @@ def retrieve_message(
     if session_id:
         session_file = os.path.join(session_dir, f"{session_id}.json")
         if not os.path.exists(session_file):
-            raise ValueError(f"Session {session_id} not found")
+            # Search across all projects if not found in expected location
+            session_file = find_session_across_projects(storage_base, session_id)
+            if not session_file:
+                raise ValueError(f"Session {session_id} not found")
     else:
         if not os.path.exists(session_dir):
             return "", ""
