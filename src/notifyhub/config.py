@@ -30,11 +30,26 @@ class NotifyHubCliConfig(pdt.BaseModel):
     host: str = "0.0.0.0"
     port: int = 9080
     proxy: str = ""
-    verbose: int = 1
+    verbose: int = 0
+    message: str = ""
+
+    @pdt.computed_field
+    @property
+    def address(self) -> str:
+        return f"http://{self.host}:{self.port}"
+
+    def get_message(self, message_args: tp.Optional[tp.List[str]] = None) -> str:
+        import sys
+
+        if self.message:
+            return self.message
+        if message_args:
+            return " ".join(message_args)
+        return sys.stdin.read().strip() or "HOST_ID (opencode)"
 
 
 class NotifyHubConfig(ConfStack):
-    app_name: tp.ClassVar[str] = "NotifyHub"
+    app_name: tp.ClassVar[str] = "notifyhub"
     model_config = pdt.ConfigDict(validate_assignment=True)
 
     backend: NotifyHubBackendConfig = pdt.Field(

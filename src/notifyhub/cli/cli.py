@@ -12,14 +12,16 @@ from notifyhub.config import NotifyHubConfig
 
 
 def send_notification(
-    address: str,
+    config: NotifyHubConfig,
     payload: tp.Dict[str, tp.Any],
-    proxy: str = "",
-    verbose: int = 1,
 ) -> None:
-    url = f"{address}/api/notify"
+    url = f"{config.cli.address}/api/notify"
     headers = {"Content-Type": "application/json"}
-    proxies = {"http": proxy, "https": proxy} if proxy else None
+    proxies = (
+        {"http": config.cli.proxy, "https": config.cli.proxy}
+        if config.cli.proxy
+        else None
+    )
 
     try:
         response = requests.post(
@@ -30,14 +32,14 @@ def send_notification(
         )
         response.raise_for_status()
     except requests.RequestException:
-        print(f"✗ Network error: Failed to connect to {address}")
+        print(f"✗ Network error: Failed to connect to {config.cli.address}")
         exit(1)
 
     # Parse response
     try:
         resp_json = response.json()
         if resp_json.get("success"):
-            if verbose != 0:
+            if config.cli.verbose != 0:
                 print("✓ Notification sent successfully")
             exit(0)
         elif "error" in resp_json:
@@ -54,8 +56,6 @@ def send_notification(
 
 
 def main() -> None:
-    config = NotifyHubConfig.load_config(None)
-    cli_config = config.cli
     DEFAULT_MESSAGE = "HOST_ID (opencode)"
 
     epilog_text = textwrap.dedent(
@@ -67,37 +67,14 @@ def main() -> None:
         """
     )
 
-    parser = argparse.ArgumentParser(
-        description="Send notification to NotifyHub server",
-        epilog=epilog_text,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
+    parser = NotifyHubConfig.get_argparser()
+    parser.description = "Send notification to NotifyHub server"
+    parser.epilog = epilog_text
+    parser.formatter_class = argparse.RawDescriptionHelpFormatter
     parser.add_argument(
         "message",
         nargs="*",
         help="Notification message (reads from stdin if not provided)",
-    )
-    parser.add_argument(
-        "--host",
-        default=cli_config.host,
-        help=f"NotifyHub host (default: {cli_config.host})",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=cli_config.port,
-        help=f"NotifyHub port (default: {cli_config.port})",
-    )
-    parser.add_argument(
-        "--proxy",
-        default=cli_config.proxy,
-        help=f"HTTP proxy (default: {cli_config.proxy})",
-    )
-    parser.add_argument(
-        "--verbose",
-        type=int,
-        default=cli_config.verbose,
-        help=f"Verbosity level (default: {cli_config.verbose})",
     )
     parser.add_argument(
         "--dry-run",
@@ -106,29 +83,26 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    config = NotifyHubConfig.load_config(cli_args=args)
 
     # Determine message
     if args.message:
-        MESSAGE = " ".join(args.message)
+        message = " ".join(args.message)
     else:
-        MESSAGE = sys.stdin.read().strip() or DEFAULT_MESSAGE
+        message = sys.stdin.read().strip() or DEFAULT_MESSAGE
 
-    NOTIFYHUB_ADDRESS = os.getenv(
-        "NOTIFYHUB_ADDRESS", f"http://{args.host}:{args.port}"
-    ).rstrip("/")
-    JSON_DATA = {"pwd": os.getcwd(), "message": MESSAGE}
-    PAYLOAD = {"data": JSON_DATA}
+    json_data = {"pwd": os.getcwd(), "message": message}
+    payload = {"data": json_data}
 
     if args.dry_run:
-        print("Dry run: Would send notification to", NOTIFYHUB_ADDRESS)
-        print("Payload:", json.dumps(PAYLOAD, indent=2))
+        print("Dry run: Would send notification to", config.cli.address)
+        config.print_json()
+        print("Payload:", json.dumps(payload, indent=2))
         exit(0)
 
     send_notification(
-        address=NOTIFYHUB_ADDRESS,
-        payload=PAYLOAD,
-        proxy=args.proxy,
-        verbose=args.verbose,
+        config=config,
+        payload=payload,
     )
 
 

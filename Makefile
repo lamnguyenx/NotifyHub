@@ -81,7 +81,7 @@ install-plugin-copy:
 		./bach_lite.sh archive ~/.config/opencode/plugin/$$file; \
 	done
 	cp src/notifyhub/plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/
-	cp src/notifyhub/cli/cli.py ~/.config/opencode/plugin/
+	cp src/notifyhub/cli/cli.py ~/.config/opencode/plugin/notifyhub-push.py
 	cp src/notifyhub/plugins/opencode/opencode-trace.py ~/.config/opencode/plugin/
 	ls -ltra ~/.config/opencode/plugin/
 	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
