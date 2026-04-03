@@ -24,12 +24,33 @@ def get_db() -> sqlite3.Connection:
 
 
 def get_project_id(directory: str) -> str:
+    # First, check if there's an existing project in the database for this directory
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            """
+            SELECT DISTINCT s.project_id
+            FROM session s
+            WHERE s.directory = ?
+            LIMIT 1
+            """,
+            (directory,),
+        )
+        row = cursor.fetchone()
+        if row:
+            return row["project_id"]
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
+    # Fall back to computing from git
     try:
         # Change to the directory
         os.chdir(directory)
-        # Run git rev-list to get initial commit
+        # Run git rev-list to get initial commit (match new opencode: use HEAD not --all)
         result = subprocess.run(
-            ["git", "rev-list", "--max-parents=0", "--all"],
+            ["git", "rev-list", "--max-parents=0", "HEAD"],
             capture_output=True,
             text=True,
             check=True,
