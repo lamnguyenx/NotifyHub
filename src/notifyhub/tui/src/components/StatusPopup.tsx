@@ -22,26 +22,26 @@ export function StatusPopup({ serverInfo, notificationsCount }: Props) {
       width={popupW}
       height={popupH}
       borderStyle="rounded"
-      borderColor="#444444"
-      backgroundColor="#111111"
+      borderColor="#ffffff"
+      backgroundColor="#000000"
       padding={1}
       flexDirection="column"
       gap={1}
     >
-      <text fg="#4fc3f7" attributes={TextAttributes.BOLD}>
+      <text fg="#6fc3df" attributes={TextAttributes.BOLD}>
         NotifyHub \u2014 Status
       </text>
-      <text fg={serverInfo.connected ? "#66bb6a" : "#ef5350"}>
+      <text fg={serverInfo.connected ? "#15ff15" : "#ff5555"}>
         <span>{serverInfo.connected ? "\u25cf Connected" : "\u25cb Disconnected"}</span>
-        <span fg="#888888">  {serverInfo.host}:{serverInfo.port}</span>
+        <span fg="#969696">  {serverInfo.host}:{serverInfo.port}</span>
       </text>
       <text fg="#ffffff">
         Notifications: {notificationsCount}
       </text>
-      <text fg={serverInfo.streaming ? "#66bb6a" : "#ffa726"}>
+      <text fg={serverInfo.streaming ? "#15ff15" : "#ffcc00"}>
         {serverInfo.streaming ? "\u25cf SSE Streaming" : "\u25cb SSE Idle"}
       </text>
-      <text fg="#555555">
+      <text fg="#969696">
         Press any key to close
       </text>
     </box>
