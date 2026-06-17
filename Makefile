@@ -30,6 +30,15 @@ frontend fe:
 frontend-hotload fehl:
 	cd src/notifyhub/frontend && bun run dev
 
+# -----------------------------------
+#              TUI
+# -----------------------------------
+tui-deps td:
+	cd src/notifyhub/tui && bun install
+
+tui:
+	cd src/notifyhub/tui && bun src/index.tsx
+
 noti:
 	./local/noti.sh "make noti"
 
