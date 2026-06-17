@@ -7,10 +7,19 @@ import {
   checkServerStatus,
 } from "../utils/api"
 
+function safeParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json) as T
+  } catch {
+    return fallback
+  }
+}
+
 export function useNotifications() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [serverInfo, setServerInfo] = useState<ServerInfo>({
     connected: false,
+    streaming: false,
     notificationsCount: 0,
     port: 9080,
     host: "localhost",
@@ -18,7 +27,7 @@ export function useNotifications() {
 
   const refresh = useCallback(async () => {
     const info = await checkServerStatus()
-    setServerInfo(info)
+    setServerInfo((prev) => ({ ...prev, ...info }))
     if (info.connected) {
       const notes = await fetchNotifications()
       setNotifications(notes)
@@ -26,39 +35,61 @@ export function useNotifications() {
   }, [])
 
   useEffect(() => {
-    const disconnect = connectSSE((event, data) => {
-      switch (event) {
-        case "init": {
-          const items: NotificationItem[] = JSON.parse(data)
-          setNotifications(items)
-          setServerInfo((prev) => ({ ...prev, connected: true, notificationsCount: items.length }))
-          break
+    const disconnect = connectSSE(
+      (event, data) => {
+        switch (event) {
+          case "init": {
+            const items = safeParse<NotificationItem[]>(data, [])
+            setNotifications(items)
+            setServerInfo((prev) => ({
+              ...prev,
+              connected: true,
+              streaming: true,
+              notificationsCount: items.length,
+            }))
+            break
+          }
+          case "notification": {
+            const item = safeParse<NotificationItem | null>(data, null)
+            if (item) {
+              setNotifications((prev) => [item, ...prev])
+              setServerInfo((prev) => ({
+                ...prev,
+                connected: true,
+                streaming: true,
+                notificationsCount: prev.notificationsCount + 1,
+              }))
+            }
+            break
+          }
+          case "delete": {
+            const parsed = safeParse<{ id: string }>(data, { id: "" })
+            if (parsed.id) {
+              setNotifications((prev) => prev.filter((n) => n.id !== parsed.id))
+              setServerInfo((prev) => ({
+                ...prev,
+                notificationsCount: Math.max(0, prev.notificationsCount - 1),
+              }))
+            }
+            break
+          }
+          case "clear": {
+            setNotifications([])
+            setServerInfo((prev) => ({ ...prev, notificationsCount: 0 }))
+            break
+          }
+          case "heartbeat":
+            setServerInfo((prev) => ({ ...prev, connected: true, streaming: true }))
+            break
+          case "shutdown":
+            setServerInfo((prev) => ({ ...prev, connected: false }))
+            break
         }
-        case "notification": {
-          const item: NotificationItem = JSON.parse(data)
-          setNotifications((prev) => [item, ...prev])
-          setServerInfo((prev) => ({ ...prev, connected: true, notificationsCount: prev.notificationsCount + 1 }))
-          break
-        }
-        case "delete": {
-          const { id } = JSON.parse(data)
-          setNotifications((prev) => prev.filter((n) => n.id !== id))
-          setServerInfo((prev) => ({ ...prev, notificationsCount: Math.max(0, prev.notificationsCount - 1) }))
-          break
-        }
-        case "clear": {
-          setNotifications([])
-          setServerInfo((prev) => ({ ...prev, notificationsCount: 0 }))
-          break
-        }
-        case "heartbeat":
-          setServerInfo((prev) => ({ ...prev, connected: true }))
-          break
-        case "shutdown":
-          setServerInfo((prev) => ({ ...prev, connected: false }))
-          break
-      }
-    })
+      },
+      (streaming) => {
+        setServerInfo((prev) => ({ ...prev, streaming }))
+      },
+    )
 
     refresh()
     const statusInterval = setInterval(refresh, 15_000)

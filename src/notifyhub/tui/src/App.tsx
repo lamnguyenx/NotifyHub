@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react"
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useNotifications } from "./hooks/useNotifications"
+import { ErrorBoundary } from "./components/ErrorBoundary"
 import { NotificationStream } from "./components/NotificationStream"
 import { StatusPopup } from "./components/StatusPopup"
 
@@ -24,10 +25,12 @@ export function App() {
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor="#0a0a0a">
       <box width="100%" flexGrow={1}>
-        <NotificationStream
-          notifications={notifications}
-          onDelete={handleDelete}
-        />
+        <ErrorBoundary>
+          <NotificationStream
+            notifications={notifications}
+            onDelete={handleDelete}
+          />
+        </ErrorBoundary>
       </box>
 
       {showStatus && (

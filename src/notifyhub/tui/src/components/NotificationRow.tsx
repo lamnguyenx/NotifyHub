@@ -32,7 +32,7 @@ function getTitle(pwd: string | undefined | null): string {
 
 function truncate(str: string, max: number): string {
   if (str.length <= max) return str
-  return str.slice(0, max - 1) + "…"
+  return str.slice(0, max - 1) + "\u2026"
 }
 
 interface TagSegment {
@@ -62,10 +62,29 @@ function parseMessage(msg: string): TagSegment[] {
   return segments
 }
 
-function firstLine(msg: string, max: number): string {
+function parseAndTruncate(msg: string, max: number): TagSegment[] {
   const newlineIdx = msg.indexOf("\n")
   const line = newlineIdx >= 0 ? msg.slice(0, newlineIdx) : msg
-  return truncate(line, max)
+  const segments = parseMessage(line)
+  if (segments.length === 0) return [{ type: "text", text: msg.slice(0, max) }]
+
+  let visibleLen = 0
+  const result: TagSegment[] = []
+
+  for (const seg of segments) {
+    const remaining = max - visibleLen
+    if (remaining <= 0) break
+
+    if (seg.text.length <= remaining) {
+      result.push(seg)
+      visibleLen += seg.text.length
+    } else {
+      result.push({ ...seg, text: seg.text.slice(0, remaining) + "\u2026" })
+      break
+    }
+  }
+
+  return result
 }
 
 interface Props {
@@ -82,8 +101,7 @@ export function NotificationRow({ item, selected }: Props) {
   const cardBg = selected ? "#1e1e1e" : "#141414"
   const borderColor = selected ? "#555555" : "#2a2a2a"
   const time = formatTime(item.timestamp)
-  const line = firstLine(msg, 80)
-  const segments = parseMessage(line)
+  const segments = parseAndTruncate(msg, 80)
 
   return (
     <box
@@ -103,19 +121,16 @@ export function NotificationRow({ item, selected }: Props) {
         </text>
         <text fg="#888888">{truncate(pwd, 80)}</text>
         <text fg="#d4d4d4" selectable>
-          {segments.length > 0 ? (
-            segments.map((seg, i) => {
-              if (seg.type === "tag") {
-                return <span key={i} fg="#aaaaaa">{seg.text}</span>
-              }
-              if (seg.type === "truncated") {
-                return <span key={i} fg="#444444">{seg.text}</span>
-              }
-              return <span key={i}>{seg.text}</span>
-            })
-          ) : (
-            <span>{line}</span>
-          )}
+          {segments.map((seg, i) => {
+            const key = `${seg.type}-${i}-${seg.text.slice(0, 8)}`
+            if (seg.type === "tag") {
+              return <span key={key} fg="#aaaaaa">{seg.text}</span>
+            }
+            if (seg.type === "truncated") {
+              return <span key={key} fg="#444444">{seg.text}</span>
+            }
+            return <span key={key}>{seg.text}</span>
+          })}
         </text>
       </box>
     </box>

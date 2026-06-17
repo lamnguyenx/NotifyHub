@@ -9,8 +9,8 @@ interface Props {
 
 export function StatusPopup({ serverInfo, notificationsCount }: Props) {
   const { width, height } = useTerminalDimensions()
-  const popupW = 36
-  const popupH = 9
+  const popupW = 38
+  const popupH = 10
   const left = Math.floor((width - popupW) / 2)
   const top = Math.floor((height - popupH) / 2)
 
@@ -29,17 +29,17 @@ export function StatusPopup({ serverInfo, notificationsCount }: Props) {
       gap={1}
     >
       <text fg="#4fc3f7" attributes={TextAttributes.BOLD}>
-        NotifyHub — Status
+        NotifyHub \u2014 Status
       </text>
       <text fg={serverInfo.connected ? "#66bb6a" : "#ef5350"}>
-        <span>{serverInfo.connected ? "● Connected" : "○ Disconnected"}</span>
+        <span>{serverInfo.connected ? "\u25cf Connected" : "\u25cb Disconnected"}</span>
         <span fg="#888888">  {serverInfo.host}:{serverInfo.port}</span>
       </text>
       <text fg="#ffffff">
         Notifications: {notificationsCount}
       </text>
-      <text fg="#ffa726">
-        SSE Streaming
+      <text fg={serverInfo.streaming ? "#66bb6a" : "#ffa726"}>
+        {serverInfo.streaming ? "\u25cf SSE Streaming" : "\u25cb SSE Idle"}
       </text>
       <text fg="#555555">
         Press any key to close
