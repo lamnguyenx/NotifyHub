@@ -22,6 +22,10 @@ class NotifyHubBackendConfig(pdt.BaseModel):
         None,
         description="Maximum number of notifications to store (None for unlimited)",
     )
+    telegram_chat_id: str = pdt.Field(
+        "",
+        description="Telegram chat ID to send notifications to (empty = disabled)",
+    )
 
 
 class NotifyHubCliConfig(pdt.BaseModel):

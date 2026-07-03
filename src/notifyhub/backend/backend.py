@@ -18,6 +18,7 @@ from datetime import datetime
 
 from .models import NotificationStore, Notification
 from ..config import NotifyHubConfig
+from ..telegram import get_telegram_token, async_send_telegram_message
 
 
 class SSEManager:
@@ -74,6 +75,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 sse_manager = SSEManager()
 store = NotificationStore(sse_manager=sse_manager)
+_telegram_bot_token: Optional[str] = None
+_telegram_chat_id: str = ""
 
 # CORS middleware
 app.add_middleware(
@@ -146,6 +149,17 @@ async def notify(request: NotifyRequest):
         data = Notification.model_validate(request.data)
         custom_id = request.id
         notification_id = store.add(data, custom_id)
+
+        if _telegram_bot_token and _telegram_chat_id:
+            message_text = data.message
+            asyncio.create_task(
+                async_send_telegram_message(
+                    token=_telegram_bot_token,
+                    chat_id=_telegram_chat_id,
+                    text=message_text,
+                )
+            )
+
         return {"success": True, "id": notification_id}
     except Exception as e:
         return {"error": traceback.format_exc().split("\n")}
@@ -272,11 +286,21 @@ def main():
     # Load configuration using ConfigStack
     config = NotifyHubConfig.load_config(vars(args))
 
-    global sse_manager, store
+    global sse_manager, store, _telegram_bot_token, _telegram_chat_id
     sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)
     store = NotificationStore(
         sse_manager=sse_manager, max_count=config.backend.notifications_max_count
     )
+    _telegram_chat_id = config.backend.telegram_chat_id
+    if _telegram_chat_id:
+        _telegram_bot_token = get_telegram_token()
+        if _telegram_bot_token:
+            logging.info("Telegram notifications enabled")
+        else:
+            logging.warning(
+                "Telegram chat_id configured but bot token not found in keychain. "
+                "Run: security add-generic-password -a notifyhub -s telegram-bot-token -w YOUR_TOKEN"
+            )
 
     uvicorn_config = Config(
         app,
