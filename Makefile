@@ -42,6 +42,9 @@ tui:
 tui-typecheck ttc:
 	cd src/notifyhub/tui && bun run typecheck
 
+tui-test tt:
+	cd src/notifyhub/tui && bun test
+
 noti:
 	./local/noti.sh "make noti"
 

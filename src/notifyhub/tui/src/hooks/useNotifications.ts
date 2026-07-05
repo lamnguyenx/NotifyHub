@@ -7,7 +7,7 @@ import {
   checkServerStatus,
 } from "../utils/api"
 
-function safeParse<T>(json: string, fallback: T): T {
+export function safeParse<T>(json: string, fallback: T): T {
   try {
     return JSON.parse(json) as T
   } catch {

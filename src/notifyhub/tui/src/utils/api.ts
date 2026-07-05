@@ -46,7 +46,7 @@ export async function checkServerStatus(): Promise<ServerInfo> {
 
 export type SSEEventHandler = (event: string, data: string) => void
 
-function parseSSEStream(buffer: string, onEvent: SSEEventHandler): string {
+export function parseSSEStream(buffer: string, onEvent: SSEEventHandler): string {
   const lines = buffer.split("\n")
   const remainder = lines.pop() ?? ""
 

@@ -2,16 +2,17 @@ import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import type { NotificationItem } from "../types"
 
-function formatTime(iso: string): string {
+export function formatTime(iso: string): string {
   try {
     const d = new Date(iso)
+    if (isNaN(d.getTime())) return iso
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
   } catch {
     return iso
   }
 }
 
-function getAvatarColor(pwd: string): string {
+export function getAvatarColor(pwd: string): string {
   const colors = [
     "#7B1FA2", "#77919D", "#00ACC1", "#EC417A", "#C1175C",
     "#5D6AC0", "#0388D2", "#1E88E5", "#00BCD4", "#26A69A",
@@ -25,23 +26,23 @@ function getAvatarColor(pwd: string): string {
   return colors[Math.abs(hash) % colors.length]
 }
 
-function getTitle(pwd: string | undefined | null): string {
+export function getTitle(pwd: string | undefined | null): string {
   if (!pwd) return "notifyhub"
   const parts = pwd.split("/").filter(Boolean)
   return parts.pop() || "notifyhub"
 }
 
-function truncate(str: string, max: number): string {
+export function truncate(str: string, max: number): string {
   if (str.length <= max) return str
   return str.slice(0, max - 1) + "\u2026"
 }
 
-interface TagSegment {
+export interface TagSegment {
   type: "text" | "tag" | "truncated"
   text: string
 }
 
-function parseMessage(msg: string): TagSegment[] {
+export function parseMessage(msg: string): TagSegment[] {
   const regex = /\[#(?:tag|truncated):(.*?)\]/g
   const segments: TagSegment[] = []
   let lastIndex = 0
