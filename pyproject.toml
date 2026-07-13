@@ -15,6 +15,7 @@ dependencies = [
     "sse-starlette",
     "pandas",
     "py_mini_logger",
+    "mactoast",
 ]
 
 [project.optional-dependencies]

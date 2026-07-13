@@ -8,3 +8,4 @@ sse-starlette
 py_mini_logger
 mini_bash
 booleanify
+mactoast

@@ -1,0 +1,46 @@
+[project]
+name = "mactoast"
+version = "0.1.1"
+description = "Easy, elegant and customizable toast notifications for macOS with icons, sounds, and more."
+readme = "README.md"
+authors = [
+    { name = "rafa-rrayes", email = "rafa@rayes.com.br" }
+]
+requires-python = ">=3.8"
+license = { text = "MIT" }
+keywords = ["macos", "notification", "toast", "popup", "gui", "alert", "swift", "native"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Desktop Environment",
+]
+
+[project.urls]
+Homepage = "https://github.com/rafa-rrayes/mactoast"
+Repository = "https://github.com/rafa-rrayes/mactoast"
+Documentation = "https://github.com/rafa-rrayes/mactoast/blob/master/DOCS.md"
+"Bug Reports" = "https://github.com/rafa-rrayes/mactoast/issues"
+Changelog = "https://github.com/rafa-rrayes/mactoast/blob/master/CHANGELOG.md"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mactoast*"]
+
+[tool.setuptools.package-data]
+# Include the whole app bundle
+"mactoast" = ["ToastHUD.app/**"]

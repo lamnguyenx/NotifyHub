@@ -9,9 +9,9 @@
 # -----------------------------------
 #            configuration
 # -----------------------------------
-ANSIFmt__reset='\033[00m'
-ANSIFmt__red='\033[31m'
-ANSIFmt__green='\033[32m'
+ANSIFmt__reset=$'\033[00m'
+ANSIFmt__red=$'\033[31m'
+ANSIFmt__green=$'\033[32m'
 
 # -----------------------------------
 #            utilities

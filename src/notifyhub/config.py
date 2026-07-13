@@ -26,6 +26,10 @@ class NotifyHubBackendConfig(pdt.BaseModel):
         "",
         description="Telegram chat ID to send notifications to (empty = disabled)",
     )
+    macos_notifications_enabled: bool = pdt.Field(
+        True,
+        description="Push notifications to macOS Notification Center (requires macOS)",
+    )
 
 
 class NotifyHubCliConfig(pdt.BaseModel):

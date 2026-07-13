@@ -18,6 +18,7 @@ from datetime import datetime
 
 from .models import NotificationStore, Notification
 from ..config import NotifyHubConfig
+from ..macos_notify import send_macos_notification
 from ..telegram import get_telegram_token, async_send_telegram_message
 
 
@@ -77,6 +78,7 @@ sse_manager = SSEManager()
 store = NotificationStore(sse_manager=sse_manager)
 _telegram_bot_token: Optional[str] = None
 _telegram_chat_id: str = ""
+_macos_notifications_enabled: bool = True
 
 # CORS middleware
 app.add_middleware(
@@ -150,14 +152,21 @@ async def notify(request: NotifyRequest):
         custom_id = request.id
         notification_id = store.add(data, custom_id)
 
+        message_text = data.message
+
         if _telegram_bot_token and _telegram_chat_id:
-            message_text = data.message
             asyncio.create_task(
                 async_send_telegram_message(
                     token=_telegram_bot_token,
                     chat_id=_telegram_chat_id,
                     text=message_text,
                 )
+            )
+
+        if _macos_notifications_enabled:
+            send_macos_notification(
+                text=message_text,
+                pwd=data.pwd,
             )
 
         return {"success": True, "id": notification_id}
@@ -281,17 +290,26 @@ def main():
         dest="backend_notifications_max_count",
         help="Maximum number of notifications to store (None for unlimited)",
     )
+    parser.add_argument(
+        "--backend.macos-notifications-enabled",
+        type=bool,
+        dest="backend_macos_notifications_enabled",
+        help="Push notifications to macOS Notification Center (requires macOS)",
+    )
     args = parser.parse_args()
 
     # Load configuration using ConfigStack
     config = NotifyHubConfig.load_config(vars(args))
 
-    global sse_manager, store, _telegram_bot_token, _telegram_chat_id
+    global sse_manager, store, _telegram_bot_token, _telegram_chat_id, _macos_notifications_enabled
     sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)
     store = NotificationStore(
         sse_manager=sse_manager, max_count=config.backend.notifications_max_count
     )
     _telegram_chat_id = config.backend.telegram_chat_id
+    _macos_notifications_enabled = config.backend.macos_notifications_enabled
+    if _macos_notifications_enabled:
+        logging.info("macOS notifications enabled")
     if _telegram_chat_id:
         _telegram_bot_token = get_telegram_token()
         if _telegram_bot_token:

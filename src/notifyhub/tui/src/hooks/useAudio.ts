@@ -12,7 +12,7 @@ export function useNotificationSound(soundPath: string) {
 
       audio.loadSoundFile(soundPath).then((loaded) => {
         if (loaded && audioRef.current) {
-          playRef.current = () => audioRef.current!.play(loaded, { volume: 0.5 })
+          playRef.current = () => audioRef.current!.play(loaded, { volume: 1.0 })
         }
       }).catch(() => {})
     } catch {}
