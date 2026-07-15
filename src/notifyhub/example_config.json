@@ -8,6 +8,6 @@
     "host": "localhost",
     "port": 9080,
     "proxy": "",
-    "verbose": 1
+    "verbose": false
   }
 }

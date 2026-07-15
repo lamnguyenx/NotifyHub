@@ -54,7 +54,7 @@
     </tr>
     <tr>
       <td>cli.verbose</td>
-      <td>1</td>
+       <td>False</td>
       <td>notifyhub.cli.verbose</td>
       <td>NOTIFYHUB_CLI_VERBOSE</td>
     </tr>

@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
 
-import argparse
 import os
 import sys
-import textwrap
 import json
-import requests
 import typing as tp
 
+import requests
+from tap import Tap
+from confstack import confstackify
 from notifyhub.config import NotifyHubConfig
+
+CLI_FIELDS = frozenset({"host", "port", "proxy", "verbose"})
+
+
+class CliArgs(Tap):
+    host: str = "0.0.0.0"
+    port: int = 9080
+    proxy: str = ""
+    verbose: bool = False
+    dry_run: bool = False
 
 
 def send_notification(
@@ -35,11 +45,10 @@ def send_notification(
         print(f"✗ Network error: Failed to connect to {config.cli.address}")
         exit(1)
 
-    # Parse response
     try:
         resp_json = response.json()
         if resp_json.get("success"):
-            if config.cli.verbose != 0:
+            if config.cli.verbose:
                 print("✓ Notification sent successfully")
             exit(0)
         elif "error" in resp_json:
@@ -58,45 +67,26 @@ def send_notification(
 def main() -> None:
     DEFAULT_MESSAGE = "HOST_ID (opencode)"
 
-    epilog_text = textwrap.dedent(
-        """\
-        Examples:
-          ./%(prog)s "Hello World"
-          echo "Build failed" | ./%(prog)s
-          ./%(prog)s --host example.com --port 8080 "Custom message"
-        """
-    )
+    cli = CliArgs(
+        description="Send notification to NotifyHub server",
+    ).parse_args(known_only=True)
 
-    parser = NotifyHubConfig.get_argparser()
-    parser.description = "Send notification to NotifyHub server"
-    parser.epilog = epilog_text
-    parser.formatter_class = argparse.RawDescriptionHelpFormatter
-    parser.add_argument(
-        "message",
-        nargs="*",
-        help="Notification message (reads from stdin if not provided)",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be sent without actually sending",
-    )
+    overrides = {
+        "cli": {k: v for k, v in cli.as_dict().items() if k in CLI_FIELDS}
+    }
+    config = confstackify(NotifyHubConfig, "notifyhub", overrides=overrides)
 
-    args = parser.parse_args()
-    config = NotifyHubConfig.load_config(cli_args=args)
-
-    # Determine message
-    if args.message:
-        message = " ".join(args.message)
+    if cli.extra_args:
+        message = " ".join(cli.extra_args)
     else:
         message = sys.stdin.read().strip() or DEFAULT_MESSAGE
 
     json_data = {"pwd": os.getcwd(), "message": message}
     payload = {"data": json_data}
 
-    if args.dry_run:
+    if cli.dry_run:
         print("Dry run: Would send notification to", config.cli.address)
-        config.print_json()
+        print(config.model_dump_json(indent=2))
         print("Payload:", json.dumps(payload, indent=2))
         exit(0)
 

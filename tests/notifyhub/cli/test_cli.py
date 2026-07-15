@@ -5,9 +5,9 @@ import pytest
 
 
 def test_cli_dry_run_with_message():
-    """Test --dry-run with message argument."""
+    """Test --dry_run with message argument."""
     result = subprocess.run(
-        ["python", "src/notifyhub/cli/cli.py", "--dry-run", "test message"],
+        ["python", "src/notifyhub/cli/cli.py", "--dry_run", "test message"],
         capture_output=True,
         text=True,
         cwd=os.getcwd()
@@ -24,9 +24,9 @@ def test_cli_dry_run_with_message():
 
 
 def test_cli_dry_run_with_stdin():
-    """Test --dry-run with message from stdin."""
+    """Test --dry_run with message from stdin."""
     result = subprocess.run(
-        ["python", "src/notifyhub/cli/cli.py", "--dry-run"],
+        ["python", "src/notifyhub/cli/cli.py", "--dry_run"],
         input="stdin message",
         capture_output=True,
         text=True,
@@ -44,10 +44,10 @@ def test_cli_dry_run_with_stdin():
 
 
 def test_cli_dry_run_with_custom_host_port():
-    """Test --dry-run with custom host and port."""
+    """Test --dry_run with custom host and port."""
     env = {k: v for k, v in os.environ.items() if k != "NOTIFYHUB_ADDRESS"}
     result = subprocess.run(
-        ["python", "src/notifyhub/cli/cli.py", "--dry-run", "--host", "example.com", "--port", "8080", "custom message"],
+        ["python", "src/notifyhub/cli/cli.py", "--dry_run", "--host", "example.com", "--port", "8080", "custom message"],
         capture_output=True,
         text=True,
         cwd=os.getcwd(),

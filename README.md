@@ -97,7 +97,7 @@ NotifyHub/
 └── src/
     └── notifyhub/
         ├── __init__.py
-        ├── config.py                 # Pydantic config models with ConfStack
+        ├── config.py                 # Pydantic config models (loaded via confstackify)
         ├── telegram.py               # Telegram bot integration
         ├── backend/
         │   ├── backend.py            # FastAPI app, SSE, API routes, server entrypoint
@@ -260,7 +260,7 @@ The project uses **Server-Sent Events (SSE)**, not WebSockets:
 
 ### Key Architectural Patterns
 
-1. **Layered config**: `ConfStack` merges defaults → JSON config file → CLI args
+1. **Layered config**: `confstackify()` merges defaults → JSON config file → env vars → programmatic overrides
 2. **SSE-only real-time**: No WebSockets; the app uses `asyncio.Queue` per client for server-side SSE multiplexing
 3. **Fan-in compression**: Notification cards dynamically compress (fade, scale down) as they approach the bottom 15% of the viewport, creating a visual depth-of-field effect
 4. **Dual-serving modes**: Hot-reload (Vite on 9070 + FastAPI on 9080 with proxy) vs. production (FastAPI serves built static files from `static/` on port 9080)

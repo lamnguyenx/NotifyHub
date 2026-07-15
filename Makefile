@@ -19,7 +19,7 @@ config-md cm:
 #          Static Services
 # -----------------------------------
 backend be:
-	@lsof -ti:$$(python -c "from notifyhub.config import NotifyHubConfig; print(NotifyHubConfig.load_config({}).backend.port)") | xargs kill 2>/dev/null
+	@lsof -ti:$$(python -c "from confstack import confstackify; from notifyhub.config import NotifyHubConfig; print(confstackify(NotifyHubConfig, 'notifyhub').backend.port)") | xargs kill 2>/dev/null
 	python -m notifyhub.backend.backend
 
 frontend fe:

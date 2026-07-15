@@ -6,15 +6,16 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from contextlib import asynccontextmanager
 from uvicorn import Config, Server
-import argparse
 import asyncio
-from typing import List, Optional
+import typing as tp
 import logging
 import json
 import os
 import textwrap
 import traceback
 from datetime import datetime
+
+from confstack import confstackify
 
 from .models import NotificationStore, Notification
 from ..config import NotifyHubConfig
@@ -24,7 +25,7 @@ from ..telegram import get_telegram_token, async_send_telegram_message
 
 class SSEManager:
     def __init__(self, heartbeat_interval=30):
-        self.active_connections: List[asyncio.Queue] = []
+        self.active_connections: tp.List[asyncio.Queue] = []
         self.heartbeat_interval = heartbeat_interval
 
     async def connect(self) -> asyncio.Queue:
@@ -52,7 +53,7 @@ class SSEManager:
 
 
 class NotifyRequest(BaseModel):
-    id: Optional[str] = None
+    id: tp.Optional[str] = None
     data: dict
 
 
@@ -76,7 +77,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 sse_manager = SSEManager()
 store = NotificationStore(sse_manager=sse_manager)
-_telegram_bot_token: Optional[str] = None
+_telegram_bot_token: tp.Optional[str] = None
 _telegram_chat_id: str = ""
 _macos_notifications_enabled: bool = True
 
@@ -187,7 +188,7 @@ async def get_notifications():
 
 
 @app.delete("/api/notifications")
-async def delete_notifications(id: Optional[str] = None):
+async def delete_notifications(id: tp.Optional[str] = None):
     """Delete notifications - all if no id provided, specific if id given"""
     if id:
         # Delete specific notification
@@ -270,36 +271,7 @@ async def root():
 
 
 def main():
-    # Parse CLI arguments first (needed for config loading)
-    parser = argparse.ArgumentParser(description="Start NotifyHub server")
-    parser.add_argument(
-        "--backend.port", type=int, dest="backend_port", help="Port to run server on"
-    )
-    parser.add_argument(
-        "--backend.host", type=str, dest="backend_host", help="Host to bind server to"
-    )
-    parser.add_argument(
-        "--backend.sse-heartbeat-interval",
-        type=int,
-        dest="backend_sse_heartbeat_interval",
-        help="SSE heartbeat interval in seconds",
-    )
-    parser.add_argument(
-        "--backend.notifications-max-count",
-        type=int,
-        dest="backend_notifications_max_count",
-        help="Maximum number of notifications to store (None for unlimited)",
-    )
-    parser.add_argument(
-        "--backend.macos-notifications-enabled",
-        type=bool,
-        dest="backend_macos_notifications_enabled",
-        help="Push notifications to macOS Notification Center (requires macOS)",
-    )
-    args = parser.parse_args()
-
-    # Load configuration using ConfigStack
-    config = NotifyHubConfig.load_config(vars(args))
+    config: NotifyHubConfig = confstackify(NotifyHubConfig, "notifyhub")
 
     global sse_manager, store, _telegram_bot_token, _telegram_chat_id, _macos_notifications_enabled
     sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)
