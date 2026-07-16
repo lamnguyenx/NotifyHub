@@ -2,7 +2,9 @@
   "backend": {
     "port": 9080,
     "host": "0.0.0.0",
-    "sse_heartbeat_interval": 30
+    "sse_heartbeat_interval": 30,
+    "telegram_chat_id": "",
+    "telegram_group_chat_id": ""
   },
   "cli": {
     "host": "localhost",

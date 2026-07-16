@@ -79,6 +79,8 @@ sse_manager = SSEManager()
 store = NotificationStore(sse_manager=sse_manager)
 _telegram_bot_token: tp.Optional[str] = None
 _telegram_chat_id: str = ""
+_telegram_group_chat_id: str = ""
+_telegram_notify_tags: tp.List[str] = []
 _macos_notifications_enabled: bool = True
 
 # CORS middleware
@@ -155,12 +157,25 @@ async def notify(request: NotifyRequest):
 
         message_text = data.message
 
-        if _telegram_bot_token and _telegram_chat_id:
+        tag_match = not _telegram_notify_tags or any(t in message_text for t in _telegram_notify_tags)
+
+        telegram_text = f"{data.pwd}\n{message_text}" if data.pwd else message_text
+
+        if tag_match and _telegram_bot_token and _telegram_chat_id:
             asyncio.create_task(
                 async_send_telegram_message(
                     token=_telegram_bot_token,
                     chat_id=_telegram_chat_id,
-                    text=message_text,
+                    text=telegram_text,
+                )
+            )
+
+        if tag_match and _telegram_bot_token and _telegram_group_chat_id:
+            asyncio.create_task(
+                async_send_telegram_message(
+                    token=_telegram_bot_token,
+                    chat_id=_telegram_group_chat_id,
+                    text=telegram_text,
                 )
             )
 
@@ -273,12 +288,14 @@ async def root():
 def main():
     config: NotifyHubConfig = confstackify(NotifyHubConfig, "notifyhub")
 
-    global sse_manager, store, _telegram_bot_token, _telegram_chat_id, _macos_notifications_enabled
+    global sse_manager, store, _telegram_bot_token, _telegram_chat_id, _telegram_group_chat_id, _telegram_notify_tags, _macos_notifications_enabled
     sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)
     store = NotificationStore(
         sse_manager=sse_manager, max_count=config.backend.notifications_max_count
     )
     _telegram_chat_id = config.backend.telegram_chat_id
+    _telegram_group_chat_id = config.backend.telegram_group_chat_id
+    _telegram_notify_tags = config.backend.telegram_notify_tags
     _macos_notifications_enabled = config.backend.macos_notifications_enabled
     if _macos_notifications_enabled:
         logging.info("macOS notifications enabled")
@@ -290,6 +307,15 @@ def main():
             logging.warning(
                 "Telegram chat_id configured but bot token not found in keychain. "
                 "Run: security add-generic-password -a notifyhub -s telegram-bot-token -w YOUR_TOKEN"
+            )
+    if _telegram_group_chat_id:
+        if not _telegram_bot_token:
+            _telegram_bot_token = get_telegram_token()
+        if _telegram_bot_token:
+            logging.info("Telegram group notifications enabled")
+        else:
+            logging.warning(
+                "Telegram group_chat_id configured but bot token not found in keychain."
             )
 
     uvicorn_config = Config(

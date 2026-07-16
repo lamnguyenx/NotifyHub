@@ -20,6 +20,14 @@ class NotifyHubBackendConfig(pdt.BaseModel):
         "",
         description="Telegram chat ID to send notifications to (empty = disabled)",
     )
+    telegram_group_chat_id: str = pdt.Field(
+        "",
+        description="Telegram group chat ID to send notifications to (empty = disabled)",
+    )
+    telegram_notify_tags: tp.List[str] = pdt.Field(
+        default_factory=list,
+        description="Only send Telegram notifications for messages containing these tags (empty = send all)",
+    )
     macos_notifications_enabled: bool = pdt.Field(
         True,
         description="Push notifications to macOS Notification Center (requires macOS)",
