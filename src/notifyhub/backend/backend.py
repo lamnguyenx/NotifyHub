@@ -21,6 +21,11 @@ from .models import NotificationStore, Notification
 from ..config import NotifyHubConfig
 from ..macos_notify import send_macos_notification
 from ..telegram import get_telegram_token, async_send_telegram_message
+from ..bark import (
+    get_bark_aes_key,
+    async_send_bark_notification,
+    _get_dicebear_icon_url,
+)
 
 
 class SSEManager:
@@ -82,6 +87,9 @@ _telegram_chat_id: str = ""
 _telegram_group_chat_id: str = ""
 _telegram_notify_tags: tp.List[str] = []
 _macos_notifications_enabled: bool = True
+_bark_device_key: str = ""
+_bark_aes_key: tp.Optional[str] = None
+_bark_notify_tags: tp.List[str] = []
 
 # CORS middleware
 app.add_middleware(
@@ -183,6 +191,22 @@ async def notify(request: NotifyRequest):
             send_macos_notification(
                 text=message_text,
                 pwd=data.pwd,
+            )
+
+        bark_tag_match = not _bark_notify_tags or any(t in message_text for t in _bark_notify_tags)
+
+        if bark_tag_match and _bark_device_key and _bark_aes_key:
+            basename = os.path.basename(data.pwd or "")
+            seed = basename[:1].upper() if basename else ""
+            icon_url = _get_dicebear_icon_url(seed) if seed else ""
+            asyncio.create_task(
+                async_send_bark_notification(
+                    device_key=_bark_device_key,
+                    title=basename or "NotifyHub",
+                    body=message_text,
+                    icon_url=icon_url,
+                    aes_key=_bark_aes_key,
+                )
             )
 
         return {"success": True, "id": notification_id}
@@ -288,7 +312,7 @@ async def root():
 def main():
     config: NotifyHubConfig = confstackify(NotifyHubConfig, "notifyhub")
 
-    global sse_manager, store, _telegram_bot_token, _telegram_chat_id, _telegram_group_chat_id, _telegram_notify_tags, _macos_notifications_enabled
+    global sse_manager, store, _telegram_bot_token, _telegram_chat_id, _telegram_group_chat_id, _telegram_notify_tags, _macos_notifications_enabled, _bark_device_key, _bark_aes_key, _bark_notify_tags
     sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)
     store = NotificationStore(
         sse_manager=sse_manager, max_count=config.backend.notifications_max_count
@@ -316,6 +340,18 @@ def main():
         else:
             logging.warning(
                 "Telegram group_chat_id configured but bot token not found in keychain."
+            )
+
+    _bark_device_key = config.backend.bark_device_key
+    _bark_notify_tags = config.backend.bark_notify_tags
+    if _bark_device_key:
+        _bark_aes_key = get_bark_aes_key()
+        if _bark_aes_key:
+            logging.info("Bark notifications enabled")
+        else:
+            logging.warning(
+                "Bark device_key configured but AES key not found in keychain. "
+                "Run: security add-generic-password -a $USER -s bark_noti_aes_key -w YOUR_AES_KEY"
             )
 
     uvicorn_config = Config(

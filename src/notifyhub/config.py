@@ -32,6 +32,14 @@ class NotifyHubBackendConfig(pdt.BaseModel):
         True,
         description="Push notifications to macOS Notification Center (requires macOS)",
     )
+    bark_device_key: str = pdt.Field(
+        "",
+        description="Bark device key for iOS push notifications (empty = disabled)",
+    )
+    bark_notify_tags: tp.List[str] = pdt.Field(
+        default_factory=list,
+        description="Only send Bark notifications for messages containing these tags (empty = send all)",
+    )
 
 
 class NotifyHubCliConfig(pdt.BaseModel):
