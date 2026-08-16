@@ -1,5 +1,6 @@
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
+import { useTheme, type Theme } from "../theme"
 import type { NotificationItem } from "../types"
 
 export function formatTime(iso: string): string {
@@ -69,14 +70,14 @@ interface Props {
   selected?: boolean
 }
 
-function renderSegments(segments: TagSegment[], lineKey: string) {
+function renderSegments(segments: TagSegment[], lineKey: string, theme: Theme) {
   return segments.map((seg, i) => {
     const key = `${lineKey}-${seg.type}-${i}-${seg.text.slice(0, 8)}`
     if (seg.type === "tag") {
-      return <span key={key} fg="#6fc3df">{seg.text}</span>
+      return <span key={key} fg={theme.accent}>{seg.text}</span>
     }
     if (seg.type === "truncated") {
-      return <span key={key} fg="#505050">{seg.text}</span>
+      return <span key={key} fg={theme.truncatedText}>{seg.text}</span>
     }
     return <span key={key}>{seg.text}</span>
   })
@@ -84,13 +85,14 @@ function renderSegments(segments: TagSegment[], lineKey: string) {
 
 export function NotificationRow({ item, selected }: Props) {
   const { width: termWidth } = useTerminalDimensions()
+  const theme = useTheme()
   const msg = item.data?.message ?? ""
   const pwd = item.data?.pwd ?? ""
   const title = getTitle(pwd)
   const avatarColor = getAvatarColor(pwd)
   const avatarInitial = title[0]?.toUpperCase() || "N"
-  const cardBg = selected ? "#2a2a2a" : "#000000"
-  const borderColor = selected ? "#6fc3df" : "#ffffff"
+  const cardBg = selected ? theme.surfaceSelected : theme.background
+  const borderColor = selected ? theme.borderSelected : theme.border
   const time = formatTime(item.timestamp)
   const messageLines = msg.split("\n")
   const contentWidth = Math.max(40, termWidth - 4)
@@ -113,16 +115,16 @@ export function NotificationRow({ item, selected }: Props) {
       <box flexDirection="column" gap={0} width="100%">
         <text>
           <span bg={avatarColor} fg="#ffffff"> {avatarInitial} </span>
-          <span fg="#ffffff" attributes={TextAttributes.BOLD}> {title}</span>
-          <span fg="#969696">  {time}</span>
+          <span fg={theme.text} attributes={TextAttributes.BOLD}> {title}</span>
+          <span fg={theme.dim}>  {time}</span>
         </text>
-        <text fg="#a0a0a0">{truncate(pwd, 80)}</text>
+        <text fg={theme.pwdText}>{truncate(pwd, 80)}</text>
         {messageLines.map((line, lineIdx) => {
           const segments = parseMessage(line)
           return (
-            <text key={`msg-ln-${lineIdx}`} fg="#ffffff" selectable>
+            <text key={`msg-ln-${lineIdx}`} fg={theme.text} selectable>
               {segments.length > 0
-                ? renderSegments(segments, `ln${lineIdx}`)
+                ? renderSegments(segments, `ln${lineIdx}`, theme)
                 : (line || "\u00a0")}
             </text>
           )

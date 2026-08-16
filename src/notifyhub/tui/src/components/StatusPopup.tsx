@@ -1,5 +1,6 @@
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
+import { useTheme } from "../theme"
 import type { ServerInfo } from "../types"
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 
 export function StatusPopup({ serverInfo, notificationsCount }: Props) {
   const { width, height } = useTerminalDimensions()
+  const theme = useTheme()
   const popupW = 38
   const popupH = 10
   const left = Math.floor((width - popupW) / 2)
@@ -22,26 +24,26 @@ export function StatusPopup({ serverInfo, notificationsCount }: Props) {
       width={popupW}
       height={popupH}
       borderStyle="rounded"
-      borderColor="#ffffff"
-      backgroundColor="#000000"
+      borderColor={theme.border}
+      backgroundColor={theme.background}
       padding={1}
       flexDirection="column"
       gap={1}
     >
-      <text fg="#6fc3df" attributes={TextAttributes.BOLD}>
+      <text fg={theme.accent} attributes={TextAttributes.BOLD}>
         NotifyHub \u2014 Status
       </text>
-      <text fg={serverInfo.connected ? "#15ff15" : "#ff5555"}>
+      <text fg={serverInfo.connected ? theme.success : theme.danger}>
         <span>{serverInfo.connected ? "\u25cf Connected" : "\u25cb Disconnected"}</span>
-        <span fg="#969696">  {serverInfo.host}:{serverInfo.port}</span>
+        <span fg={theme.dim}>  {serverInfo.host}:{serverInfo.port}</span>
       </text>
-      <text fg="#ffffff">
+      <text fg={theme.text}>
         Notifications: {notificationsCount}
       </text>
-      <text fg={serverInfo.streaming ? "#15ff15" : "#ffcc00"}>
+      <text fg={serverInfo.streaming ? theme.success : theme.warning}>
         {serverInfo.streaming ? "\u25cf SSE Streaming" : "\u25cb SSE Idle"}
       </text>
-      <text fg="#969696">
+      <text fg={theme.dim}>
         Press any key to close
       </text>
     </box>

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react"
 import { useKeyboard, useRenderer } from "@opentui/react"
+import { useTheme } from "./theme"
 import { useNotifications } from "./hooks/useNotifications"
 import { ErrorBoundary } from "./components/ErrorBoundary"
 import { NotificationStream } from "./components/NotificationStream"
@@ -11,6 +12,7 @@ export function App() {
   const [showHelp, setShowHelp] = useState(false)
   const { notifications, serverInfo, handleDelete } = useNotifications()
   const renderer = useRenderer()
+  const theme = useTheme()
 
   useEffect(() => {
     const onCont = () => renderer.resume()
@@ -43,7 +45,7 @@ export function App() {
   })
 
   return (
-    <box flexDirection="column" width="100%" height="100%" backgroundColor="#000000">
+    <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
       <box width="100%" flexGrow={1}>
         <ErrorBoundary>
           <NotificationStream
@@ -62,8 +64,8 @@ export function App() {
 
       {showHelp && <HelpPopup />}
 
-      <box width="100%" height={1} backgroundColor="#2a2a2a" paddingX={1}>
-        <text fg="#969696">
+      <box width="100%" height={1} backgroundColor={theme.footerBackground} paddingX={1}>
+        <text fg={theme.dim}>
           v:select  |  arrows:scroll  |  s:status  |  h:help  |  q:quit
         </text>
       </box>

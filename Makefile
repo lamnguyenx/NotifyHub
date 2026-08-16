@@ -52,7 +52,7 @@ noti:
 chrome:
 	mkdir -p exp/chrome-dev-profile && \
 	open -a "Google Chrome" --args \
-	--remote-debugging-port=9222 \
+	--remote-debugging-port=9111 \
 	--force-device-scale-factor=1.5 \
 	--user-data-dir=${PWD}/exp/chrome-dev-profile
 
@@ -61,6 +61,12 @@ vivaldi:
 	open -a "Vivaldi" --args \
 	--remote-debugging-port=9222 \
 	--user-data-dir=${PWD}/exp/vivaldi-dev-profile
+
+vivaldi-beta:
+	mkdir -p ${PWD}/exp/vivaldi-beta-dev-profile && \
+	open -a "Vivaldi Snapshot" --args \
+	--remote-debugging-port=9221 \
+	--user-data-dir=${PWD}/exp/vivaldi-beta-dev-profile
 
 # -----------------------------------
 #             Testing

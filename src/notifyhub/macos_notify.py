@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import threading
 import typing as tp
 
 _MAX_WIDTH = 480
@@ -81,6 +82,14 @@ def _get_screen_positions(message: str) -> list[tuple[float, float]]:
         return []
 
 
+def _reap(proc: tp.Any) -> None:
+    """waitpid() the toast child once it exits so it never becomes a zombie."""
+    try:
+        proc.wait()
+    except Exception:
+        pass
+
+
 def send_macos_notification(
     text: str = "",
     pwd: tp.Optional[str] = None,
@@ -112,13 +121,17 @@ def send_macos_notification(
 
         if positions:
             for x, y in positions:
-                toast(
+                proc = toast(
                     message,
                     position=(x, y),
                     **toast_kwargs,
                 )
+                if proc is not None:
+                    threading.Thread(target=_reap, args=(proc,), daemon=True).start()
         else:
-            toast(message, **toast_kwargs)
+            proc = toast(message, **toast_kwargs)
+            if proc is not None:
+                threading.Thread(target=_reap, args=(proc,), daemon=True).start()
 
         return True
     except ImportError:

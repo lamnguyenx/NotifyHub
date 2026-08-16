@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react"
+import { ThemeContext, type Theme } from "../theme"
 
 interface Props {
   children: ReactNode
@@ -12,6 +13,9 @@ interface State {
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null }
 
+  static contextType = ThemeContext
+  declare context: Theme
+
   static getDerivedStateFromError(error: Error): State {
     return { error }
   }
@@ -21,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         this.props.fallback ?? (
           <box width="100%" height={3} paddingX={1}>
-            <text fg="#ef5350">
+            <text fg={this.context.error}>
               Rendering error: {this.state.error.message}
             </text>
           </box>

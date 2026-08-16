@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useKeyboard } from "@opentui/react"
+import { useTheme } from "../theme"
 import type { NotificationItem } from "../types"
 import { NotificationRow } from "./NotificationRow"
 import { useNotificationSound } from "../hooks/useAudio"
@@ -22,6 +23,7 @@ export function NotificationStream({ notifications, onDelete }: Props) {
   const [selectMode, setSelectMode] = useState(false)
   const playSound = useNotificationSound(SOUND_PATH)
   const prevCountRef = useRef(notifications.length)
+  const theme = useTheme()
 
   useEffect(() => {
     if (prevCountRef.current > 0 && notifications.length > prevCountRef.current) {
@@ -90,13 +92,13 @@ export function NotificationStream({ notifications, onDelete }: Props) {
       viewportCulling
     >
       {selectMode && (
-        <box width="100%" height={1} backgroundColor="#1a3a5c" paddingX={1}>
-          <text fg="#6fc3df">SELECT MODE  |  j/k/\u2191/\u2193: navigate  |  Del: delete  |  Esc: deselect  |  v: exit</text>
+        <box width="100%" height={1} backgroundColor={theme.accentBg} paddingX={1}>
+          <text fg={theme.accent}>SELECT MODE  |  j/k/\u2191/\u2193: navigate  |  Del: delete  |  Esc: deselect  |  v: exit</text>
         </box>
       )}
       {notifications.length === 0 ? (
         <box height={3} width="100%">
-          <text fg="#969696">Waiting for notifications\u2026</text>
+          <text fg={theme.dim}>Waiting for notifications\u2026</text>
         </box>
       ) : (
         notifications.map((n, i) => (
