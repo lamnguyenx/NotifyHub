@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
-import subprocess
+
 import sqlite3
 import json
 import argparse
@@ -10,6 +10,7 @@ import yaml
 from mini_logger import getLogger
 
 logger = getLogger(__name__)
+logger.setLevel('INFO')
 
 DB_PATH = os.path.expanduser("~/.local/share/opencode/opencode.db")
 
@@ -23,48 +24,8 @@ def get_db() -> sqlite3.Connection:
     return conn
 
 
-def get_project_id(directory: str) -> str:
-    # First, check if there's an existing project in the database for this directory
-    conn = get_db()
-    try:
-        cursor = conn.execute(
-            """
-            SELECT DISTINCT s.project_id
-            FROM session s
-            WHERE s.directory = ?
-            LIMIT 1
-            """,
-            (directory,),
-        )
-        row = cursor.fetchone()
-        if row:
-            return row["project_id"]
-    except Exception:
-        pass
-    finally:
-        conn.close()
-
-    # Fall back to computing from git
-    try:
-        # Change to the directory
-        os.chdir(directory)
-        # Run git rev-list to get initial commit (match new opencode: use HEAD not --all)
-        result = subprocess.run(
-            ["git", "rev-list", "--max-parents=0", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        commits = sorted(result.stdout.strip().split("\n"))
-        if commits:
-            return commits[0]
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        pass
-    return "global"
-
-
 def list_sessions(
-    project_id: str,
+    directory: str,
 ) -> None:
     conn = get_db()
     try:
@@ -72,10 +33,10 @@ def list_sessions(
             """
             SELECT id, directory, time_created
             FROM session
-            WHERE project_id = ?
+            WHERE directory = ?
             ORDER BY time_created ASC
             """,
-            (project_id,),
+            (directory,),
         )
         sessions = []
         home = os.path.expanduser("~")
@@ -89,25 +50,25 @@ def list_sessions(
         if sessions:
             print("\n".join([item[1] for item in sessions]))
         else:
-            print(f"No sessions found for project {project_id}")
+            print(f"No sessions found for directory {directory}")
     finally:
         conn.close()
 
 
 def list_messages(
-    project_id: str,
+    directory: str,
     session_id: tp.Optional[str] = None,
 ) -> None:
     conn = get_db()
     try:
-        # Get sessions for this project
+        # Get sessions for this directory
         if session_id:
-            # Verify session exists and belongs to project
+            # Verify session exists and belongs to this directory
             cursor = conn.execute(
                 """
-                SELECT id FROM session WHERE id = ? AND project_id = ?
+                SELECT id FROM session WHERE id = ? AND directory = ?
                 """,
-                (session_id, project_id),
+                (session_id, directory),
             )
             if not cursor.fetchone():
                 raise ValueError(f"Session {session_id} not found")
@@ -115,13 +76,13 @@ def list_messages(
         else:
             cursor = conn.execute(
                 """
-                SELECT id FROM session WHERE project_id = ?
+                SELECT id FROM session WHERE directory = ?
                 """,
-                (project_id,),
+                (directory,),
             )
             session_ids = [row["id"] for row in cursor.fetchall()]
             if not session_ids:
-                print(f"No sessions found for project {project_id}")
+                print(f"No sessions found for directory {directory}")
                 return
 
         sessions_data = {}
@@ -205,7 +166,7 @@ def find_session_across_projects(
 
 
 def retrieve_message(
-    project_id: str,
+    directory: str,
     session_id: tp.Optional[str] = None,
     max_lines: tp.Optional[int] = None,
     single_line: bool = False,
@@ -219,12 +180,12 @@ def retrieve_message(
             # Verify session exists
             cursor = conn.execute(
                 """
-                SELECT id FROM session WHERE id = ? AND project_id = ?
+                SELECT id FROM session WHERE id = ? AND directory = ?
                 """,
-                (session_id, project_id),
+                (session_id, directory),
             )
             if not cursor.fetchone():
-                # Search across all projects
+                # Search across all directories
                 result = find_session_across_projects(session_id)
                 if not result:
                     raise ValueError(f"Session {session_id} not found")
@@ -239,22 +200,22 @@ def retrieve_message(
                 if not cursor.fetchone():
                     raise ValueError(f"Session {session_id} not found")
             session_filter = "AND m.session_id = ?"
-            params = (project_id, session_id)
+            params = (directory, session_id)
         else:
             session_filter = ""
-            params = (project_id,)
+            params = (directory,)
 
         # Get recent messages
         cursor = conn.execute(
             f"""
-            SELECT 
+            SELECT
                 m.id,
                 m.session_id,
                 m.time_created,
                 json_extract(m.data, '$.role') as role
             FROM message m
             JOIN session s ON m.session_id = s.id
-            WHERE s.project_id = ? {session_filter}
+            WHERE s.directory = ? {session_filter}
             ORDER BY m.time_created DESC
             LIMIT 100
             """,
@@ -301,7 +262,7 @@ def retrieve_message(
             parts_content = []
             part_cursor = conn.execute(
                 """
-                SELECT 
+                SELECT
                     id,
                     json_extract(data, '$.type') as part_type,
                     json_extract(data, '$.text') as part_text
@@ -493,18 +454,16 @@ def main() -> None:
         print("Please run OpenCode at least once to create the database.")
         sys.exit(1)
 
-    project_id = get_project_id(directory=directory)
-
     if args.list_sessions:
-        list_sessions(project_id=project_id)
+        list_sessions(directory=directory)
     elif args.list_messages:
         list_messages(
-            project_id=project_id,
+            directory=directory,
             session_id=args.session_id,
         )
     else:
         user_msg, assistant_msg = retrieve_message(
-            project_id=project_id,
+            directory=directory,
             session_id=args.session_id,
             max_lines=args.max_lines,
             single_line=args.single_line,
