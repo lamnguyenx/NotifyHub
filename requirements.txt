@@ -9,3 +9,5 @@ py_mini_logger
 mini_bash
 booleanify
 mactoast
+typed-argument-parser
+confstack

@@ -16,6 +16,8 @@ dependencies = [
     "pandas",
     "py_mini_logger",
     "mactoast",
+    "typed-argument-parser",
+    "confstack",
 ]
 
 [project.optional-dependencies]
