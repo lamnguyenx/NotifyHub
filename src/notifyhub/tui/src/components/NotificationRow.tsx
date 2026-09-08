@@ -3,11 +3,35 @@ import { useTerminalDimensions } from "@opentui/react"
 import { useTheme, type Theme } from "../theme"
 import type { NotificationItem } from "../types"
 
-export function formatTime(iso: string): string {
+export function formatRelativeTime(iso: string, now: Date = new Date()): string {
+  if (!iso) return ""
   try {
     const d = new Date(iso)
     if (isNaN(d.getTime())) return iso
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+
+    const elapsed = Math.max(0, now.getTime() - d.getTime())
+
+    const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const msgDay = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    const dayDiff = Math.round((nowDay.getTime() - msgDay.getTime()) / 86400000)
+
+    if (dayDiff >= 2) {
+      const month = String(d.getMonth() + 1).padStart(2, "0")
+      const day = String(d.getDate()).padStart(2, "0")
+      const year = String(d.getFullYear()).slice(-2)
+      return `${month}/${day}/${year}`
+    }
+
+    if (dayDiff === 1) return "Yesterday"
+
+    const secs = Math.floor(elapsed / 1000)
+    if (secs < 60) return "now"
+
+    const mins = Math.floor(secs / 60)
+    if (mins < 60) return `${mins}m ago`
+
+    const hours = Math.floor(mins / 60)
+    return `${hours}h ago`
   } catch {
     return iso
   }
@@ -68,6 +92,7 @@ export function parseMessage(msg: string): TagSegment[] {
 interface Props {
   item: NotificationItem
   selected?: boolean
+  now?: Date
 }
 
 function renderSegments(segments: TagSegment[], lineKey: string, theme: Theme) {
@@ -83,7 +108,8 @@ function renderSegments(segments: TagSegment[], lineKey: string, theme: Theme) {
   })
 }
 
-export function NotificationRow({ item, selected }: Props) {
+export function NotificationRow({ item, selected, now: propNow }: Props) {
+  const now = propNow ?? new Date()
   const { width: termWidth } = useTerminalDimensions()
   const theme = useTheme()
   const msg = item.data?.message ?? ""
@@ -93,7 +119,7 @@ export function NotificationRow({ item, selected }: Props) {
   const avatarInitial = title[0]?.toUpperCase() || "N"
   const cardBg = selected ? theme.surfaceSelected : theme.background
   const borderColor = selected ? theme.borderSelected : theme.border
-  const time = formatTime(item.timestamp)
+  const time = formatRelativeTime(item.timestamp, now)
   const messageLines = msg.split("\n")
   const contentWidth = Math.max(40, termWidth - 4)
   const wrappedEstimate = messageLines.reduce(

@@ -4,7 +4,7 @@ import {
   getTitle,
   getAvatarColor,
   truncate,
-  formatTime,
+  formatRelativeTime,
 } from "../components/NotificationRow"
 import { parseSSEStream, type SSEEventHandler } from "../utils/api"
 import { safeParse } from "../hooks/useNotifications"
@@ -131,18 +131,57 @@ describe("truncate", () => {
   })
 })
 
-describe("formatTime", () => {
-  it("formats a valid ISO string to locale time", () => {
-    const result = formatTime("2026-07-05T10:30:00.000Z")
-    expect(result).toMatch(/^\d{1,2}:\d{2}\s?(AM|PM)?$/i)
-  })
+describe("formatRelativeTime", () => {
+  const BASE = new Date("2026-07-05T10:00:00.000Z")
+  const ago = (secs: number) => new Date(BASE.getTime() - secs * 1000).toISOString()
 
-  it("returns empty string for empty input", () => {
-    expect(formatTime("")).toBe("")
+  it('returns "" for empty input', () => {
+    expect(formatRelativeTime("", BASE)).toBe("")
   })
 
   it("returns input unchanged for invalid date string", () => {
-    expect(formatTime("not-a-date")).toBe("not-a-date")
+    expect(formatRelativeTime("not-a-date", BASE)).toBe("not-a-date")
+  })
+
+  it('returns "now" for < 60s', () => {
+    expect(formatRelativeTime(ago(0), BASE)).toBe("now")
+    expect(formatRelativeTime(ago(59), BASE)).toBe("now")
+  })
+
+  it('returns "{N}m ago" for 60s–59m 59s', () => {
+    expect(formatRelativeTime(ago(60), BASE)).toBe("1m ago")
+    expect(formatRelativeTime(ago(119), BASE)).toBe("1m ago")
+    expect(formatRelativeTime(ago(120), BASE)).toBe("2m ago")
+    expect(formatRelativeTime(ago(59 * 60 + 59), BASE)).toBe("59m ago")
+  })
+
+  it('returns "{N}h ago" for 1h–23h on same calendar day', () => {
+    const late = new Date("2026-07-05T23:59:00.000Z")
+    const early = new Date(late.getTime() - (23 * 60 * 60 + 59 * 60) * 1000)
+    expect(early.toISOString()).toBe("2026-07-05T00:00:00.000Z")
+    expect(formatRelativeTime(early.toISOString(), late)).toBe("23h ago")
+
+    expect(formatRelativeTime(ago(60 * 60), BASE)).toBe("1h ago")
+    expect(formatRelativeTime(ago(3 * 60 * 60), BASE)).toBe("3h ago")
+  })
+
+  it('returns "Yesterday" for previous calendar day', () => {
+    const evening = new Date("2026-07-04T23:00:00.000Z")
+    const lateNight = new Date("2026-07-05T00:30:00.000Z")
+    expect(formatRelativeTime(evening.toISOString(), lateNight)).toBe("Yesterday")
+  })
+
+  it('returns "MM/DD/YY" for ≥ 2 calendar days ago', () => {
+    const past = new Date("2026-07-03T10:00:00.000Z")
+    expect(formatRelativeTime(past.toISOString(), BASE)).toBe("07/03/26")
+
+    const older = new Date("2026-05-01T10:00:00.000Z")
+    expect(formatRelativeTime(older.toISOString(), BASE)).toBe("05/01/26")
+  })
+
+  it("treats future timestamps as now", () => {
+    const future = new Date(BASE.getTime() + 10_000).toISOString()
+    expect(formatRelativeTime(future, BASE)).toBe("now")
   })
 })
 

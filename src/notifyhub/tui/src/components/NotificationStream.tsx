@@ -4,6 +4,7 @@ import { useTheme } from "../theme"
 import type { NotificationItem } from "../types"
 import { NotificationRow } from "./NotificationRow"
 import { useNotificationSound } from "../hooks/useAudio"
+import { useNow } from "../hooks/useNow"
 
 const SOUND_PATH = (() => {
   try {
@@ -21,6 +22,7 @@ interface Props {
 export function NotificationStream({ notifications, onDelete }: Props) {
   const [selectedIdx, setSelectedIdx] = useState(-1)
   const [selectMode, setSelectMode] = useState(false)
+  const now = useNow()
   const playSound = useNotificationSound(SOUND_PATH)
   const prevCountRef = useRef(notifications.length)
   const theme = useTheme()
@@ -102,7 +104,7 @@ export function NotificationStream({ notifications, onDelete }: Props) {
         </box>
       ) : (
         notifications.map((n, i) => (
-          <NotificationRow key={n.id} item={n} selected={i === selectedIdx} />
+          <NotificationRow key={n.id} item={n} selected={i === selectedIdx} now={now} />
         ))
       )}
     </scrollbox>

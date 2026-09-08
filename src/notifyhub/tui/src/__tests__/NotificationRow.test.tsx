@@ -68,15 +68,16 @@ it("renders pwd path below title", async () => {
   renderer.destroy()
 })
 
-it("renders formatted timestamp", async () => {
+it("renders relative timestamp", async () => {
+  const now = new Date("2026-07-05T10:35:00.000Z")
   const { captureCharFrame, renderer, renderOnce } = await testRender(
-    <NotificationRow item={mockItem} />,
+    <NotificationRow item={mockItem} now={now} />,
     { width: 80, height: 8 },
   )
   await renderOnce()
 
   const frame = captureCharFrame()
-  expect(frame).toMatch(/\d{1,2}:\d{2}/)
+  expect(frame).toContain("5m ago")
 
   renderer.destroy()
 })
