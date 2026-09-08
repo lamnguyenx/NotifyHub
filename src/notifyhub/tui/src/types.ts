@@ -2,6 +2,7 @@ export interface NotificationData {
   [key: string]: unknown
   message: string
   pwd?: string | null
+  host_model?: string | null
 }
 
 export interface NotificationItem {

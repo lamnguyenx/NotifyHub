@@ -3,6 +3,7 @@ export interface INotification {
   message: string;
   pwd?: string | null;
   timestamp: string;
+  host_model?: string | null;
   [key: string]: any;
 }
 

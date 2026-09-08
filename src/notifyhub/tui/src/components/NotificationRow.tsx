@@ -120,13 +120,14 @@ export function NotificationRow({ item, selected, now: propNow }: Props) {
   const cardBg = selected ? theme.surfaceSelected : theme.background
   const borderColor = selected ? theme.borderSelected : theme.border
   const time = formatRelativeTime(item.timestamp, now)
+  const hostModel = item.data?.host_model ?? ""
   const messageLines = msg.split("\n")
   const contentWidth = Math.max(40, termWidth - 4)
   const wrappedEstimate = messageLines.reduce(
     (sum, line) => sum + Math.max(1, Math.ceil(line.length / contentWidth)),
     0,
   )
-  const cardHeight = 4 + wrappedEstimate
+  const cardHeight = 4 + wrappedEstimate + (hostModel ? 1 : 0)
 
   return (
     <box
@@ -145,6 +146,9 @@ export function NotificationRow({ item, selected, now: propNow }: Props) {
           <span fg={theme.dim}>  {time}</span>
         </text>
         <text fg={theme.pwdText}>{truncate(pwd, 80)}</text>
+        {hostModel && (
+          <text fg={theme.dim}>{hostModel}</text>
+        )}
         {messageLines.map((line, lineIdx) => {
           const segments = parseMessage(line)
           return (

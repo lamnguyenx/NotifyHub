@@ -11,6 +11,12 @@ from confstack import confstackify
 from notifyhub.config import NotifyHubConfig
 
 CLI_FIELDS = frozenset({"host", "port", "proxy", "verbose"})
+CLI_DEFAULTS: tp.Dict[str, tp.Any] = {
+    "host": "0.0.0.0",
+    "port": 9080,
+    "proxy": "",
+    "verbose": False,
+}
 
 
 class CliArgs(Tap):
@@ -71,9 +77,13 @@ def main() -> None:
         description="Send notification to NotifyHub server",
     ).parse_args(known_only=True)
 
-    overrides = {
-        "cli": {k: v for k, v in cli.as_dict().items() if k in CLI_FIELDS}
+    # Only pass explicitly-provided CLI args as overrides (skip defaults)
+    # so env vars like NOTIFYHUB_CLI_HOST take effect.
+    active_overrides = {
+        k: v for k, v in cli.as_dict().items()
+        if k in CLI_FIELDS and v != CLI_DEFAULTS.get(k)
     }
+    overrides = {"cli": active_overrides} if active_overrides else {}
     config = confstackify(NotifyHubConfig, "notifyhub", overrides=overrides)
 
     if cli.extra_args:
@@ -81,7 +91,13 @@ def main() -> None:
     else:
         message = sys.stdin.read().strip() or DEFAULT_MESSAGE
 
+    host_model = os.environ.get("HOST_MODEL", "").strip()
+    if host_model in ("", "Unknown"):
+        host_model = os.environ.get("HOSTNAME", "").strip()
+
     json_data = {"pwd": os.getcwd(), "message": message}
+    if host_model:
+        json_data["host_model"] = host_model
     payload = {"data": json_data}
 
     if cli.dry_run:

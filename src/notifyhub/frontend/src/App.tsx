@@ -70,6 +70,7 @@ function App() {
               id: raw.id,
               message: raw.data.message,
               pwd: raw.data.pwd,
+              host_model: raw.data.host_model,
               timestamp: raw.timestamp,
             });
           } catch (error) {
@@ -94,6 +95,7 @@ function App() {
           id: rawNotification.id,
           message: rawNotification.data.message,
           pwd: rawNotification.data.pwd,
+          host_model: rawNotification.data.host_model,
           timestamp: rawNotification.timestamp,
         });
         setNotifications(prev => {

@@ -195,6 +195,7 @@ function NotificationCard({ notification, index, total }: NotificationCardProps)
             </div>
 
             <Text className="notification-text2 subheadline-regular">{notification.pwd || "Notification details"}</Text>
+            {notification.host_model && <Text className="notification-text2 subheadline-regular">{notification.host_model}</Text>}
              <Text className="notification-text2 message">{parseMessageWithTags(notification.message || "Message")}</Text>
           </div>
         </div>
