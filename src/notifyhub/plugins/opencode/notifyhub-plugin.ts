@@ -8,7 +8,15 @@ function notifyhubPush(message: string): void {
   const child = spawn(
     notifyhubPush,
     [message],
-    { stdio: "inherit", env: { VERBOSE_INT: '0', ...process.env } }
+    {
+      stdio: "inherit",
+      env: {
+        NOTIFYHUB_CLI_HOST: process.env.NOTIFYHUB_CLI_HOST ?? "0.0.0.0",
+        NOTIFYHUB_CLI_PORT: process.env.NOTIFYHUB_CLI_PORT ?? "9080",
+        VERBOSE_INT: '0',
+        ...process.env,
+      }
+    }
   );
   child.on("close", (code) => {
     if (code !== 0) {

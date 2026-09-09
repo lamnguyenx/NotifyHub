@@ -1,16 +1,11 @@
 import type { NotificationItem, ServerInfo } from "../types"
 
-const DEFAULT_HOST = "localhost"
-const DEFAULT_PORT = 9080
+const DEFAULT_HOST = process.env.NOTIFYHUB_CLI_HOST ?? "localhost"
+const DEFAULT_PORT = parseInt(process.env.NOTIFYHUB_CLI_PORT ?? "9080", 10) || 9080
 const MAX_RECONNECT_DELAY = 30_000
 
 let _host = DEFAULT_HOST
 let _port = DEFAULT_PORT
-
-export function configureApi(host: string, port: number) {
-  _host = host
-  _port = port
-}
 
 export function getApiBase(): string {
   return `http://${_host}:${_port}`
