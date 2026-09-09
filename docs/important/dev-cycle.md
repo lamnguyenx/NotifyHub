@@ -61,6 +61,22 @@ const cardHeight = 4 + wrapped // 4 = header + pwd + border lines
 
 **Overflow rule**: Content > box height → top gets clipped. If you see pwd/message but no avatar header, the card is too short.
 
+**Height estimation slack**: `<text>` elements in OpenTUI don't auto-wrap. Long lines overflow horizontally (not onto a new row). If your height heuristic (`ceil(line.length / contentWidth)`) assumes wrapping, it over-counts rows → card has spare blank lines at the bottom.
+
+To pin a footer to the card bottom without the gap:
+
+```tsx
+<box width="100%" height={cardHeight} borderStyle="rounded">
+  <box flexDirection="column" width="100%" height="100%">
+    {/* header, body, messages */}
+    <box flexGrow={1} />               {/* absorbs slack */}
+    {footerElement && <footerElement />}
+  </box>
+</box>
+```
+
+The `<box flexGrow={1} />` spacer + inner column `height="100%"` absorbs any slack invisibly. The footer always sits flush at the bottom regardless of how accurate the height heuristic is.
+
 ### Text escaping a box
 
 `borderStyle="single"` on a `<box height={1}>` draws all 4 sides. The border lines consume height and the text overflows below the box.

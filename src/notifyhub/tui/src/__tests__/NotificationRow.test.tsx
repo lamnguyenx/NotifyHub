@@ -1,7 +1,7 @@
 import { testRender } from "@opentui/react/test-utils"
 import { rgbToHex } from "@opentui/core"
 import { it, expect, afterEach } from "bun:test"
-import { NotificationRow, getHostModelColor } from "../components/NotificationRow"
+import { NotificationRow, getHostModelTagColor } from "../components/NotificationRow"
 import type { NotificationItem } from "../types"
 
 const mockItem: NotificationItem = {
@@ -128,12 +128,12 @@ it("renders host_model tag with avatar-derived bg color", async () => {
   await renderOnce()
 
   const frame = captureCharFrame()
-  expect(frame).toContain("@gpt-4")
+  expect(frame).toContain("gpt-4")
 
   const spans = captureSpans()
-  const hostSpan = spans.lines.flatMap(l => l.spans).find(s => s.text.includes("@gpt-4"))
+  const hostSpan = spans.lines.flatMap(l => l.spans).find(s => s.text.includes("gpt-4"))
   expect(hostSpan).toBeDefined()
-  expect(rgbToHex(hostSpan!.bg).toLowerCase()).toBe(getHostModelColor(hostModel).toLowerCase())
+  expect(rgbToHex(hostSpan!.bg).toLowerCase()).toBe(getHostModelTagColor(hostModel, "#000000").toLowerCase())
 
   renderer.destroy()
 })

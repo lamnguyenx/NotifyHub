@@ -361,6 +361,37 @@ For the host_model tag, which receives short strings (hostnames, model names), u
 
 The palette (`AVATAR_COLORS`) is shared; only the hash function differs between `getAvatarColor` (DJB2, for long strings) and `getHostModelColor` (FNV-1a, for short strings).
 
+### Testing dimmed/derived colors
+
+When you dim a color by mixing it with a background, test both the mixing function and the rendered result:
+
+```ts
+// Test the mixing function directly
+it("mixes evenly at ratio 0.5", () => {
+  expect(mixHex("#000000", "#ffffff", 0.5)).toBe("#808080")
+})
+
+it("returns the first color at ratio 1", () => {
+  expect(mixHex("#ff0000", "#000000", 1)).toBe("#ff0000")
+})
+
+// Test the rendered color in the component
+it("renders host_model tag with dimmed bg color", async () => {
+  const { captureSpans, renderOnce } = await testRender(
+    <NotificationRow item={hostItem} />, { width: 80, height: 8 }
+  )
+  await renderOnce()
+  const spans = captureSpans()
+  const hostSpan = spans.lines.flatMap(l => l.spans).find(s => s.text.includes("@gpt-4"))
+  expect(rgbToHex(hostSpan!.bg).toLowerCase())
+    .toBe(getHostModelTagColor("gpt-4", "#000000").toLowerCase())
+})
+```
+
+The mixing helper (`mixHex`, `getHostModelTagColor`) is a pure function — test it in `utils.test.ts` without a renderer. Only one integration test needs a renderer to confirm the bg color reaches the painted buffer.
+
+`mixHex` linearly interpolates RGB channels: each channel `= round(a * ratio + b * (1 - ratio))`. Test boundary cases (ratio 0, ratio 1, ratio 0.5) plus 3-digit hex expansion (`#fff` expanded to `#ffffff`).
+
 ## Key points
 
 - `captureCharFrame()` = plain text grid (what the user sees)

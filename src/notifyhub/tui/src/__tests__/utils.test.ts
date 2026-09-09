@@ -4,6 +4,9 @@ import {
   getTitle,
   getAvatarColor,
   getHostModelColor,
+  getHostModelTagColor,
+  mixHex,
+  HOST_MODEL_DIM_RATIO,
   truncate,
   formatRelativeTime,
 } from "../components/NotificationRow"
@@ -130,6 +133,49 @@ describe("getHostModelColor", () => {
   it("handles empty string", () => {
     const color = getHostModelColor("")
     expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/)
+  })
+})
+
+describe("getHostModelTagColor", () => {
+  it("returns a valid hex color", () => {
+    expect(getHostModelTagColor("Mac153", "#000000")).toMatch(/^#[0-9A-Fa-f]{6}$/)
+  })
+
+  it("is darker than the base color on a dark background", () => {
+    const base = getHostModelColor("gpt-4")
+    const dim = getHostModelTagColor("gpt-4", "#000000")
+    const luminance = (hex: string) => {
+      const n = parseInt(hex.slice(1), 16)
+      return ((n >> 16) & 255) + ((n >> 8) & 255) + (n & 255)
+    }
+    expect(luminance(dim)).toBeLessThan(luminance(base))
+  })
+
+  it("mixes base color with the given background at the dim ratio", () => {
+    const expected = mixHex(getHostModelColor("gpt-4"), "#123456", HOST_MODEL_DIM_RATIO)
+    expect(getHostModelTagColor("gpt-4", "#123456")).toBe(expected)
+  })
+
+  it("is deterministic for the same inputs", () => {
+    expect(getHostModelTagColor("nuc", "#000000")).toBe(getHostModelTagColor("nuc", "#000000"))
+  })
+})
+
+describe("mixHex", () => {
+  it("returns the first color at ratio 1", () => {
+    expect(mixHex("#ff0000", "#000000", 1)).toBe("#ff0000")
+  })
+
+  it("returns the second color at ratio 0", () => {
+    expect(mixHex("#ff0000", "#00ff00", 0)).toBe("#00ff00")
+  })
+
+  it("mixes evenly at ratio 0.5", () => {
+    expect(mixHex("#000000", "#ffffff", 0.5)).toBe("#808080")
+  })
+
+  it("expands 3-digit hex", () => {
+    expect(mixHex("#fff", "#000", 1)).toBe("#ffffff")
   })
 })
 

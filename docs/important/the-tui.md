@@ -34,18 +34,19 @@ The main view is a real-time scrolling feed of notifications received via SSE fr
 Each notification is rendered as a bordered card (rounded corners) with:
 
 ```
-╭──────────────────────────────────────╮
-│V VoiceAI_ASR              09:30 AM  │  ← colored avatar + bold title + time
-│ /home/lamnt45/git/VoiceAI_ASR       │  ← full pwd path (dimmed)
-│ @USER ok, but i also want to the…   │  ← message with tag highlighting
-╰──────────────────────────────────────╯
+╭──────────────────────────────────────────────╮
+│V VoiceAI_ASR                           @host │  ← colored avatar + bold title + host pill
+│                                         time │  ← timestamp directly below host pill
+│ /home/lamnt45/git/VoiceAI_ASR               │  ← full pwd path (dimmed)
+│ @USER ok, but i also want to the…           │  ← message with tag highlighting
+╰──────────────────────────────────────────────╯
 ```
 
 - **Colored avatar initial** — derived from a hash of the pwd path (15-color palette matching the web UI)
 - **App name** — last segment of the pwd path, bold white
-- **Timestamp** — formatted as `HH:MM AM/PM`
+- **Timestamp** — formatted as `HH:MM AM/PM`, sits on its own row beneath the host pill (or on the title row if no host_model)
 - **Full pwd path** — dimmed gray
-- **Host-model tag** — `@Mac153` inline pill on the title line, between title and timestamp, colored via FNV-1a hash of host_model string into 15-color palette (shared with avatar)
+- **Host-model tag** — `@Mac153` pill at the top-right corner of the card, colored via FNV-1a hash of host_model string into 15-color palette, then **dimmed** to 40% strength against the card background (`mixHex(bright, cardBg, 0.4)`) so it's visually secondary to the avatar. Text uses `theme.text` for contrast in both light and dark modes.
 - **Tag highlighting** — `[#tag:...]` rendered in gray, `[#truncated:...]` in dark gray
 - **Selection** — highlighted border and background on the focused card
 

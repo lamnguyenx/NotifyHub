@@ -61,6 +61,31 @@ export function getHostModelColor(hostModel: string): string {
   return AVATAR_COLORS[hash % AVATAR_COLORS.length]
 }
 
+export const HOST_MODEL_DIM_RATIO = 0.4
+
+function parseHex(hex: string): { r: number; g: number; b: number } {
+  let h = hex.replace("#", "").trim()
+  if (h.length === 3) {
+    h = h.split("").map((c) => c + c).join("")
+  }
+  const num = parseInt(h, 16)
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 }
+}
+
+export function mixHex(a: string, b: string, ratio: number): string {
+  const pa = parseHex(a)
+  const pb = parseHex(b)
+  const r = Math.round(pa.r * ratio + pb.r * (1 - ratio))
+  const g = Math.round(pa.g * ratio + pb.g * (1 - ratio))
+  const bl = Math.round(pa.b * ratio + pb.b * (1 - ratio))
+  const toHex = (v: number) => v.toString(16).padStart(2, "0")
+  return `#${toHex(r)}${toHex(g)}${toHex(bl)}`
+}
+
+export function getHostModelTagColor(hostModel: string, bg: string): string {
+  return mixHex(getHostModelColor(hostModel), bg, HOST_MODEL_DIM_RATIO)
+}
+
 export function getTitle(pwd: string | undefined | null): string {
   if (!pwd) return "notifyhub"
   const parts = pwd.split("/").filter(Boolean)
@@ -131,14 +156,14 @@ export function NotificationRow({ item, selected, now: propNow }: Props) {
   const borderColor = selected ? theme.borderSelected : theme.border
   const time = formatRelativeTime(item.timestamp, now)
   const hostModel = item.data?.host_model ?? ""
-  const hostModelColor = hostModel ? getHostModelColor(hostModel) : ""
+  const hostModelColor = hostModel ? getHostModelTagColor(hostModel, cardBg) : ""
   const messageLines = msg.split("\n")
   const contentWidth = Math.max(40, termWidth - 4)
   const wrappedEstimate = messageLines.reduce(
     (sum, line) => sum + Math.max(1, Math.ceil(line.length / contentWidth)),
     0,
   )
-  const cardHeight = 4 + wrappedEstimate
+  const cardHeight = 4 + wrappedEstimate + (hostModel ? 1 : 0)
 
   return (
     <box
@@ -156,13 +181,21 @@ export function NotificationRow({ item, selected, now: propNow }: Props) {
             <text fg="#ffffff"> {avatarInitial} </text>
           </box>
           <text fg={theme.text} attributes={TextAttributes.BOLD} flexShrink={1} overflow="hidden"> {title}</text>
-          {hostModel && (
+          <box flexGrow={1} />
+          {hostModel ? (
             <box backgroundColor={hostModelColor} flexShrink={0}>
-              <text fg="#ffffff"> @{hostModel} </text>
+              <text fg={theme.text}> {hostModel} </text>
             </box>
+          ) : (
+            <text fg={theme.dim} flexShrink={0}>{time}</text>
           )}
-          <text fg={theme.dim} flexShrink={0}>  {time}</text>
         </box>
+        {hostModel && (
+          <box flexDirection="row" width="100%" flexShrink={0}>
+            <box flexGrow={1} />
+            <text fg={theme.dim} flexShrink={0}>{time}</text>
+          </box>
+        )}
         <text fg={theme.pwdText}>{truncate(pwd, 80)}</text>
         {messageLines.map((line, lineIdx) => {
           const segments = parseMessage(line)
