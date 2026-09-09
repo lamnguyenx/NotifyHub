@@ -18,6 +18,7 @@ dependencies = [
     "mactoast",
     "typed-argument-parser",
     "confstack",
+    "json5",
 ]
 
 [project.optional-dependencies]

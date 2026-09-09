@@ -39,11 +39,40 @@ def get_bark_aes_key(
             f"(service={service!r}, account={account!r})"
         )
     except FileNotFoundError:
-        logging.warning("`security` CLI not found \u2014 not on macOS?")
+        logging.info(
+            "`security` CLI not found \u2014 not on macOS, "
+            "trying Secret Service (secret-tool)"
+        )
+        key = _get_secret_from_secret_service(service)
+        if key:
+            return key
+        logging.warning(
+            "Bark AES key not found in Secret Service "
+            f"(service={service!r})"
+        )
     except subprocess.TimeoutExpired:
         logging.warning("Timed out reading Bark AES key from keychain")
     except Exception as exc:
         logging.warning(f"Failed to read Bark AES key from keychain: {exc}")
+    return None
+
+
+def _get_secret_from_secret_service(service: str) -> tp.Optional[str]:
+    try:
+        result = subprocess.run(
+            ["secret-tool", "lookup", "service", service],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip() or None
+    except FileNotFoundError:
+        logging.warning("`secret-tool` not found \u2014 install libsecret-tools")
+    except subprocess.TimeoutExpired:
+        logging.warning("Timed out reading Bark AES key from Secret Service")
+    except Exception as exc:
+        logging.warning(f"Failed to read Bark AES key from Secret Service: {exc}")
     return None
 
 
