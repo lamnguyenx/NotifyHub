@@ -33,20 +33,18 @@ def send_notification(
 ) -> None:
     url = f"{config.cli.address}/api/notify"
     headers = {"Content-Type": "application/json"}
-    proxies = (
-        {"http": config.cli.proxy, "https": config.cli.proxy}
-        if config.cli.proxy
-        else None
-    )
+
+    session = requests.Session()
+    session.trust_env = False
+    if config.cli.proxy:
+        session.proxies = {"http": config.cli.proxy, "https": config.cli.proxy}
 
     try:
-        response = requests.post(
-            url=url,
-            json=payload,
-            headers=headers,
-            proxies=proxies,
-        )
+        response = session.post(url=url, json=payload, headers=headers, timeout=10)
         response.raise_for_status()
+    except requests.Timeout:
+        print(f"✗ Timeout: No response from {config.cli.address} within 10s")
+        exit(1)
     except requests.RequestException:
         print(f"✗ Network error: Failed to connect to {config.cli.address}")
         exit(1)
@@ -86,10 +84,18 @@ def main() -> None:
     overrides = {"cli": active_overrides} if active_overrides else {}
     config = confstackify(NotifyHubConfig, "notifyhub", overrides=overrides)
 
-    if cli.extra_args:
-        message = " ".join(cli.extra_args)
-    else:
+    DRY_RUN_FLAGS = {"--dry-run", "--dry_run", "-d"}
+    extra_args = cli.extra_args or []
+    if any(f in DRY_RUN_FLAGS for f in extra_args):
+        cli.dry_run = True
+        extra_args = [a for a in extra_args if a not in DRY_RUN_FLAGS]
+
+    if extra_args:
+        message = " ".join(extra_args)
+    elif not sys.stdin.isatty():
         message = sys.stdin.read().strip() or DEFAULT_MESSAGE
+    else:
+        message = DEFAULT_MESSAGE
 
     host_model = os.environ.get("HOST_MODEL", "").strip()
     if host_model in ("", "Unknown"):
