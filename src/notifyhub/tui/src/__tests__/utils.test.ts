@@ -3,6 +3,7 @@ import {
   parseMessage,
   getTitle,
   getAvatarColor,
+  getHostModelColor,
   truncate,
   formatRelativeTime,
 } from "../components/NotificationRow"
@@ -105,6 +106,29 @@ describe("getAvatarColor", () => {
 
   it("handles empty string", () => {
     const color = getAvatarColor("")
+    expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/)
+  })
+})
+
+describe("getHostModelColor", () => {
+  it("returns the same color for the same host model", () => {
+    const c1 = getHostModelColor("Mac153")
+    const c2 = getHostModelColor("Mac153")
+    expect(c1).toBe(c2)
+  })
+
+  it("returns a valid hex color from palette", () => {
+    const color = getHostModelColor("anything")
+    expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/)
+  })
+
+  it("spreads common short hostnames across distinct colors", () => {
+    const colors = ["Mac153", "nuc", "foo", "bar", "claude", "gpt-4"].map(getHostModelColor)
+    expect(new Set(colors).size).toBeGreaterThan(3)
+  })
+
+  it("handles empty string", () => {
+    const color = getHostModelColor("")
     expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/)
   })
 })

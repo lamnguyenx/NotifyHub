@@ -45,6 +45,7 @@ Each notification is rendered as a bordered card (rounded corners) with:
 - **App name** — last segment of the pwd path, bold white
 - **Timestamp** — formatted as `HH:MM AM/PM`
 - **Full pwd path** — dimmed gray
+- **Host-model tag** — `@Mac153` inline pill on the title line, between title and timestamp, colored via FNV-1a hash of host_model string into 15-color palette (shared with avatar)
 - **Tag highlighting** — `[#tag:...]` rendered in gray, `[#truncated:...]` in dark gray
 - **Selection** — highlighted border and background on the focused card
 

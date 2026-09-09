@@ -337,6 +337,30 @@ function Thrower() {
 
 Assert on the fallback content in the captured frame.
 
+## captureSpans() captures the painted buffer (but test ≠ terminal)
+
+`captureSpans()` reads `renderer.currentRenderBuffer.getSpanLines()` — the **in-memory painted buffer**, not the ANSI output to the terminal. This is the same composited cell grid that the renderer serializes to escape sequences.
+
+**The test buffer and the terminal can diverge** for inline `<span bg>` in non-first position. In this project, a non-first inline `<span bg={color}>` appeared correct in `captureSpans()` but fell back to a default color when rendered to the real terminal. The avatar (first inline span) worked fine — only later spans showed the divergence. Switching to `<box backgroundColor={color}>` pills in a flex row fixed it.
+
+**Rule of thumb**: When `captureSpans()` shows the correct cell colors but the terminal shows wrong colors:
+1. Verify the box/span bg actually works in a different visual position.
+2. Hardcode a known color (e.g. `#FF0000`) to isolate rendering vs color-source issues.
+3. Check whether the INPUT to the color function varies as expected — the test might be using a different input than production (e.g., the test passes a varied host_model but production data is constant).
+
+## Color derivation for short strings needs a good hash
+
+The avatar color comes from `getAvatarColor(pwd)` which uses the DJB2 hash (`h = h * 31 + c`). This works fine for long pwd paths but **clusters short strings** (3-15 chars) onto adjacent palette slots:
+
+| Hash | "foo" | "bar" | "claude" | "Mac153" | "nuc" |
+|------|-------|-------|----------|----------|-------|
+| DJB2 | idx 9 | idx 9 | idx 9 | idx 10 | idx 11 |
+| FNV-1a | idx 3 | idx 2 | idx 3 | idx 1 | idx 11 |
+
+For the host_model tag, which receives short strings (hostnames, model names), use **FNV-1a** (`hash ^= c; hash = Math.imul(hash, 16777619) >>> 0`) instead of DJB2. FNV-1a has proper avalanche in the first few bytes, crucial when hashing into a small modulo space (mod 15).
+
+The palette (`AVATAR_COLORS`) is shared; only the hash function differs between `getAvatarColor` (DJB2, for long strings) and `getHostModelColor` (FNV-1a, for short strings).
+
 ## Key points
 
 - `captureCharFrame()` = plain text grid (what the user sees)

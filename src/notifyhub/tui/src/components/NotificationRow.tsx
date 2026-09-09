@@ -37,18 +37,28 @@ export function formatRelativeTime(iso: string, now: Date = new Date()): string 
   }
 }
 
+export const AVATAR_COLORS = [
+  "#7B1FA2", "#77919D", "#00ACC1", "#EC417A", "#C1175C",
+  "#5D6AC0", "#0388D2", "#1E88E5", "#00BCD4", "#26A69A",
+  "#43A047", "#68A039", "#EF6C00", "#F6511E", "#FF5252",
+]
+
 export function getAvatarColor(pwd: string): string {
-  const colors = [
-    "#7B1FA2", "#77919D", "#00ACC1", "#EC417A", "#C1175C",
-    "#5D6AC0", "#0388D2", "#1E88E5", "#00BCD4", "#26A69A",
-    "#43A047", "#68A039", "#EF6C00", "#F6511E", "#FF5252",
-  ]
   let hash = 0
   for (let i = 0; i < pwd.length; i++) {
     hash = ((hash << 5) - hash) + pwd.charCodeAt(i)
     hash |= 0
   }
-  return colors[Math.abs(hash) % colors.length]
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+
+export function getHostModelColor(hostModel: string): string {
+  let hash = 2166136261
+  for (let i = 0; i < hostModel.length; i++) {
+    hash ^= hostModel.charCodeAt(i)
+    hash = Math.imul(hash, 16777619) >>> 0
+  }
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
 }
 
 export function getTitle(pwd: string | undefined | null): string {
@@ -121,13 +131,14 @@ export function NotificationRow({ item, selected, now: propNow }: Props) {
   const borderColor = selected ? theme.borderSelected : theme.border
   const time = formatRelativeTime(item.timestamp, now)
   const hostModel = item.data?.host_model ?? ""
+  const hostModelColor = hostModel ? getHostModelColor(hostModel) : ""
   const messageLines = msg.split("\n")
   const contentWidth = Math.max(40, termWidth - 4)
   const wrappedEstimate = messageLines.reduce(
     (sum, line) => sum + Math.max(1, Math.ceil(line.length / contentWidth)),
     0,
   )
-  const cardHeight = 4 + wrappedEstimate + (hostModel ? 1 : 0)
+  const cardHeight = 4 + wrappedEstimate
 
   return (
     <box
@@ -140,15 +151,19 @@ export function NotificationRow({ item, selected, now: propNow }: Props) {
       marginBottom={0}
     >
       <box flexDirection="column" gap={0} width="100%">
-        <text>
-          <span bg={avatarColor} fg="#ffffff"> {avatarInitial} </span>
-          <span fg={theme.text} attributes={TextAttributes.BOLD}> {title}</span>
-          <span fg={theme.dim}>  {time}</span>
-        </text>
+        <box flexDirection="row" width="100%" flexShrink={1} overflow="hidden">
+          <box backgroundColor={avatarColor} flexShrink={0}>
+            <text fg="#ffffff"> {avatarInitial} </text>
+          </box>
+          <text fg={theme.text} attributes={TextAttributes.BOLD} flexShrink={1} overflow="hidden"> {title}</text>
+          {hostModel && (
+            <box backgroundColor={hostModelColor} flexShrink={0}>
+              <text fg="#ffffff"> @{hostModel} </text>
+            </box>
+          )}
+          <text fg={theme.dim} flexShrink={0}>  {time}</text>
+        </box>
         <text fg={theme.pwdText}>{truncate(pwd, 80)}</text>
-        {hostModel && (
-          <text fg={theme.dim}>{hostModel}</text>
-        )}
         {messageLines.map((line, lineIdx) => {
           const segments = parseMessage(line)
           return (

@@ -1,7 +1,7 @@
 import { testRender } from "@opentui/react/test-utils"
 import { rgbToHex } from "@opentui/core"
 import { it, expect, afterEach } from "bun:test"
-import { NotificationRow } from "../components/NotificationRow"
+import { NotificationRow, getHostModelColor } from "../components/NotificationRow"
 import type { NotificationItem } from "../types"
 
 const mockItem: NotificationItem = {
@@ -110,6 +110,30 @@ it("shows default avatar N when pwd is empty", async () => {
 
   const frame = captureCharFrame()
   expect(frame).toContain("N")
+
+  renderer.destroy()
+})
+
+it("renders host_model tag with avatar-derived bg color", async () => {
+  const hostModel = "gpt-4"
+  const hostItem: NotificationItem = {
+    id: "notif-4",
+    data: { message: "test", pwd: "/proj", host_model: hostModel },
+    timestamp: "2026-07-05T10:30:00.000Z",
+  }
+  const { captureCharFrame, captureSpans, renderer, renderOnce } = await testRender(
+    <NotificationRow item={hostItem} />,
+    { width: 80, height: 8 },
+  )
+  await renderOnce()
+
+  const frame = captureCharFrame()
+  expect(frame).toContain("@gpt-4")
+
+  const spans = captureSpans()
+  const hostSpan = spans.lines.flatMap(l => l.spans).find(s => s.text.includes("@gpt-4"))
+  expect(hostSpan).toBeDefined()
+  expect(rgbToHex(hostSpan!.bg).toLowerCase()).toBe(getHostModelColor(hostModel).toLowerCase())
 
   renderer.destroy()
 })
