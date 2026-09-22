@@ -194,8 +194,13 @@ async def notify(request: NotifyRequest):
             )
 
         bark_tag_match = not _bark_notify_tags or any(t in message_text for t in _bark_notify_tags)
+        logging.info(
+            "Bark check: tag_match=%s, device_key=%s, aes_key=%s, tags=%s",
+            bark_tag_match, bool(_bark_device_key), bool(_bark_aes_key), _bark_notify_tags,
+        )
 
         if bark_tag_match and _bark_device_key and _bark_aes_key:
+            logging.info("Sending Bark notification for message: %s", message_text[:80])
             basename = os.path.basename(data.pwd or "")
             seed = basename[:1].upper() if basename else ""
             icon_url = _get_dicebear_icon_url(seed) if seed else ""
@@ -207,6 +212,11 @@ async def notify(request: NotifyRequest):
                     icon_url=icon_url,
                     aes_key=_bark_aes_key,
                 )
+            )
+        else:
+            logging.info(
+                "Skipping Bark: tag_match=%s, device_key=%s, aes_key=%s",
+                bark_tag_match, bool(_bark_device_key), bool(_bark_aes_key),
             )
 
         return {"success": True, "id": notification_id}

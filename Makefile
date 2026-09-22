@@ -1,4 +1,4 @@
-.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin test-bg clean fe fh beh t tb tf tfh tc mapping m tui-deps tui tui-typecheck td ttc
+.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti send-simple-bark send-backend-bark chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin test-bg clean fe fh beh t tb tf tfh tc mapping m tui-deps tui tui-typecheck td ttc ssb sbb
 
 # -----------------------------------
 #            Dependencies
@@ -48,6 +48,14 @@ tui-test tt:
 
 noti:
 	./local/noti.sh "make noti"
+
+send-simple-bark ssb: ARGS?=Test from make send-simple-bark
+send-simple-bark ssb:
+	@./local/send-simple-bark.py '$(ARGS)'
+
+send-backend-bark sbb: ARGS?=Test from make send-backend-bark [\#opencode.question]
+send-backend-bark sbb:
+	@./local/send-backend-noti.py '$(ARGS)'
 
 chrome:
 	mkdir -p exp/chrome-dev-profile && \
