@@ -41,6 +41,11 @@ class NotifyHubBackendConfig(pdt.BaseModel):
         description="Only send Bark notifications for messages containing these tags (empty = send all)",
     )
 
+    dev_reload: bool = pdt.Field(
+        False,
+        description="Enable uvicorn auto-reload with code watching (dev mode)",
+    )
+
 
 class NotifyHubCliConfig(pdt.BaseModel):
     model_config = pdt.ConfigDict(validate_assignment=True)

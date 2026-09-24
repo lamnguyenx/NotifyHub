@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from contextlib import asynccontextmanager
-from uvicorn import Config, Server
+from uvicorn import Config, Server, run as uvicorn_run
 import asyncio
 import typing as tp
 import logging
@@ -319,9 +319,8 @@ async def root():
     return HTMLResponse(html_content)
 
 
-def main():
-    config: NotifyHubConfig = confstackify(NotifyHubConfig, "notifyhub")
-
+def _load_runtime(config: NotifyHubConfig) -> None:
+    """Apply config to module globals (re-applied on reload-worker import)."""
     global sse_manager, store, _telegram_bot_token, _telegram_chat_id, _telegram_group_chat_id, _telegram_notify_tags, _macos_notifications_enabled, _bark_device_key, _bark_aes_key, _bark_notify_tags
     sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)
     store = NotificationStore(
@@ -364,14 +363,36 @@ def main():
                 "Run: security add-generic-password -a $USER -s bark_noti_aes_key -w YOUR_AES_KEY"
             )
 
-    uvicorn_config = Config(
-        app,
-        host=config.backend.host,
-        port=config.backend.port,
-        timeout_graceful_shutdown=1,
+
+_load_runtime(confstackify(NotifyHubConfig, "notifyhub"))
+
+
+def main():
+    config: NotifyHubConfig = confstackify(
+        NotifyHubConfig, "notifyhub", parse_cli_args=True
     )
-    server = Server(uvicorn_config)
-    server.run()
+    _load_runtime(config)
+
+    if config.backend.dev_reload:
+        # Server.run() ignores reload in modern uvicorn; uvicorn.run() owns the
+        # ChangeReload supervisor and spawns workers that re-import the app.
+        uvicorn_run(
+            "notifyhub.backend.backend:app",
+            host=config.backend.host,
+            port=config.backend.port,
+            timeout_graceful_shutdown=1,
+            reload=True,
+        )
+    else:
+        server = Server(
+            Config(
+                app,
+                host=config.backend.host,
+                port=config.backend.port,
+                timeout_graceful_shutdown=1,
+            )
+        )
+        server.run()
 
 
 if __name__ == "__main__":

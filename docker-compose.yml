@@ -1,28 +1,50 @@
-services:
-  notifyhub:
-    image: lamnguyenx/notifyhub:2025.01.09rev01
-    network_mode: host
-    build:
-      target: backend
-      context: .
-      args:
-        NPM_EXTRA_ARGS: --no-ssl-check
-        PIP_EXTRA_ARGS: --trusted-host pypi.org --trusted-host files.pythonhosted.org
-    restart: unless-stopped
-    command: "python -m notifyhub.backend.backend --port 9080"
+x-backend-build: &backend-build
+  target: backend
+  context: .
+  args:
+    NPM_EXTRA_ARGS: --no-ssl-check
+    PIP_EXTRA_ARGS: --trusted-host pypi.org --trusted-host files.pythonhosted.org
 
-  frontend-hotload:
+services:
+  be:
+    image: lamnguyenx/notifyhub:2026.09.23rev02
+    build: *backend-build
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:9080:9080"
+    volumes:
+      - ${HOME}/.config/notifyhub:${HOME}/.config/notifyhub
+    environment:
+      - HOME=${HOME}
+    command: "python -m notifyhub.backend.backend --backend.port 9080"
+
+  be-dev:
+    image: lamnguyenx/notifyhub:2026.09.23rev02
+    build: *backend-build
+    ports:
+      - "0.0.0.0:9081:9081"
+    volumes:
+      - ./src/notifyhub:/app/src/notifyhub
+      - ${HOME}/.config/notifyhub:${HOME}/.config/notifyhub
+    environment:
+      - HOME=${HOME}
+    command: "python -m notifyhub.backend.backend --backend.port 9081 --backend.dev_reload"
+
+  fe-dev:
     image: lamnguyenx/notifyhub-frontend:2025.01.09rev01
-    network_mode: host
     build:
       target: frontend
       context: .
       args:
         NPM_EXTRA_ARGS: --no-ssl-check
         PIP_EXTRA_ARGS: --trusted-host pypi.org --trusted-host files.pythonhosted.org
+    ports:
+      - "0.0.0.0:9070:9070"
     volumes:
       - ${PWD}/src/notifyhub/frontend:/app
       - /app/node_modules
+    environment:
+      - BACKEND_ORIGIN=http://notifyhub:9080
     command: |
       /bin/sh -c "
         cd /app

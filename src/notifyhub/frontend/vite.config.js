@@ -5,10 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 9070,
+    host: true,
     proxy: {
-      '/api': 'http://localhost:9080',
+      '/api': process.env.BACKEND_ORIGIN ?? 'http://localhost:9080',
       '/events': {
-        target: 'http://localhost:9080',
+        target: process.env.BACKEND_ORIGIN ?? 'http://localhost:9080',
         ws: true
       }
     }
