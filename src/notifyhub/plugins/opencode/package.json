@@ -1,7 +1,11 @@
 {
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
   "devDependencies": {
-    "@opencode-ai/plugin": "^1.0.162",
+    "@opencode/plugin": "^2.0.18",
     "@tsconfig/node22": "^22.0.2",
+    "@types/node": "^22.0.0",
     "typescript": "^5.8.2"
   }
 }

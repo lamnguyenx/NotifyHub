@@ -104,30 +104,28 @@ install-plugin: install-plugin-copy
 install-plugin-symlink:
 	@echo "Installing NotifyHub plugin to OpenCode..."
 	mkdir -p ~/.config/opencode/plugin
-	for file in notifyhub-plugin.ts notifyhub-push.py opencode-trace.py; do \
+	for file in notifyhub-plugin.ts notifyhub-push.py; do \
 		./bach_lite.sh archive ~/.config/opencode/plugin/$$file; \
 	done
 	gln -sfvrn src/notifyhub/plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/notifyhub-plugin.ts
 	gln -sfvrn src/notifyhub/cli/cli.py ~/.config/opencode/plugin/notifyhub-push.py
-	gln -sfvrn src/notifyhub/plugins/opencode/opencode-trace.py ~/.config/opencode/plugin/opencode-trace.py
 	ls -ltra ~/.config/opencode/plugin/
 	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
 
 install-plugin-copy:
 	@echo "Installing NotifyHub plugin to OpenCode (copying files)..."
 	mkdir -p ~/.config/opencode/plugin
-	for file in notifyhub-plugin.ts notifyhub-push.py opencode-trace.py; do \
+	for file in notifyhub-plugin.ts notifyhub-push.py; do \
 		./bach_lite.sh archive ~/.config/opencode/plugin/$$file; \
 	done
 	cp src/notifyhub/plugins/opencode/notifyhub-plugin.ts ~/.config/opencode/plugin/
 	cp src/notifyhub/cli/cli.py ~/.config/opencode/plugin/notifyhub-push.py
-	cp src/notifyhub/plugins/opencode/opencode-trace.py ~/.config/opencode/plugin/
 	ls -ltra ~/.config/opencode/plugin/
 	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
 
 uninstall-plugin remove-plugin rm-plugin:
 	@echo "Removing NotifyHub plugin from OpenCode..."
-	rm ~/.config/opencode/plugin/notifyhub-plugin.ts
-	rm ~/.config/opencode/plugin/notifyhub-push.py
-	rm ~/.config/opencode/plugin/opencode-trace.py
+	rm -f ~/.config/opencode/plugin/notifyhub-plugin.ts
+	rm -f ~/.config/opencode/plugin/notifyhub-push.py
+	rm -f ~/.config/opencode/plugin/opencode-trace.py
 	@echo "Plugin removed."

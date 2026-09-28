@@ -27,7 +27,7 @@
 - A **Python backend** (FastAPI) serving REST + SSE
 - A **CLI** for pushing notifications from scripts/terminals
 - A **TUI** (terminal UI) for viewing notifications in the terminal
-- An **OpenCode plugin** to integrate with the OpenCode AI assistant
+- An **OpenCode v2 plugin** that turns turn completions, errors, permission prompts, and questions into notifications
 
 ### Architecture Diagram
 
@@ -36,6 +36,8 @@ graph LR
     subgraph Client
         Browser[Web Browser]
         Terminal[Terminal / Script]
+        OpenCode[OpenCode v2 Plugin]
+        CLI[NotifyHub CLI]
     end
 
     subgraph "Frontend (Port 9070 Dev / 9080 Prod)"
@@ -52,7 +54,9 @@ graph LR
     Browser --> React
     React -- HTTP Proxy --> API
     React -- EventSource --> SSE
-    Terminal -- CLI --> API
+    Terminal --> CLI
+    OpenCode -- spawns --> CLI
+    CLI -- POST /api/notify --> API
 ```
 
 ---
@@ -119,10 +123,10 @@ NotifyHub/
         │       ├── hooks/
         │       └── utils/
         ├── plugins/
-        │   └── opencode/             # OpenCode integration plugin
+        │   └── opencode/             # OpenCode v2 integration plugin
         │       ├── notifyhub-plugin.ts
-        │       ├── opencode-trace.py
-        │       └── package.json
+        │       ├── package.json
+        │       └── tsconfig.json
         └── frontend/
             ├── package.json          # Bun-managed deps
             ├── vite.config.js        # Vite config with proxy
@@ -255,7 +259,7 @@ The project uses **Server-Sent Events (SSE)**, not WebSockets:
   - Deterministic asset naming (`app.js` for entry, `[name].js` for chunks, `[name].[ext]` for assets)
 - **Python**: Built with `setuptools` (editable install via `pip install -e .`), scripts registered via `project.scripts` in `pyproject.toml`
 - **Task Runner**: `Makefile` with shorthand aliases (`be`, `fe`, `fehl`, `tbe`, `tfe`, `tfehl`, `ta`) for quick development
-- **Type checking**: `pyrightconfig.json` for Python, `tsconfig.json` for TypeScript; the TUI has `bun run typecheck` (`tsc --noEmit`)
+- **Type checking**: `pyrightconfig.json` for Python, `tsconfig.json` for TypeScript; the TUI has `bun run typecheck` (`tsc --noEmit`) and the OpenCode plugin has `npm run typecheck` (`tsc --noEmit`, strict)
 - **Linting**: `ruff` for Python (with `.ruff_cache/`), `.ripgreprc` for search config
 
 ### Key Architectural Patterns
@@ -265,7 +269,7 @@ The project uses **Server-Sent Events (SSE)**, not WebSockets:
 3. **Fan-in compression**: Notification cards dynamically compress (fade, scale down) as they approach the bottom 15% of the viewport, creating a visual depth-of-field effect
 4. **Dual-serving modes**: Hot-reload (Vite on 9070 + FastAPI on 9080 with proxy) vs. production (FastAPI serves built static files from `static/` on port 9080)
 5. **CDP-based testing**: Playwright tests connect to an already-open Chrome instance rather than launching a new browser, for testing against a manually-observed session
-6. **OpenCode integration**: Plugin files in `plugins/opencode/` allow OpenCode to push events to NotifyHub, with session/message tracing
+6. **OpenCode integration**: Plugin files in `plugins/opencode/` allow OpenCode v2 to push events to NotifyHub, with notification bodies built from the v2 session API (see `docs/important/opencode-plugin.md`)
 7. **Terminal UI**: A separate React-based TUI (`src/notifyhub/tui/`) using `@opentui` for terminal rendering
 
 ---
@@ -296,17 +300,33 @@ make frontend
 
 ### OpenCode Plugin Installation (Optional)
 
-To integrate NotifyHub with OpenCode, you can install the NotifyHub plugin:
+The repo ships a plugin for **OpenCode v2.0.18+** that pushes turn completions, errors, permission prompts,
+and questions to NotifyHub. See [`docs/important/opencode-plugin.md`](docs/important/opencode-plugin.md)
+for the full guide.
+
+| OpenCode v2 event | Notification |
+|---|---|
+| `session.execution.succeeded` / `session.execution.interrupted` | `[#tag:@USER] …` + `[#tag:@ASSISTANT] …` message excerpts |
+| `session.execution.failed` | `[#opencode.error] <error message>` |
+| `permission.asked` | `[#opencode.permission] OpenCode needs your permission` |
+| `form.created` (the `question` tool) | `[#opencode.question] OpenCode is asking you a question` |
 
 ```bash
-# Install the plugin
-make install-plugin
-
-# Remove the plugin (if needed)
-make remove-plugin
+make install-plugin   # copies notifyhub-plugin.ts + notifyhub-push.py to ~/.config/opencode/plugin/
+make backend          # start the NotifyHub server
+opencode plugin list  # verify: id "notifyhub", state "active"
+make remove-plugin    # uninstall
 ```
 
-This copies the plugin file from `src/notifyhub/plugins/opencode/notifyhub-plugin.ts` to `~/.config/opencode/plugin/` and enables NotifyHub notifications in OpenCode.
+The plugin is a **dependency-free single file** (type-only import of `@opencode/plugin`, so no
+`node_modules` is needed in `~/.config/opencode`), hot-reloads when the installed file changes, and reads
+`NOTIFYHUB_CLI_HOST`, `NOTIFYHUB_CLI_PORT`, and `NOTIFYHUB_PUSH_SCRIPT`. Development happens in
+`src/notifyhub/plugins/opencode/`:
+
+```bash
+make plugin-deps      # npm install (types for the v2 plugin API)
+cd src/notifyhub/plugins/opencode && npm run typecheck
+```
 
 ---
 

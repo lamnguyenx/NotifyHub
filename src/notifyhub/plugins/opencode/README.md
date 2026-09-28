@@ -1,124 +1,146 @@
-# OpenCode Plugins
+# OpenCode v2 Plugins
 
-This directory contains plugins for [OpenCode](https://opencode.ai), an open source AI coding agent.
+This directory contains NotifyHub's plugin for [OpenCode](https://opencode.ai) **v2**.
 
-## Plugins
-
-### 🔔 NotifyHub Plugin
-
-A plugin that sends notifications to [NotifyHub](https://github.com/sst/notifyhub) whenever OpenCode completes a request (turn).
+## 🔔 NotifyHub Plugin
 
 **File:** `notifyhub-plugin.ts`
 
-**Features:**
-- Automatically detects when OpenCode finishes processing a request (turn)
-- Sends notifications to NotifyHub server on `localhost:9080`
-- Lightweight and non-intrusive with error handling
+Sends notifications to a local NotifyHub server whenever OpenCode needs attention or finishes a turn.
 
-**What it does:**
-- Hooks into OpenCode's `session.idle` event (fires when a turn/request completes)
-- Executes the `notifyhub-push.sh` shell script with completion details
-- The shell script handles sending notifications to NotifyHub
-- Logs errors if the script execution fails
+**Requirements:**
 
-### 🔔 Terminal Bell (Example)
+- OpenCode **v2.0.18+** (`opencode --version`)
+- A NotifyHub server (default `http://localhost:9080`)
 
-The original terminal bell plugin example from OpenCode.
+**Notifications:**
 
-**File:** `terminal_bell_example.md`
+| OpenCode v2 event                            | Notification                                             |
+| -------------------------------------------- | -------------------------------------------------------- |
+| `session.execution.succeeded`, `interrupted` | `[#tag:@USER] …` + `[#tag:@ASSISTANT] …` message excerpts |
+| `session.execution.failed`                    | `[#opencode.error] <error message>`                       |
+| `permission.asked`                            | `[#opencode.permission] OpenCode needs your permission`   |
+| `form.created` (the `question` tool)          | `[#opencode.question] OpenCode is asking you a question`  |
+
+Turn-completion bodies are read through `ctx.session.context({ sessionID })` and truncated to the last
+5 lines / 200 characters (the same rules the retired `opencode-trace.py --notifyhub` preset used).
+
+The `pwd` sent to NotifyHub (shown as the notification's directory tag) is the **session's** directory,
+resolved through `ctx.session.get({ sessionID })`. `notifyhub-push.py` is spawned with that directory
+as its `cwd`, so a background `opencode serve` running from `~` no longer makes notifications report
+the home directory.
+
+Because the plugin lives in the global config directory, OpenCode loads one instance per open
+location and every instance receives the shared event stream. The plugin therefore only handles an
+event when the session's location directory matches the instance's own `ctx.location.directory`;
+otherwise the same event would notify once per open location, with non-matching instances falling
+back to their own directory (for example `~`).
 
 ## Installation
 
-### Prerequisites
-
-1. [OpenCode](https://opencode.ai/install) must be installed
-2. For the NotifyHub plugin: [NotifyHub server](https://github.com/sst/notifyhub) running on localhost:9080
-
-### Install NotifyHub Plugin
-
-**Prerequisites:**
-- [NotifyHub server](https://github.com/sst/notifyhub) running on localhost:9080
-
-**Installation Steps:**
-
 ```bash
-# Install plugin to OpenCode
+# From the NotifyHub repository root
 make install-plugin
 
-# Start NotifyHub server
-make sv
+# Start the NotifyHub server
+make backend
 
-# Open dashboard to view notifications
+# Open the dashboard
 open http://localhost:9080
 ```
 
+`make install-plugin` copies two files into `~/.config/opencode/plugin/`:
+
+- `notifyhub-plugin.ts` — the OpenCode v2 plugin
+- `notifyhub-push.py` — the NotifyHub CLI entrypoint the plugin spawns
+
+OpenCode watches the plugin directory, so no manual restart is usually needed. Verify the plugin is
+active with:
+
+```bash
+opencode plugin list
+# … "id":"notifyhub","source":{"type":"local",…},"state":{"status":"active"}
+```
+
 **Management:**
-- `make install-plugin` - Install the plugin
-- `make remove-plugin` - Remove the plugin
 
-**Configuration:**
-- Default server: `http://localhost:9080`
-- To use a different port, modify the URL in `notifyhub-plugin.ts`
+- `make install-plugin` — copy the plugin and push script
+- `make install-plugin-symlink` — symlink instead of copy (live edits)
+- `make remove-plugin` — remove the plugin and push script
+- `make check-plugin` — list installed plugin files
 
-**Usage:**
-The plugin automatically activates and sends notifications whenever OpenCode finishes processing a request (when a turn becomes idle). View notifications in the NotifyHub web dashboard.
+**Disabling:** remove the files, or add `"-notifyhub"` to the `plugin` list in `opencode.json`.
 
-**Troubleshooting:**
-- Ensure NotifyHub server is running: `make sv` (from NotifyHub directory)
-- Test server accessibility: `curl http://localhost:9080/api/notifications`
-- Plugin errors are logged to the console
+## Configuration
+
+The plugin reads these environment variables from the OpenCode server process, so set them before
+launching OpenCode:
+
+| Variable                | Default                                      | Purpose                              |
+| ----------------------- | -------------------------------------------- | ------------------------------------ |
+| `NOTIFYHUB_CLI_HOST`    | `0.0.0.0`                                    | NotifyHub host                       |
+| `NOTIFYHUB_CLI_PORT`    | `9080`                                       | NotifyHub port                       |
+| `NOTIFYHUB_PUSH_SCRIPT` | `~/.config/opencode/plugin/notifyhub-push.py` | Override the CLI path (project installs) |
+| `VERBOSE_INT`           | `0`                                          | Forwarded to the NotifyHub CLI       |
 
 ## Development
 
-### Setup
-
 ```bash
-# Install dependencies
+# Install TypeScript types for the v2 plugin API
 npm install
 
-# Verify plugin compiles
-bun run --check notifyhub-plugin.ts
+# Type check the plugin
+npm run typecheck
 ```
 
-### TypeScript Configuration
+`notifyhub-plugin.ts` uses a **type-only** import of `@opencode/plugin`, so the installed file has no
+runtime dependency on `node_modules` and works as a single-file local plugin. The loader only needs
+the default export shape required by OpenCode v2:
 
-The directory includes TypeScript configuration optimized for plugin development:
+```ts
+const plugin: Plugin.Plugin = {
+  id: "notifyhub",
+  setup: async (ctx) => {
+    for await (const event of ctx.event.subscribe({ signal })) { … }
+    return () => controller.abort()
+  },
+}
 
-- `tsconfig.json` - TypeScript compiler options
-- `package.json` - Dependencies including `@opencode-ai/plugin` types
-
-### Testing
-
-```bash
-# Type check with bun (recommended)
-bun run --check notifyhub-plugin.ts
-
-# Type check with tsc
-npx tsc --noEmit notifyhub-plugin.ts
+export default plugin
 ```
 
-## Plugin API
+## v1 → v2 Migration Notes
 
-Plugins are JavaScript/TypeScript modules that export a `Plugin` function. They can hook into various OpenCode events:
+- Plugin packages were renamed: `@opencode-ai/plugin@1.x` → `@opencode/plugin@2.x`.
+- The v1 hooks object (`{ event, "tool.execute.before" }`) was replaced by
+  `{ id, setup }` default exports that register hooks imperatively (`ctx.event.subscribe`,
+  `ctx.tool.hook`, `ctx.permission.hook`, `ctx.session.hook`, …).
+- v1 events were renamed: `session.idle` → `session.execution.succeeded`
+  (`session.idle` is deprecated in v2 but still emitted), `session.error` → `session.execution.failed`,
+  and `question.asked` → `form.created`.
+- `opencode-trace.py` was retired: v2 replaced the `session` / `message` / `part` SQLite tables with
+  `session_v2` / `session_message`, and the notification body is now built in TypeScript through the
+  v2 session API. The old script remains available in git history.
 
-- `session.idle` - Fires when OpenCode finishes processing
-- `file.edited` - Fires when files are modified
-- `tool.execute.*` - Fires during tool execution
+## Troubleshooting
 
-See [OpenCode Plugin Documentation](https://opencode.ai/docs/plugins) for complete API reference.
-
-## Contributing
-
-When adding new plugins:
-
-1. Create your plugin file (`.ts` or `.js`)
-2. Add documentation (`.md`)
-3. Update this README
-4. Test with `bun run --check your-plugin.ts`
+- Ensure the NotifyHub server is running and reachable: `curl http://localhost:9080/api/notifications`
+- Confirm the plugin is loaded: `opencode plugin list`
+- Plugin errors are printed to the OpenCode server's stderr (the push script uses `stdio: "inherit"`)
+- If no notifications arrive, check that `notifyhub-push.py` exists at the configured path and is
+  executable
+- **Duplicate notifications:** the plugin is global, so OpenCode loads one instance per open location
+  and every instance sees the shared event stream. The plugin only notifies for the instance whose
+  `ctx.location.directory` matches the session, so a duplicate usually means a stale instance is still
+  running — restart the service: `opencode service restart`.
+- **Edits not taking effect:** with a symlinked install (`make install-plugin-symlink`) OpenCode's file
+  watcher does not always notice changes to the symlink target. Restart the service, or use
+  `make install-plugin-copy` if you rely on hot-reload.
 
 ## Related
 
-- [OpenCode](https://opencode.ai) - The coding agent these plugins extend
-- [NotifyHub](https://github.com/sst/notifyhub) - Notification system for the NotifyHub plugin
-- [OpenCode Plugin Docs](https://opencode.ai/docs/plugins) - Official plugin documentation</content>
-<parameter name="filePath">src/notifyhub/plugins/opencode/README.md
+- [OpenCode](https://opencode.ai) — the coding agent this plugin extends
+- [NotifyHub](../..) — the notification server
+- [OpenCode v2 plugin guide](../../../../docs/important/opencode-plugin.md) — install, config, gotchas
+- [Migration plan](../../../../docs/plans/2026/09/28/2026-09-28-opencode-v2-plugin-migration.md) — v1 → v2 history
+- [OpenCode Plugin Docs](https://opencode.ai/docs/plugins)
