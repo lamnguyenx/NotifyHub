@@ -122,3 +122,50 @@ it("end goes to last item", async () => {
   await press("END", mockInput, renderOnce)
   renderer.destroy()
 })
+
+// A short viewport keeps the list off the bottom, so the auto-load interval
+// doesn't fire and call counts stay deterministic.
+async function renderWithLoadMore(onLoadMore: () => void, height = 8) {
+  const result = await testRender(
+    <NotificationStream
+      notifications={mockItems}
+      onDelete={() => {}}
+      hasMore
+      onLoadMore={onLoadMore}
+    />,
+    { width: 80, height },
+  )
+  await act(async () => { await result.renderOnce() })
+  return result
+}
+
+it("shows load-older hint when hasMore", async () => {
+  const { captureCharFrame, renderer } = await renderWithLoadMore(() => {}, 24)
+  expect(captureCharFrame()).toContain("load older")
+  renderer.destroy()
+})
+
+it("does not show load-older hint when fully loaded", async () => {
+  const { captureCharFrame, renderer } = await render(mockItems)
+  expect(captureCharFrame()).not.toContain("load older")
+  renderer.destroy()
+})
+
+it("calls onLoadMore on l key when hasMore", async () => {
+  let calls = 0
+  const { mockInput, renderOnce, renderer } = await renderWithLoadMore(() => { calls++ })
+  await press("l", mockInput, renderOnce)
+  expect(calls).toBe(1)
+  renderer.destroy()
+})
+
+it("calls onLoadMore when navigating past the last item in select mode", async () => {
+  let calls = 0
+  const { mockInput, renderOnce, renderer } = await renderWithLoadMore(() => { calls++ })
+  await press("v", mockInput, renderOnce)
+  await press("j", mockInput, renderOnce)
+  await press("j", mockInput, renderOnce)
+  await press("j", mockInput, renderOnce)
+  expect(calls).toBe(1)
+  renderer.destroy()
+})

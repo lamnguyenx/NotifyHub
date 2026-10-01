@@ -30,7 +30,8 @@ class NotificationStore:
 
     def __init__(self, sse_manager=None, max_count=None):
         self.notifications: List[Notification] = []
-        self.max_notifications = max_count if max_count is not None else 1000
+        # None means unlimited; callers (config) supply the default cap (1000).
+        self.max_notifications = max_count
         self.sse_manager = sse_manager
 
     def add(self, data: Notification, custom_id: Optional[str] = None) -> str:

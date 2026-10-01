@@ -10,7 +10,7 @@ import { HelpPopup } from "./components/HelpPopup"
 export function App() {
   const [showStatus, setShowStatus] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const { notifications, serverInfo, handleDelete } = useNotifications()
+  const { notifications, serverInfo, hasMore, loadingMore, handleDelete, loadMore } = useNotifications()
   const renderer = useRenderer()
   const theme = useTheme()
 
@@ -51,6 +51,9 @@ export function App() {
           <NotificationStream
             notifications={notifications}
             onDelete={handleDelete}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
           />
         </ErrorBoundary>
       </box>
@@ -67,6 +70,7 @@ export function App() {
       <box width="100%" height={1} backgroundColor={theme.footerBackground} paddingX={1}>
         <text fg={theme.dim}>
           v:select  |  arrows:scroll  |  s:status  |  h:help  |  q:quit
+          {loadingMore ? "  |  loading older\u2026" : hasMore ? "  |  L:older" : ""}
         </text>
       </box>
     </box>

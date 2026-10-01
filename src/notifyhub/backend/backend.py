@@ -224,16 +224,44 @@ async def notify(request: NotifyRequest):
         return {"error": traceback.format_exc().split("\n")}
 
 
+def _serialize_notification(n: Notification) -> dict:
+    return {
+        "id": n.id,
+        "data": n.model_dump(exclude={"id", "timestamp"}),
+        "timestamp": n.timestamp,
+    }
+
+
 @app.get("/api/notifications")
-async def get_notifications():
-    return [
-        {
-            "id": n.id,
-            "data": n.model_dump(exclude={"id", "timestamp"}),
-            "timestamp": n.timestamp,
-        }
-        for n in store.notifications
-    ]
+async def get_notifications(
+    limit: tp.Optional[int] = None,
+    offset: int = 0,
+    before: tp.Optional[str] = None,
+):
+    """Return notifications (newest-first), optionally paginated.
+
+    - limit: max number of items to return (None = all)
+    - offset: skip the first N items (ignored when `before` is given)
+    - before: return items strictly older than the given notification id.
+      This is a stable cursor: new notifications are prepended, so offset
+      would shift, but `before` stays anchored.
+    """
+    notifications = store.notifications
+
+    if before is not None:
+        idx = next((i for i, n in enumerate(notifications) if n.id == before), None)
+        # Cursor gone (e.g. deleted): return nothing rather than restarting.
+        start = idx + 1 if idx is not None else len(notifications)
+    else:
+        start = max(0, offset)
+
+    end = None if limit is None else start + max(0, limit)
+    return [_serialize_notification(n) for n in notifications[start:end]]
+
+
+@app.get("/api/notifications/count")
+async def get_notifications_count():
+    return {"count": len(store.notifications)}
 
 
 @app.delete("/api/notifications")
@@ -270,21 +298,20 @@ async def delete_notifications(id: tp.Optional[str] = None):
 
 
 @app.get("/events")
-async def events():
-    """SSE endpoint for real-time notifications"""
+async def events(limit: tp.Optional[int] = None):
+    """SSE endpoint for real-time notifications.
+
+    `limit` caps how many notifications the initial `init` event carries.
+    Clients can then page older history via GET /api/notifications. Omitting
+    `limit` preserves the original behavior of sending the whole store.
+    """
     queue = await sse_manager.connect()
 
     async def event_generator():
         try:
             # Send current notifications on connect
-            current_notifications = [
-                {
-                    "id": n.id,
-                    "data": n.model_dump(exclude={"id", "timestamp"}),
-                    "timestamp": n.timestamp,
-                }
-                for n in store.notifications
-            ]
+            initial = store.notifications if limit is None else store.notifications[: max(0, limit)]
+            current_notifications = [_serialize_notification(n) for n in initial]
             yield {"event": "init", "data": json.dumps(current_notifications)}
 
             heartbeat_count = 0

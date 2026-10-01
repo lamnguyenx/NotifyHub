@@ -18,6 +18,7 @@
   - [13. Production Usage](#13-production-usage)
   - [14. Testing Strategy](#14-testing-strategy)
   - [15. CLI Usage](#15-cli-usage)
+  - [16. Terminal UI (TUI)](#16-terminal-ui-tui)
 
 ## 1. What Is This Project?
 
@@ -198,8 +199,9 @@ The project uses **Server-Sent Events (SSE)**, not WebSockets:
 - **Backend** (`backend.py`):
   - `SSEManager` class maintains a list of `asyncio.Queue` connections
   - `connect()` adds a new queue, `disconnect()` removes on close, `broadcast()` sends to all connected clients
-  - The `/events` endpoint returns an `EventSourceResponse` that yields events: `init` (all current notifications), `notification`, `clear`, `delete`, `heartbeat` (every N seconds, configurable), and `shutdown`
+  - The `/events` endpoint returns an `EventSourceResponse` that yields events: `init` (current notifications, capped by the optional `?limit=` query param), `notification`, `clear`, `delete`, `heartbeat` (every N seconds, configurable), and `shutdown`
   - Uses `asyncio.wait_for(queue.get(), timeout=1.0)` for a non-blocking loop with heartbeat counting
+  - `GET /api/notifications` supports pagination via `?limit=`, `?offset=`, and `?before=<id>` (stable cursor for loading older items); `GET /api/notifications/count` returns `{"count": N}` without shipping the full payload. This keeps large histories from being loaded into memory at once.
 
 - **Vite proxy** (`vite.config.js`):
   - `/events` is proxied to `http://localhost:9080` with `ws: true` (WebSocket support in proxy config, though the app uses SSE not WS)
@@ -347,7 +349,7 @@ python -m notifyhub.backend.backend [options]
 | `--backend.port`                    | 9080      | Port to run the server on                                     |
 | `--backend.host`                    | "0.0.0.0" | Host to bind the server to                                    |
 | `--backend.sse-heartbeat-interval`  | 30        | SSE heartbeat interval in seconds                             |
-| `--backend.notifications-max-count` | None      | Maximum number of notifications to store (None for unlimited) |
+| `--backend.notifications-max-count` | 1000      | Maximum number of notifications to store (None for unlimited) |
 
 **Examples:**
 
@@ -591,3 +593,31 @@ NotifyHub provides a CLI for sending notifications:
 ```bash
 python src/notifyhub/cli/cli.py --backend.port 9080 '{"message": "Hello World"}'
 ```
+
+---
+
+## 16. Terminal UI (TUI)
+
+A terminal front-end built with React + `@opentui` lives in `src/notifyhub/tui/`.
+
+```bash
+make tui          # run
+make tui-test     # bun test
+make tui-typecheck
+```
+
+### Paginated loading
+
+The TUI does **not** keep every notification in memory. On startup it opens the SSE
+stream with `?limit=<page size>`, so the `init` event carries only the newest page.
+Scrolling to the bottom (or pressing `l`) lazy-loads older pages via
+`GET /api/notifications?limit=&before=<oldest loaded id>`. The `before` cursor is
+stable even as new notifications arrive, and a short page signals the end of history.
+The 15-second status poll only calls `GET /api/notifications/count`, so it never
+re-downloads the full list.
+
+| Env var | Default | Description |
+| ------- | ------- | ----------- |
+| `NOTIFYHUB_CLI_HOST` | `localhost` | Backend host |
+| `NOTIFYHUB_CLI_PORT` | `9080` | Backend port |
+| `NOTIFYHUB_TUI_PAGE_SIZE` | `30` | Notifications loaded per page (`init` + each lazy load) |

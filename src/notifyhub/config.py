@@ -13,7 +13,7 @@ class NotifyHubBackendConfig(pdt.BaseModel):
         30, description="SSE heartbeat interval in seconds"
     )
     notifications_max_count: tp.Optional[int] = pdt.Field(
-        None,
+        1000,
         description="Maximum number of notifications to store (None for unlimited)",
     )
     telegram_chat_id: str = pdt.Field(

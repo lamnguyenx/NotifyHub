@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useKeyboard } from "@opentui/react"
+import type { ScrollBoxRenderable } from "@opentui/core"
 import { useTheme } from "../theme"
 import type { NotificationItem } from "../types"
 import { NotificationRow } from "./NotificationRow"
@@ -17,14 +18,18 @@ const SOUND_PATH = (() => {
 interface Props {
   notifications: NotificationItem[]
   onDelete: (id: string) => void
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
 }
 
-export function NotificationStream({ notifications, onDelete }: Props) {
+export function NotificationStream({ notifications, onDelete, hasMore, loadingMore, onLoadMore }: Props) {
   const [selectedIdx, setSelectedIdx] = useState(-1)
   const [selectMode, setSelectMode] = useState(false)
   const now = useNow()
   const playSound = useNotificationSound(SOUND_PATH)
   const prevCountRef = useRef(notifications.length)
+  const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const theme = useTheme()
 
   useEffect(() => {
@@ -33,6 +38,23 @@ export function NotificationStream({ notifications, onDelete }: Props) {
     }
     prevCountRef.current = notifications.length
   }, [notifications.length])
+
+  // Auto-load older notifications when the viewport reaches the bottom.
+  // ScrollBox has no scroll event in the React bindings, so poll lightly.
+  useEffect(() => {
+    if (!hasMore || loadingMore || !onLoadMore) return
+    const id = setInterval(() => {
+      const sb = scrollRef.current
+      if (!sb) return
+      const scrollTop = sb.scrollTop ?? 0
+      const scrollHeight = sb.scrollHeight ?? 0
+      const viewportHeight = sb.viewport?.height ?? 0
+      if (scrollHeight > 0 && scrollTop + viewportHeight >= scrollHeight - 2) {
+        onLoadMore()
+      }
+    }, 200)
+    return () => clearInterval(id)
+  }, [hasMore, loadingMore, onLoadMore])
 
   useKeyboard((key) => {
     if (key.name === "v") {
@@ -43,14 +65,21 @@ export function NotificationStream({ notifications, onDelete }: Props) {
       return
     }
 
+    if (key.name === "l") {
+      if (hasMore && !loadingMore) onLoadMore?.()
+      return
+    }
+
     if (!selectMode) return
 
     if (key.name === "down" || key.name === "j") {
-      setSelectedIdx((prev) => {
-        if (notifications.length === 0) return -1
-        const idx = prev < 0 ? 0 : prev
-        return Math.min(idx + 1, notifications.length - 1)
-      })
+      if (notifications.length === 0) {
+        setSelectedIdx(-1)
+        return
+      }
+      const idx = selectedIdx < 0 ? 0 : selectedIdx
+      if (idx >= notifications.length - 1 && hasMore) onLoadMore?.()
+      setSelectedIdx(Math.min(idx + 1, notifications.length - 1))
     } else if (key.name === "up" || key.name === "k") {
       setSelectedIdx((prev) => {
         if (notifications.length === 0) return -1
@@ -86,6 +115,7 @@ export function NotificationStream({ notifications, onDelete }: Props) {
 
   return (
     <scrollbox
+      ref={scrollRef}
       focused
       stickyScroll
       stickyStart="top"
@@ -106,6 +136,13 @@ export function NotificationStream({ notifications, onDelete }: Props) {
         notifications.map((n, i) => (
           <NotificationRow key={n.id} item={n} selected={i === selectedIdx} now={now} />
         ))
+      )}
+      {hasMore && (
+        <box width="100%" height={1} paddingX={1}>
+          <text fg={theme.dim}>
+            {loadingMore ? "Loading older notifications\u2026" : "\u2193 scroll down (or press L) to load older"}
+          </text>
+        </box>
       )}
     </scrollbox>
   )
