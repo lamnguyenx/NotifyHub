@@ -1,4 +1,5 @@
 import pytest
+import pydantic as pdt
 import os
 import tempfile
 import json
@@ -229,3 +230,47 @@ class TestDirectAttributeAssignment:
 
         backend_config.notifications_max_count = None
         assert backend_config.notifications_max_count is None
+
+
+class TestCliEnabled:
+    """cli.enabled parsing via booleanify (exported-empty means default/enabled)."""
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            ("1", True),
+            ("on", True),
+            ("t", True),
+            ("true", True),
+            ("y", True),
+            ("yes", True),
+            ("T", True),
+            (" YES ", True),
+            ("0", False),
+            ("off", False),
+            ("f", False),
+            ("false", False),
+            ("n", False),
+            ("no", False),
+            (True, True),
+            (False, False),
+        ],
+    )
+    def test_booleanify_string_table(self, value, expected):
+        assert config.NotifyHubCliConfig(enabled=value).enabled is expected
+
+    @pytest.mark.parametrize("value", ["", " ", "\t"])
+    def test_empty_string_means_default_enabled(self, value):
+        assert config.NotifyHubCliConfig(enabled=value).enabled is True
+
+    def test_unparseable_string_raises_validation_error(self):
+        with pytest.raises(pdt.ValidationError):
+            config.NotifyHubCliConfig(enabled="banana")
+
+    def test_env_var_routes_through_validator(self):
+        with patch.dict(os.environ, {"NOTIFYHUB_CLI_ENABLED": "no"}):
+            result = confstackify(config.NotifyHubConfig, APP_NAME)
+            assert result.cli.enabled is False
+
+    def test_default_enabled(self):
+        assert config.NotifyHubCliConfig().enabled is True

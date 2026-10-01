@@ -12,6 +12,35 @@ const MAX_LINES = 5
 const MAX_CHARS = 200
 const MAX_CHARS_TOLERANCE = 8
 
+// Mirrors python booleanify (github.com/lamnguyenx/booleanify) — the same truth table
+// the NotifyHub CLI uses for NOTIFYHUB_CLI_ENABLED. `undefined` = unset, empty, or
+// unparseable; the CLI remains the authority in those cases.
+const BOOL_TRUE = new Set(["1", "on", "t", "true", "y", "yes"])
+const BOOL_FALSE = new Set(["0", "off", "f", "false", "n", "no"])
+
+function booleanify(value: string | undefined): boolean | undefined {
+  if (value === undefined) return undefined
+  const v = value.trim().toLowerCase()
+  if (BOOL_TRUE.has(v)) return true
+  if (BOOL_FALSE.has(v)) return false
+  return undefined
+}
+
+function exportedEmpty(name: string): boolean {
+  const value = process.env[name]
+  return value !== undefined && value.trim() === ""
+}
+
+/**
+ * True when notifications are muted: NOTIFYHUB_CLI_ENABLED resolves to an explicit
+ * false, or host/port was exported as an empty string. Skipping the spawn saves a
+ * python process start; the CLI applies the same rules when invoked directly.
+ */
+function notificationsMuted(): boolean {
+  if (booleanify(process.env.NOTIFYHUB_CLI_ENABLED) === false) return true
+  return exportedEmpty("NOTIFYHUB_CLI_HOST") || exportedEmpty("NOTIFYHUB_CLI_PORT")
+}
+
 function existingDirectory(path?: string): string | undefined {
   if (!path) return undefined
   try {
@@ -45,6 +74,7 @@ async function ownedSessionDirectory(ctx: PluginContext, sessionID: string): Pro
 }
 
 function notifyhubPush(message: string, directory?: string): void {
+  if (notificationsMuted()) return
   const notifyhubPush =
     process.env.NOTIFYHUB_PUSH_SCRIPT ?? join(homedir(), ".config", "opencode", "plugin", "notifyhub-push.py")
   // The push script reports its own os.getcwd() as the notification "pwd". Without an explicit

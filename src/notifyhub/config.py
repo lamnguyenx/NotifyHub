@@ -3,6 +3,8 @@ from __future__ import annotations
 import pydantic as pdt
 import typing as tp
 
+from booleanify import booleanify
+
 
 class NotifyHubBackendConfig(pdt.BaseModel):
     model_config = pdt.ConfigDict(validate_assignment=True)
@@ -55,6 +57,23 @@ class NotifyHubCliConfig(pdt.BaseModel):
     proxy: str = ""
     verbose: bool = False
     message: str = ""
+    enabled: bool = True
+
+    @pdt.field_validator("enabled", mode="before")
+    @classmethod
+    def _parse_enabled(cls, value: tp.Any) -> tp.Any:
+        # Exported-empty (NOTIFYHUB_CLI_ENABLED="") means "unset" → default (enabled);
+        # everything else must be booleanify-compatible ("t", "yes", "0", …).
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return True
+            if stripped == "0":
+                # booleanify's README documents '0' → False but its table only maps
+                # the integer 0 (upstream gap), so normalize it here.
+                return False
+            return booleanify(stripped)
+        return value
 
     @pdt.computed_field
     @property

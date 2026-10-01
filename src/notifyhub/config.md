@@ -1,12 +1,12 @@
-# NotifyHub Config Mappings
+# notifyhub Config Mappings
 
 <table>
   <thead>
     <tr>
-      <th>Config / CLI Args</th>
+      <th>Config Path</th>
       <th>Default Value</th>
-      <th>Lowercase Dotted Envs.</th>
-      <th>Uppercase Underscored Envs.</th>
+      <th>Lowercase Dotted Env.</th>
+      <th>Uppercase Underscored Env.</th>
     </tr>
   </thead>
   <tbody>
@@ -35,6 +35,48 @@
       <td>NOTIFYHUB_BACKEND_NOTIFICATIONS_MAX_COUNT</td>
     </tr>
     <tr>
+      <td>backend.telegram_chat_id</td>
+      <td>&#34;&#34;</td>
+      <td>notifyhub.backend.telegram_chat_id</td>
+      <td>NOTIFYHUB_BACKEND_TELEGRAM_CHAT_ID</td>
+    </tr>
+    <tr>
+      <td>backend.telegram_group_chat_id</td>
+      <td>&#34;&#34;</td>
+      <td>notifyhub.backend.telegram_group_chat_id</td>
+      <td>NOTIFYHUB_BACKEND_TELEGRAM_GROUP_CHAT_ID</td>
+    </tr>
+    <tr>
+      <td>backend.telegram_notify_tags</td>
+      <td>[]</td>
+      <td>notifyhub.backend.telegram_notify_tags</td>
+      <td>NOTIFYHUB_BACKEND_TELEGRAM_NOTIFY_TAGS</td>
+    </tr>
+    <tr>
+      <td>backend.macos_notifications_enabled</td>
+      <td>True</td>
+      <td>notifyhub.backend.macos_notifications_enabled</td>
+      <td>NOTIFYHUB_BACKEND_MACOS_NOTIFICATIONS_ENABLED</td>
+    </tr>
+    <tr>
+      <td>backend.bark_device_key</td>
+      <td>&#34;&#34;</td>
+      <td>notifyhub.backend.bark_device_key</td>
+      <td>NOTIFYHUB_BACKEND_BARK_DEVICE_KEY</td>
+    </tr>
+    <tr>
+      <td>backend.bark_notify_tags</td>
+      <td>[]</td>
+      <td>notifyhub.backend.bark_notify_tags</td>
+      <td>NOTIFYHUB_BACKEND_BARK_NOTIFY_TAGS</td>
+    </tr>
+    <tr>
+      <td>backend.dev_reload</td>
+      <td>False</td>
+      <td>notifyhub.backend.dev_reload</td>
+      <td>NOTIFYHUB_BACKEND_DEV_RELOAD</td>
+    </tr>
+    <tr>
       <td>cli.host</td>
       <td>&#34;0.0.0.0&#34;</td>
       <td>notifyhub.cli.host</td>
@@ -54,9 +96,21 @@
     </tr>
     <tr>
       <td>cli.verbose</td>
-       <td>False</td>
+      <td>False</td>
       <td>notifyhub.cli.verbose</td>
       <td>NOTIFYHUB_CLI_VERBOSE</td>
+    </tr>
+    <tr>
+      <td>cli.message</td>
+      <td>&#34;&#34;</td>
+      <td>notifyhub.cli.message</td>
+      <td>NOTIFYHUB_CLI_MESSAGE</td>
+    </tr>
+    <tr>
+      <td>cli.enabled</td>
+      <td>True</td>
+      <td>notifyhub.cli.enabled</td>
+      <td>NOTIFYHUB_CLI_ENABLED</td>
     </tr>
   </tbody>
 </table>

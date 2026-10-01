@@ -57,8 +57,15 @@ OpenCode:
 |---|---|---|
 | `NOTIFYHUB_CLI_HOST` | `0.0.0.0` | NotifyHub host |
 | `NOTIFYHUB_CLI_PORT` | `9080` | NotifyHub port |
+| `NOTIFYHUB_CLI_ENABLED` | `true` | `false`/`0`/`off`/`no`/… mutes all notifications |
 | `NOTIFYHUB_PUSH_SCRIPT` | `~/.config/opencode/plugin/notifyhub-push.py` | Override the CLI path (project-level installs, tests) |
 | `VERBOSE_INT` | `0` | Forwarded to the NotifyHub CLI |
+
+Muting: `NOTIFYHUB_CLI_ENABLED=false` — or exporting `NOTIFYHUB_CLI_HOST`/`NOTIFYHUB_CLI_PORT` as
+empty strings — skips the push-script spawn entirely; the CLI applies the same rules when invoked
+directly and exits `0` silently. Values are parsed with
+[booleanify](https://github.com/lamnguyenx/booleanify); empty means enabled, and an unparseable
+value exits `1` with a clean `✗ Invalid config` message.
 
 ## Development loop
 

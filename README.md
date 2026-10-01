@@ -322,7 +322,7 @@ make remove-plugin    # uninstall
 
 The plugin is a **dependency-free single file** (type-only import of `@opencode/plugin`, so no
 `node_modules` is needed in `~/.config/opencode`), hot-reloads when the installed file changes, and reads
-`NOTIFYHUB_CLI_HOST`, `NOTIFYHUB_CLI_PORT`, and `NOTIFYHUB_PUSH_SCRIPT`. Development happens in
+`NOTIFYHUB_CLI_HOST`, `NOTIFYHUB_CLI_PORT`, `NOTIFYHUB_CLI_ENABLED`, and `NOTIFYHUB_PUSH_SCRIPT`. Development happens in
 `src/notifyhub/plugins/opencode/`:
 
 ```bash
@@ -620,4 +620,5 @@ re-downloads the full list.
 | ------- | ------- | ----------- |
 | `NOTIFYHUB_CLI_HOST` | `localhost` | Backend host |
 | `NOTIFYHUB_CLI_PORT` | `9080` | Backend port |
+| `NOTIFYHUB_CLI_ENABLED` | `true` | Parsed via `booleanify` (`1/on/t/true/y/yes` ↔ `0/off/f/false/n/no`); `false` mutes sends. Exporting `NOTIFYHUB_CLI_HOST` or `NOTIFYHUB_CLI_PORT` as an empty string also mutes — the CLI and plugin exit silently |
 | `NOTIFYHUB_TUI_PAGE_SIZE` | `30` | Notifications loaded per page (`init` + each lazy load) |
