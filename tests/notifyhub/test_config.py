@@ -274,3 +274,47 @@ class TestCliEnabled:
 
     def test_default_enabled(self):
         assert config.NotifyHubCliConfig().enabled is True
+
+
+class TestPluginsOpencodeMutedAgents:
+    """plugins.opencode.muted_agents lists agent names whose sessions stay silent."""
+
+    def test_default_is_empty_agent(self):
+        assert config.NotifyHubConfig().plugins.opencode.muted_agents == ["empty"]
+
+    def test_config_file_list_is_loaded(self):
+        config_data = {"plugins": {"opencode": {"muted_agents": ["empty", "bench"]}}}
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(config_data, f)
+            config_file = f.name
+
+        try:
+            result = confstackify(
+                config.NotifyHubConfig, APP_NAME, config_file=config_file
+            )
+            assert result.plugins.opencode.muted_agents == ["empty", "bench"]
+        finally:
+            os.unlink(config_file)
+
+    def test_explicit_empty_list_disables_muting(self):
+        config_data = {"plugins": {"opencode": {"muted_agents": []}}}
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(config_data, f)
+            config_file = f.name
+
+        try:
+            result = confstackify(
+                config.NotifyHubConfig, APP_NAME, config_file=config_file
+            )
+            assert result.plugins.opencode.muted_agents == []
+        finally:
+            os.unlink(config_file)
+
+    def test_env_var_accepts_comma_separated_string(self):
+        with patch.dict(
+            os.environ, {"NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS": "bench, other"}
+        ):
+            result = confstackify(config.NotifyHubConfig, APP_NAME)
+            assert result.plugins.opencode.muted_agents == ["bench", "other"]

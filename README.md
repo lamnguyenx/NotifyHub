@@ -322,8 +322,9 @@ make remove-plugin    # uninstall
 
 The plugin is a **dependency-free single file** (type-only import of `@opencode/plugin`, so no
 `node_modules` is needed in `~/.config/opencode`), hot-reloads when the installed file changes, and reads
-`NOTIFYHUB_CLI_HOST`, `NOTIFYHUB_CLI_PORT`, `NOTIFYHUB_CLI_ENABLED`, and `NOTIFYHUB_PUSH_SCRIPT`. Development happens in
-`src/notifyhub/plugins/opencode/`:
+`NOTIFYHUB_CLI_HOST`, `NOTIFYHUB_CLI_PORT`, `NOTIFYHUB_CLI_ENABLED`, and `NOTIFYHUB_PUSH_SCRIPT`. It also
+mutes specific agents via `plugins.opencode.muted_agents` in the NotifyHub config (or the comma-separated
+`NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS`). Development happens in `src/notifyhub/plugins/opencode/`:
 
 ```bash
 make plugin-deps      # npm install (types for the v2 plugin API)

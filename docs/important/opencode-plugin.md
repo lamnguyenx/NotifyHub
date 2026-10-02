@@ -61,6 +61,27 @@ OpenCode:
 | `NOTIFYHUB_PUSH_SCRIPT` | `~/.config/opencode/plugin/notifyhub-push.py` | Override the CLI path (project-level installs, tests) |
 | `VERBOSE_INT` | `0` | Forwarded to the NotifyHub CLI |
 
+### Muting specific agents
+
+Sessions whose OpenCode agent is listed in `plugins.opencode.muted_agents` never notify. The plugin
+reads the list live from the NotifyHub config (`~/.config/notifyhub/config.json` or `config.jsonl`,
+comments allowed); `NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS` (comma-separated) overrides the file,
+mirroring confstack's file-then-env layering. The default is `["empty"]` — the `empty` agent is the
+raw model-completion endpoint the Midscene AndroidWorld benchmark uses for every call, so its turns
+would otherwise notify while real chats sharing the same server still do.
+
+```json
+{
+  "plugins": {
+    "opencode": {
+      "muted_agents": ["empty"]
+    }
+  }
+}
+```
+
+Set `"muted_agents": []` to notify for every agent.
+
 Muting: `NOTIFYHUB_CLI_ENABLED=false` — or exporting `NOTIFYHUB_CLI_HOST`/`NOTIFYHUB_CLI_PORT` as
 empty strings — skips the push-script spawn entirely; the CLI applies the same rules when invoked
 directly and exits `0` silently. Values are parsed with

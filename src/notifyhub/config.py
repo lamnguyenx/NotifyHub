@@ -90,9 +90,42 @@ class NotifyHubCliConfig(pdt.BaseModel):
         return sys.stdin.read().strip() or "HOST_ID (opencode)"
 
 
+class NotifyHubOpencodePluginConfig(pdt.BaseModel):
+    model_config = pdt.ConfigDict(validate_assignment=True)
+
+    muted_agents: tp.List[str] = pdt.Field(
+        default_factory=lambda: ["empty"],
+        description=(
+            "OpenCode agent names whose sessions never send notifications "
+            "(e.g. the Midscene AndroidWorld benchmark uses the 'empty' agent "
+            "for raw model calls); empty = notify for every agent"
+        ),
+    )
+
+    @pdt.field_validator("muted_agents", mode="before")
+    @classmethod
+    def _parse_muted_agents(cls, value: tp.Any) -> tp.Any:
+        # Accept a comma-separated env var (NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS);
+        # confstack passes env values as raw strings, unlike file/CLI lists.
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+
+class NotifyHubPluginsConfig(pdt.BaseModel):
+    model_config = pdt.ConfigDict(validate_assignment=True)
+
+    opencode: NotifyHubOpencodePluginConfig = pdt.Field(
+        default_factory=NotifyHubOpencodePluginConfig
+    )
+
+
 class NotifyHubConfig(pdt.BaseModel):
 
     backend: NotifyHubBackendConfig = pdt.Field(
         default_factory=lambda: NotifyHubBackendConfig()
     )
     cli: NotifyHubCliConfig = pdt.Field(default_factory=lambda: NotifyHubCliConfig())
+    plugins: NotifyHubPluginsConfig = pdt.Field(
+        default_factory=NotifyHubPluginsConfig
+    )
