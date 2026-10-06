@@ -18,6 +18,7 @@
   - [13. Production Usage](#13-production-usage)
   - [14. Testing Strategy](#14-testing-strategy)
   - [15. CLI Usage](#15-cli-usage)
+  - [16. Terminal UI (TUI)](#16-terminal-ui-tui)
 
 ## 1. What Is This Project?
 
@@ -66,6 +67,7 @@ graph LR
 | Layer | Technology |
 |---|---|
 | **Backend** | Python 3 + FastAPI + Uvicorn + Pydantic |
+| **Crypto** | `cryptography` (AES-256-GCM) on the server; WebCrypto in the TUI |
 | **Frontend** | React 18, TypeScript |
 | **Styling** | Mantine v8 (UI components), PostCSS + Autoprefixer, custom CSS |
 | **Build / Package Manager** | **Bun** (package manager and runtime for `bun run dev`), **Vite 5** (bundler) |
@@ -96,19 +98,18 @@ NotifyHub/
 │   ├── plans/
 │   ├── issues/
 │   └── refs/
+├── tests/                            # pytest suites (tests/notifyhub/...)
 ├── local/                            # Shell scripts (e.g., noti.sh)
 ├── exp/                              # Experimental / scratch space
 └── src/
     └── notifyhub/
         ├── __init__.py
         ├── config.py                 # Pydantic config models (loaded via confstackify)
+        ├── crypto.py                 # AES-256-GCM envelope crypto + key resolution
         ├── telegram.py               # Telegram bot integration
         ├── backend/
         │   ├── backend.py            # FastAPI app, SSE, API routes, server entrypoint
-        │   ├── models.py             # Notification Pydantic model + NotificationStore
-        │   └── __tests__/
-        │       ├── test_models.py    # Unit tests for NotificationStore
-        │       └── test_server.py    # API integration tests via TestClient
+        │   └── models.py             # Notification record + NotificationStore
         ├── cli/
         │   ├── cli.py                # CLI tool to push notifications
         │   └── __tests__/
@@ -121,7 +122,7 @@ NotifyHub/
         │       ├── types.ts
         │       ├── components/
         │       ├── hooks/
-        │       └── utils/
+        │       └── utils/                # api.ts, crypto.ts (e2e decrypt)
         ├── plugins/
         │   └── opencode/             # OpenCode v2 integration plugin
         │       ├── notifyhub-plugin.ts
@@ -198,8 +199,9 @@ The project uses **Server-Sent Events (SSE)**, not WebSockets:
 - **Backend** (`backend.py`):
   - `SSEManager` class maintains a list of `asyncio.Queue` connections
   - `connect()` adds a new queue, `disconnect()` removes on close, `broadcast()` sends to all connected clients
-  - The `/events` endpoint returns an `EventSourceResponse` that yields events: `init` (all current notifications), `notification`, `clear`, `delete`, `heartbeat` (every N seconds, configurable), and `shutdown`
+  - The `/events` endpoint returns an `EventSourceResponse` that yields events: `init` (current notifications, capped by the optional `?limit=` query param), `notification`, `clear`, `delete`, `heartbeat` (every N seconds, configurable), and `shutdown`
   - Uses `asyncio.wait_for(queue.get(), timeout=1.0)` for a non-blocking loop with heartbeat counting
+  - `GET /api/notifications` supports pagination via `?limit=`, `?offset=`, and `?before=<id>` (stable cursor for loading older items); `GET /api/notifications/count` returns `{"count": N}` without shipping the full payload. This keeps large histories from being loaded into memory at once.
 
 - **Vite proxy** (`vite.config.js`):
   - `/events` is proxied to `http://localhost:9080` with `ws: true` (WebSocket support in proxy config, though the app uses SSE not WS)
@@ -229,11 +231,12 @@ The project uses **Server-Sent Events (SSE)**, not WebSockets:
 ## 8. Testing Setup
 
 **Backend Tests** (pytest):
-- Located at `src/notifyhub/backend/__tests__/`
+- Located at `tests/notifyhub/` (`backend/`, `cli/`, `test_config.py`)
 - Uses `pytest`, `pytest-asyncio`, `httpx`, and FastAPI's `TestClient`
-- `test_models.py`: 7 test methods covering `NotificationStore` initialization, add, order, max limit, edge cases, delete by ID (existing, nonexistent, empty)
-- `test_server.py`: 10 test methods across 4 classes covering REST API endpoints (`POST /api/notify`, `GET /api/notifications`, `DELETE /api/notifications`, `GET /`), including success, empty, order, individual deletion, non-existent deletion
-- Run with: `make test-backend` → `python -m pytest src/notifyhub/backend/__tests__/ -v`
+- `backend/test_models.py`: `NotificationStore` initialization, add, order, max limit, delete by ID, opaque `data`
+- `backend/test_server.py`: REST endpoints plus `TestE2EEncryption` (plaintext→envelope storage, wrong-key rejection, `/api/e2e`)
+- `backend/test_crypto.py`: envelope round-trip, tamper/wrong-key rejection, key resolution, `--status`
+- Run with: `make test-backend` → `python -m pytest tests/notifyhub -v`
 
 **Frontend E2E Tests** (Playwright):
 - Located at `src/notifyhub/frontend/__tests__/`
@@ -298,6 +301,25 @@ make frontend-deps
 make frontend
 ```
 
+### E2E Encryption (Optional)
+
+To encrypt payloads at rest / in transit (server decrypts for push, stores and
+serves only ciphertext; the TUI decrypts locally):
+
+```bash
+make e2e-status    # show the resolved key source + kid (never prints the key)
+make e2e-key       # fallback: generate a standalone ~/.config/notifyhub/e2e.key
+```
+
+Then add the key next to your other settings in `~/.config/notifyhub/config.jsonl`:
+
+```jsonc
+"e2e": { "enabled": true, "key": "YOUR_KEY" }
+```
+
+Both the server and the TUI read it from there (`NOTIFYHUB_E2E_KEY` env
+overrides). See [Backend Configuration](#11-backend-configuration) for details.
+
 ### OpenCode Plugin Installation (Optional)
 
 The repo ships a plugin for **OpenCode v2.0.18+** that pushes turn completions, errors, permission prompts,
@@ -347,7 +369,7 @@ python -m notifyhub.backend.backend [options]
 | `--backend.port`                    | 9080      | Port to run the server on                                     |
 | `--backend.host`                    | "0.0.0.0" | Host to bind the server to                                    |
 | `--backend.sse-heartbeat-interval`  | 30        | SSE heartbeat interval in seconds                             |
-| `--backend.notifications-max-count` | None      | Maximum number of notifications to store (None for unlimited) |
+| `--backend.notifications-max-count` | 1000      | Maximum number of notifications to store (None for unlimited) |
 
 **Examples:**
 
@@ -361,7 +383,7 @@ python -m notifyhub.backend.backend --backend.notifications-max-count 100 --back
 
 ### Configuration File
 
-For persistent configuration, create a JSON file at `~/.config/notifyhub/config.json`:
+For persistent configuration, create a JSON file at `~/.config/notifyhub/config.json` (or `config.jsonl` for JSON5 with `//` comments, which is what the host uses):
 
 ```json
 {
@@ -379,10 +401,52 @@ For persistent configuration, create a JSON file at `~/.config/notifyhub/config.
 3. CLI arguments (highest priority)
 
 **Example config location:**
-- macOS/Linux: `~/.config/notifyhub/config.json`
+- macOS/Linux: `~/.config/notifyhub/config.json` (or `config.jsonl`)
 - Copy from: `src/notifyhub/example_config.json`
 
 ---
+
+`pip install -e .` copies the package; the Docker image installs the same way, so `docker compose build be` picks up the `cryptography` dependency automatically.
+
+### End-to-end payload encryption (backend + TUI)
+
+When enabled, notification payloads are stored and served as **AES-256-GCM
+envelopes** — the server decrypts only at ingest (so tag matching and
+Telegram/Bark/macOS push keep working), then stores/broadcasts ciphertext
+only. Consumers (the TUI) decrypt locally with the same pre-shared key.
+
+```json
+{
+  "backend": { ... },
+  "e2e": { "enabled": true, "key": "" }
+}
+```
+
+- **Key** (base64 or 64-char hex, 256-bit). For a consolidated setup keep it in
+  `config.jsonl` under `e2e.key`; it is resolved in order:
+  1. `e2e.key` config value (config file / `NOTIFYHUB_E2E_KEY` env) — **server**
+  2. `NOTIFYHUB_E2E_KEY` env → `config.jsonl` `e2e.key` — **TUI**
+  3. key file: `NOTIFYHUB_E2E_KEY_FILE` or `~/.config/notifyhub/e2e.key`
+  4. keychain (macOS `security` / `secret-tool`, service `notifyhub_e2e_key`) — server only
+- Generate one: `python -m notifyhub.crypto --gen-key`, or
+  `python -m notifyhub.crypto --gen-key --write-default` to write a standalone
+  `~/.config/notifyhub/e2e.key`. Check the resolved source with `make e2e-status`
+  (prints the `kid`, never the key). ⚠️ an **empty** `NOTIFYHUB_E2E_KEY` still
+  overrides the config — only set it non-empty to override.
+- The TUI reads the same sources (env → `config.jsonl` → key file), so a key in
+  `config.jsonl` lets `make tui` decrypt with no env var. In Docker,
+  `~/.config/notifyhub` and `~/git` (read-only) are mounted, so the
+  `config.jsonl` symlink resolves inside the container.
+- Inbound accepts both plaintext (server encrypts it) and pre-encrypted
+  envelopes (`{"e2e":1,"alg":"A256GCM","kid",…,"iv",…,"ct",…}`).
+- `GET /api/e2e` reports `{"enabled", "alg", "kid"}` for clients.
+- **TUI**: reads the key from `config.jsonl` (or `NOTIFYHUB_E2E_KEY` / a key
+  file); undecryptable items render as a `LOCKED` row showing the envelope `kid`,
+  and the status popup (`s`) shows server e2e state, local key state, and locked count.
+- If `e2e.enabled` is true but no key resolves, the server logs a warning
+  and falls back to plaintext (fails safe for availability).
+- Note: the **web frontend does not decrypt** (out of scope) — with e2e on,
+  use the TUI to read notifications.
 
 ## 12. Frontend Loading Modes
 
@@ -554,11 +618,12 @@ src/notifyhub/frontend/__tests__/
 │   └── test_chrome_connection.ts
 └── tsconfig.json           # TypeScript configuration
 
-src/notifyhub/backend/__tests__/
+tests/notifyhub/backend/
 ├── test_models.py          # Model tests
-└── test_server.py         # Server tests
+├── test_server.py         # Server/API tests (+ TestE2EEncryption)
+└── test_crypto.py         # Envelope crypto + key resolution
 
-src/notifyhub/cli/__tests__/
+tests/notifyhub/cli/
 └── test_cli.py             # CLI tests
 ```
 
@@ -591,3 +656,39 @@ NotifyHub provides a CLI for sending notifications:
 ```bash
 python src/notifyhub/cli/cli.py --backend.port 9080 '{"message": "Hello World"}'
 ```
+
+---
+
+## 16. Terminal UI (TUI)
+
+A terminal front-end built with React + `@opentui` lives in `src/notifyhub/tui/`.
+
+```bash
+make tui          # run
+make tui-test     # bun test
+make tui-typecheck
+```
+
+With e2e encryption enabled, the TUI prints the key source on startup
+(`make tui` → `e2e key: config e2e.key (kid …)`) and decrypts automatically using
+the key from `~/.config/notifyhub/config.jsonl` (or `NOTIFYHUB_E2E_KEY` / a key
+file). Rows it cannot decrypt render as `LOCKED`.
+
+### Paginated loading
+
+The TUI does **not** keep every notification in memory. On startup it opens the SSE
+stream with `?limit=<page size>`, so the `init` event carries only the newest page.
+Scrolling to the bottom (or pressing `l`) lazy-loads older pages via
+`GET /api/notifications?limit=&before=<oldest loaded id>`. The `before` cursor is
+stable even as new notifications arrive, and a short page signals the end of history.
+The 15-second status poll only calls `GET /api/notifications/count`, so it never
+re-downloads the full list.
+
+| Env var | Default | Description |
+| ------- | ------- | ----------- |
+| `NOTIFYHUB_CLI_HOST` | `localhost` | Backend host |
+| `NOTIFYHUB_CLI_PORT` | `9080` | Backend port |
+| `NOTIFYHUB_TUI_PAGE_SIZE` | `30` | Notifications loaded per page (`init` + each lazy load) |
+| `NOTIFYHUB_E2E_KEY` | _(unset)_ | AES-256-GCM key (base64/hex) to decrypt e2e envelopes; overrides config/key file |
+| `NOTIFYHUB_CONFIG` | `~/.config/notifyhub/config.jsonl` | Config file to read `e2e.key` from (JSON5) |
+| `NOTIFYHUB_E2E_KEY_FILE` | `~/.config/notifyhub/e2e.key` | Key-file fallback when env/config are unset |

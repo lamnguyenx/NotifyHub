@@ -300,6 +300,41 @@ it("truncates long strings", () => {
 
 Run with: `bun test` or `make tt` from repo root.
 
+## Testing E2E crypto
+
+`utils/crypto.ts` is pure/async and needs no renderer. Prefer the deterministic
+**fixture** pattern over round-tripping through the module:
+
+```ts
+import { decryptEnvelope, importKey, resetE2EKeyForTests, setE2EKeyForTests } from "../utils/crypto"
+
+const FIXTURE_KEY_B64 = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+const FIXTURE_IV_B64 = "AAECAwQFBgcICQoL"
+const FIXTURE_CT_B64 = "..."  // produced by Python's AESGCM
+
+it("decrypts the Python-encrypted fixture", async () => {
+  const key = await importKey(FIXTURE_KEY_B64)
+  const payload = await decryptEnvelope(
+    { e2e: 1, alg: "A256GCM", iv: FIXTURE_IV_B64, ct: FIXTURE_CT_B64 },
+    key,
+  )
+  expect(payload).toEqual({ message: "...", pwd: "/tmp/fixture" })
+})
+```
+
+The **same fixture constants are asserted by `tests/notifyhub/backend/test_crypto.py`**,
+which pins Python-encrypt ⟷ JS-decrypt compatibility. If you change the envelope
+format, AAD (`"notifyhub:v1"`), or key encoding, regenerate the fixture and
+update both suites.
+
+Key resolution hooks:
+
+- `setE2EKeyForTests(b64)` — force a key; `setE2EKeyForTests(null)` — force "no key".
+- `resetE2EKeyForTests()` — drop the override so env/file resolution applies.
+- To test file resolution, point `NOTIFYHUB_E2E_KEY_FILE` at a temp file written
+  with `bun`'s `node:fs`, then `resetE2EKeyForTests()` and assert
+  `decryptItem(...).locked`.
+
 ## Testing components that call `fetch` (e.g. `App`)
 
 Components using `useNotifications()` (or any hook that calls `fetch`) will connect to the real backend during tests. If the backend is running, the test frame gets populated with real data instead of the expected empty state.
@@ -314,6 +349,7 @@ const originalFetch = globalThis.fetch
 beforeAll(() => {
   globalThis.fetch = async (url) => {
     if (url.includes("/api/notifications")) return new Response("[]", { status: 200 })
+    if (url.includes("/api/e2e")) return new Response('{"enabled":false,"alg":null,"kid":null}', { status: 200 })
     if (url.includes("/events")) return new Response(null, { status: 200 })
     return new Response("", { status: 404 })
   }
@@ -401,7 +437,8 @@ The mixing helper (`mixHex`, `getHostModelTagColor`) is a pure function — test
 - **Two `renderOnce` calls** after every `pressKey()`: one to process the event, one to render
 - Wrap `renderOnce` calls in `await act(async () => { ... })` to suppress React warnings
 - `renderer.destroy()` to clean up between tests
-- Mock `globalThis.fetch` for tests that render the full `App`
+- Mock `globalThis.fetch` for tests that render the full `App` (including `/api/e2e`)
+- E2E crypto is pure/async — test it with the shared cross-language fixture + `setE2EKeyForTests`/`resetE2EKeyForTests`, no renderer needed
 - Avoid asserting on text with Unicode em dashes or arrows — use simpler substrings
 - Popups, borders, absolute positioning — all flattened into one grid
 - `@opentui/react/test-utils`'s `testRender()` wraps `createTestRenderer` + `createRoot` with `act()` for React

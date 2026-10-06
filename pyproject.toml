@@ -13,6 +13,7 @@ dependencies = [
     "aiofiles",
     "requests",
     "sse-starlette",
+    "cryptography",
     "pandas",
     "py_mini_logger",
     "mactoast",

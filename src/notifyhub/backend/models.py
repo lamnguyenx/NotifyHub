@@ -17,20 +17,36 @@ def get_time_uid() -> str:
 
 
 class Notification(BaseModel):
+    """Stored notification record.
+
+    ``data`` is opaque to the store: either the plaintext payload dict
+    (``{"message": ..., "pwd": ...}``) or an e2e encryption envelope
+    (see :mod:`notifyhub.crypto`). Plaintext validation happens at ingest
+    in the backend, not here.
+    """
 
     model_config = ConfigDict(extra="allow")
 
     id: Optional[str] = None
-    message: str
-    pwd: Optional[str] = None
     timestamp: Optional[str] = None
+    data: dict
+
+
+def serialize_notification(n: Notification) -> dict:
+    """Serialize a stored record for REST/SSE (wire shape is unchanged)."""
+    return {
+        "id": n.id,
+        "data": n.data,
+        "timestamp": n.timestamp,
+    }
 
 
 class NotificationStore:
 
     def __init__(self, sse_manager=None, max_count=None):
         self.notifications: List[Notification] = []
-        self.max_notifications = max_count if max_count is not None else 1000
+        # None means unlimited; callers (config) supply the default cap (1000).
+        self.max_notifications = max_count
         self.sse_manager = sse_manager
 
     def add(self, data: Notification, custom_id: Optional[str] = None) -> str:
@@ -56,13 +72,7 @@ class NotificationStore:
         if self.sse_manager:
             event_data = {
                 "event": "notification",
-                "data": json.dumps(
-                    {
-                        "id": data.id,
-                        "data": data.model_dump(exclude={"id", "timestamp"}),
-                        "timestamp": data.timestamp,
-                    }
-                ),
+                "data": json.dumps(serialize_notification(data)),
             }
             # Schedule broadcast (don't block notification creation)
             asyncio.create_task(self.sse_manager.broadcast(event_data))

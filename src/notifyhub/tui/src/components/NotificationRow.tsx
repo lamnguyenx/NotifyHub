@@ -2,6 +2,11 @@ import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import { useTheme, type Theme } from "../theme"
 import type { NotificationItem } from "../types"
+import { isEnvelope, type EncryptedEnvelope } from "../utils/crypto"
+
+export function envelopeKid(item: NotificationItem): string {
+  return isEnvelope(item.data) ? String(item.data.kid ?? "?") : "?"
+}
 
 export function formatRelativeTime(iso: string, now: Date = new Date()): string {
   if (!iso) return ""
@@ -143,19 +148,51 @@ function renderSegments(segments: TagSegment[], lineKey: string, theme: Theme) {
   })
 }
 
+function LockedNotificationRow({ item, selected }: Props) {
+  const theme = useTheme()
+  const kid = envelopeKid(item)
+  const borderColor = selected ? theme.borderSelected : theme.border
+  const cardBg = selected ? theme.surfaceSelected : theme.background
+  return (
+    <box
+      width="100%"
+      height={4}
+      borderStyle="rounded"
+      borderColor={borderColor}
+      backgroundColor={cardBg}
+      paddingX={1}
+      marginBottom={0}
+    >
+      <box flexDirection="column" width="100%">
+        <box flexDirection="row" width="100%">
+          <text fg={theme.warning} attributes={TextAttributes.BOLD}> LOCKED</text>
+          <box flexGrow={1} />
+          <text fg={theme.dim}>{formatRelativeTime(item.timestamp)}</text>
+        </box>
+        <text fg={theme.dim}>encrypted notification (kid {kid})</text>
+        <text fg={theme.dim}>set NOTIFYHUB_E2E_KEY to decrypt</text>
+      </box>
+    </box>
+  )
+}
+
 export function NotificationRow({ item, selected, now: propNow }: Props) {
+  if (item.locked) return <LockedNotificationRow item={item} selected={selected} />
   const now = propNow ?? new Date()
   const { width: termWidth } = useTerminalDimensions()
   const theme = useTheme()
-  const msg = item.data?.message ?? ""
-  const pwd = item.data?.pwd ?? ""
+  const data = (item.data ?? {}) as Record<string, unknown>
+  const msg = typeof data.message === "string" ? data.message : ""
+  const rawPwd = data.pwd
+  const pwd = typeof rawPwd === "string" ? rawPwd : ""
+  const rawHostModel = data.host_model
+  const hostModel = typeof rawHostModel === "string" ? rawHostModel : ""
   const title = getTitle(pwd)
   const avatarColor = getAvatarColor(pwd)
   const avatarInitial = title[0]?.toUpperCase() || "N"
   const cardBg = selected ? theme.surfaceSelected : theme.background
   const borderColor = selected ? theme.borderSelected : theme.border
   const time = formatRelativeTime(item.timestamp, now)
-  const hostModel = item.data?.host_model ?? ""
   const hostModelColor = hostModel ? getHostModelTagColor(hostModel, cardBg) : ""
   const messageLines = msg.split("\n")
   const contentWidth = Math.max(40, termWidth - 4)

@@ -6,6 +6,10 @@
     "telegram_chat_id": "",
     "telegram_group_chat_id": ""
   },
+  "e2e": {
+    "enabled": false,
+    "key": ""
+  },
   "cli": {
     "host": "localhost",
     "port": 9080,

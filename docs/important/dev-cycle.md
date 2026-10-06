@@ -19,7 +19,7 @@ bun run src/index.tsx
 # 6. Fix, goto 2
 ```
 
-No hot-reload — after each change, kill and restart the TUI. Backend changes (Python, etc.) need manual restart too.
+No hot-reload — after each change, kill and restart the TUI. Backend changes (Python, etc.) need manual restart too; when the backend runs via Docker, rebuild the image (`docker compose build be && docker compose up -d be`).
 
 ## Type checking
 

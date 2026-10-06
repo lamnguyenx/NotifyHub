@@ -14,8 +14,14 @@ services:
       - "0.0.0.0:9080:9080"
     volumes:
       - ${HOME}/.config/notifyhub:${HOME}/.config/notifyhub
+      # Read-only so the config.jsonl symlink (→ ~/git/.../notifyhub/config.jsonl)
+      # resolves inside the container.
+      - ${HOME}/git:${HOME}/git:ro
     environment:
       - HOME=${HOME}
+      # e2e settings come from the mounted config.jsonl (resolved via the
+      # read-only ~/git mount). To override, set NOTIFYHUB_E2E_KEY to a
+      # NON-EMPTY value — an empty value would clobber the config key.
     command: "python -m notifyhub.backend.backend --backend.port 9080"
 
   be-dev:
@@ -26,6 +32,7 @@ services:
     volumes:
       - ./src/notifyhub:/app/src/notifyhub
       - ${HOME}/.config/notifyhub:${HOME}/.config/notifyhub
+      - ${HOME}/git:${HOME}/git:ro
     environment:
       - HOME=${HOME}
     command: "python -m notifyhub.backend.backend --backend.port 9081 --backend.dev_reload"

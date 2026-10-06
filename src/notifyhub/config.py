@@ -13,7 +13,7 @@ class NotifyHubBackendConfig(pdt.BaseModel):
         30, description="SSE heartbeat interval in seconds"
     )
     notifications_max_count: tp.Optional[int] = pdt.Field(
-        None,
+        1000,
         description="Maximum number of notifications to store (None for unlimited)",
     )
     telegram_chat_id: str = pdt.Field(
@@ -47,6 +47,29 @@ class NotifyHubBackendConfig(pdt.BaseModel):
     )
 
 
+class NotifyHubE2EConfig(pdt.BaseModel):
+    """AES-256-GCM payload encryption (shared pre-shared key).
+
+    When enabled, the server decrypts inbound payloads at ingest (for tag
+    matching + Telegram/Bark/macOS push), then stores and serves only the
+    encrypted envelope. Consumers (TUI) decrypt locally with the same key.
+    """
+
+    model_config = pdt.ConfigDict(validate_assignment=True)
+
+    enabled: bool = pdt.Field(
+        False,
+        description="Store and serve notification payloads as AES-256-GCM envelopes",
+    )
+    key: str = pdt.Field(
+        "",
+        description=(
+            "Base64 (or hex) 256-bit shared key. Empty = resolve from "
+            "NOTIFYHUB_E2E_KEY env or keychain service 'notifyhub_e2e_key'"
+        ),
+    )
+
+
 class NotifyHubCliConfig(pdt.BaseModel):
     model_config = pdt.ConfigDict(validate_assignment=True)
 
@@ -75,5 +98,8 @@ class NotifyHubConfig(pdt.BaseModel):
 
     backend: NotifyHubBackendConfig = pdt.Field(
         default_factory=lambda: NotifyHubBackendConfig()
+    )
+    e2e: NotifyHubE2EConfig = pdt.Field(
+        default_factory=lambda: NotifyHubE2EConfig()
     )
     cli: NotifyHubCliConfig = pdt.Field(default_factory=lambda: NotifyHubCliConfig())

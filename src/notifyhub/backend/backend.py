@@ -17,8 +17,16 @@ from datetime import datetime
 
 from confstack import confstackify
 
-from .models import NotificationStore, Notification
+from .models import NotificationStore, Notification, serialize_notification
 from ..config import NotifyHubConfig
+from ..crypto import (
+    CryptoError,
+    decrypt_payload,
+    encrypt_payload,
+    is_envelope,
+    key_id as crypto_key_id,
+    load_key as load_e2e_key,
+)
 from ..macos_notify import send_macos_notification
 from ..telegram import get_telegram_token, async_send_telegram_message
 from ..bark import (
@@ -82,6 +90,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 sse_manager = SSEManager()
 store = NotificationStore(sse_manager=sse_manager)
+_e2e_enabled: bool = False
+_e2e_key: tp.Optional[bytes] = None
 _telegram_bot_token: tp.Optional[str] = None
 _telegram_chat_id: str = ""
 _telegram_group_chat_id: str = ""
@@ -159,15 +169,28 @@ def load_and_transform_template():
 @app.post("/api/notify")
 async def notify(request: NotifyRequest):
     try:
-        data = Notification.model_validate(request.data)
-        custom_id = request.id
-        notification_id = store.add(data, custom_id)
+        raw: dict = request.data
 
-        message_text = data.message
+        # Ingest: accept either an e2e envelope (decrypt with the shared key)
+        # or a legacy plaintext payload. Only plaintext is used from here on.
+        if is_envelope(raw):
+            if not _e2e_key:
+                raise CryptoError(
+                    "received an encrypted envelope but no e2e key is configured"
+                )
+            data = decrypt_payload(raw, _e2e_key)
+        else:
+            data = raw
+
+        if not isinstance(data, dict) or not isinstance(data.get("message"), str):
+            raise ValueError("data.message is required and must be a string")
+
+        message_text = data["message"]
+        pwd = data.get("pwd")
 
         tag_match = not _telegram_notify_tags or any(t in message_text for t in _telegram_notify_tags)
 
-        telegram_text = f"{data.pwd}\n{message_text}" if data.pwd else message_text
+        telegram_text = f"{pwd}\n{message_text}" if pwd else message_text
 
         if tag_match and _telegram_bot_token and _telegram_chat_id:
             asyncio.create_task(
@@ -190,7 +213,7 @@ async def notify(request: NotifyRequest):
         if _macos_notifications_enabled:
             send_macos_notification(
                 text=message_text,
-                pwd=data.pwd,
+                pwd=pwd,
             )
 
         bark_tag_match = not _bark_notify_tags or any(t in message_text for t in _bark_notify_tags)
@@ -201,7 +224,7 @@ async def notify(request: NotifyRequest):
 
         if bark_tag_match and _bark_device_key and _bark_aes_key:
             logging.info("Sending Bark notification for message: %s", message_text[:80])
-            basename = os.path.basename(data.pwd or "")
+            basename = os.path.basename(pwd or "")
             seed = basename[:1].upper() if basename else ""
             icon_url = _get_dicebear_icon_url(seed) if seed else ""
             asyncio.create_task(
@@ -219,21 +242,58 @@ async def notify(request: NotifyRequest):
                 bark_tag_match, bool(_bark_device_key), bool(_bark_aes_key),
             )
 
+        # Store/serve: encrypt the payload into an e2e envelope when a key is
+        # configured, so nothing plaintext is kept in memory-backed storage or
+        # broadcast over SSE/REST. Legacy plaintext mode is kept otherwise.
+        stored = encrypt_payload(data, _e2e_key) if _e2e_key else data
+        record = Notification(id=request.id, data=stored)
+        notification_id = store.add(record, request.id)
+
         return {"success": True, "id": notification_id}
+    except CryptoError as e:
+        return {"error": [f"E2E crypto error: {e}"]}
     except Exception as e:
         return {"error": traceback.format_exc().split("\n")}
 
 
+@app.get("/api/e2e")
+async def e2e_status():
+    """Report server-side e2e encryption state (no secrets)."""
+    if _e2e_key:
+        return {"enabled": True, "alg": "A256GCM", "kid": crypto_key_id(_e2e_key)}
+    return {"enabled": False, "alg": None, "kid": None}
+
+
 @app.get("/api/notifications")
-async def get_notifications():
-    return [
-        {
-            "id": n.id,
-            "data": n.model_dump(exclude={"id", "timestamp"}),
-            "timestamp": n.timestamp,
-        }
-        for n in store.notifications
-    ]
+async def get_notifications(
+    limit: tp.Optional[int] = None,
+    offset: int = 0,
+    before: tp.Optional[str] = None,
+):
+    """Return notifications (newest-first), optionally paginated.
+
+    - limit: max number of items to return (None = all)
+    - offset: skip the first N items (ignored when `before` is given)
+    - before: return items strictly older than the given notification id.
+      This is a stable cursor: new notifications are prepended, so offset
+      would shift, but `before` stays anchored.
+    """
+    notifications = store.notifications
+
+    if before is not None:
+        idx = next((i for i, n in enumerate(notifications) if n.id == before), None)
+        # Cursor gone (e.g. deleted): return nothing rather than restarting.
+        start = idx + 1 if idx is not None else len(notifications)
+    else:
+        start = max(0, offset)
+
+    end = None if limit is None else start + max(0, limit)
+    return [serialize_notification(n) for n in notifications[start:end]]
+
+
+@app.get("/api/notifications/count")
+async def get_notifications_count():
+    return {"count": len(store.notifications)}
 
 
 @app.delete("/api/notifications")
@@ -270,21 +330,20 @@ async def delete_notifications(id: tp.Optional[str] = None):
 
 
 @app.get("/events")
-async def events():
-    """SSE endpoint for real-time notifications"""
+async def events(limit: tp.Optional[int] = None):
+    """SSE endpoint for real-time notifications.
+
+    `limit` caps how many notifications the initial `init` event carries.
+    Clients can then page older history via GET /api/notifications. Omitting
+    `limit` preserves the original behavior of sending the whole store.
+    """
     queue = await sse_manager.connect()
 
     async def event_generator():
         try:
             # Send current notifications on connect
-            current_notifications = [
-                {
-                    "id": n.id,
-                    "data": n.model_dump(exclude={"id", "timestamp"}),
-                    "timestamp": n.timestamp,
-                }
-                for n in store.notifications
-            ]
+            initial = store.notifications if limit is None else store.notifications[: max(0, limit)]
+            current_notifications = [serialize_notification(n) for n in initial]
             yield {"event": "init", "data": json.dumps(current_notifications)}
 
             heartbeat_count = 0
@@ -321,11 +380,32 @@ async def root():
 
 def _load_runtime(config: NotifyHubConfig) -> None:
     """Apply config to module globals (re-applied on reload-worker import)."""
-    global sse_manager, store, _telegram_bot_token, _telegram_chat_id, _telegram_group_chat_id, _telegram_notify_tags, _macos_notifications_enabled, _bark_device_key, _bark_aes_key, _bark_notify_tags
+    global sse_manager, store, _e2e_enabled, _e2e_key, _telegram_bot_token, _telegram_chat_id, _telegram_group_chat_id, _telegram_notify_tags, _macos_notifications_enabled, _bark_device_key, _bark_aes_key, _bark_notify_tags
     sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)
     store = NotificationStore(
         sse_manager=sse_manager, max_count=config.backend.notifications_max_count
     )
+
+    _e2e_enabled = bool(config.e2e.enabled)
+    _e2e_key = None
+    if _e2e_enabled:
+        try:
+            _e2e_key = load_e2e_key(config.e2e.key)
+        except CryptoError as exc:
+            logging.error("E2E enabled but key is invalid: %s", exc)
+        if _e2e_key:
+            logging.info(
+                "E2E encryption enabled (kid=%s): payloads are decrypted for push, "
+                "then stored/served as AES-256-GCM envelopes",
+                crypto_key_id(_e2e_key),
+            )
+        else:
+            _e2e_enabled = False
+            logging.warning(
+                "E2E enabled but no key found (e2e.key / NOTIFYHUB_E2E_KEY env / "
+                "keychain 'notifyhub_e2e_key') — falling back to plaintext storage"
+            )
+
     _telegram_chat_id = config.backend.telegram_chat_id
     _telegram_group_chat_id = config.backend.telegram_group_chat_id
     _telegram_notify_tags = config.backend.telegram_notify_tags

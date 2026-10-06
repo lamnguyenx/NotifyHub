@@ -30,7 +30,7 @@
     </tr>
     <tr>
       <td>backend.notifications_max_count</td>
-      <td>null</td>
+      <td>1000</td>
       <td>notifyhub.backend.notifications_max_count</td>
       <td>NOTIFYHUB_BACKEND_NOTIFICATIONS_MAX_COUNT</td>
     </tr>

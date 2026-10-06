@@ -1,4 +1,4 @@
-.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti send-simple-bark send-backend-bark chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin test-bg clean fe fh beh t tb tf tfh tc mapping m tui-deps tui tui-typecheck td ttc ssb sbb
+.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti send-simple-bark send-backend-bark chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin test-bg clean fe fh beh t tb tf tfh tc mapping m tui-deps tui tui-typecheck td ttc ssb sbb e2e-key e2ekey e2e-status e2es
 
 # -----------------------------------
 #            Dependencies
@@ -14,6 +14,15 @@ plugin-deps:
 # -----------------------------------
 config-md cm:
 	python -c "from notifyhub.config import NotifyHubConfig; NotifyHubConfig.generate_markdown()"
+
+# -----------------------------------
+#            E2E encryption
+# -----------------------------------
+e2e-key e2ekey:
+	python -m notifyhub.crypto --gen-key --write-default
+
+e2e-status e2es:
+	@python -m notifyhub.crypto --status || true
 
 # -----------------------------------
 #          Static Services
@@ -38,6 +47,7 @@ tui-deps td:
 	cd src/notifyhub/tui && bun install
 
 tui:
+	@python -m notifyhub.crypto --status 2>/dev/null || true
 	cd src/notifyhub/tui && bun src/index.tsx
 
 tui-typecheck ttc:
@@ -85,7 +95,7 @@ test-chrome tc:
 	cd src/notifyhub/frontend && npx tsx __tests__/ui/utils/test_chrome_connection.ts
 
 test-backend tbe:
-	python -m pytest src/notifyhub/backend/__tests__/ -v
+	python -m pytest tests/notifyhub -v
 
 test-frontend tfe:
 	cd src/notifyhub/frontend && ./__tests__/run.py prod
