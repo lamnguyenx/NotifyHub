@@ -183,6 +183,33 @@ reports `config e2e.key (kid …)`.
       **no env var** (key from `config.jsonl`)
 - [x] `make -n e2e-key` / `make -n tui` expand correctly
 
+## Integration with `origin/master` (merge)
+
+Local `master` had diverged from `origin/master` at the shared base `9378e73`:
+
+- **Local** `7754409` — the e2e commit (which had also absorbed the pagination
+  work into the same commit).
+- **Remote** `c7e5227` ← `a55ba70` ← `fb43975` — paginated loading, the CLI mute
+  switch (`NOTIFYHUB_CLI_ENABLED`), and per-agent muting.
+
+Merged `c7e5227` into `master` → merge commit `df3862b`. Conflicts (5 files) and
+resolutions:
+
+| File | Resolution |
+|---|---|
+| `backend/backend.py` | **ours** — e2e is a superset; remote was pre-e2e pagination |
+| `tui/.../App.tsx` | **ours** — keeps `lockedCount` (+ pagination) |
+| `tui/.../hooks/useNotifications.ts` | **ours** — keeps decrypt + `lockedCount` (+ pagination) |
+| `tui/.../utils/api.ts` | **ours** — keeps `fetchE2EStatus` + `getServerStatus` e2e |
+| `README.md` | **combined** — e2e docs + `### Paginated loading` + `NOTIFYHUB_CLI_ENABLED` row |
+
+Auto-merged cleanly: `models.py`, `config.py` (e2e **and** mute), `example_config.json`,
+`pyproject.toml`, `config.md`, `NotificationStream.tsx`, and the new remote files
+(`cli.py` mute, OpenCode plugin muting, `opencode-plugin.md`, CLI/config tests).
+
+Post-merge: Python **129 passed** (3 pre-existing live-config failures), TUI
+**129 passed**.
+
 ## Lessons learnt
 
 1. **Resolve architecture conflicts before coding.** "Zero-knowledge" vs
