@@ -3,6 +3,8 @@ from __future__ import annotations
 import pydantic as pdt
 import typing as tp
 
+from booleanify import booleanify
+
 
 class NotifyHubBackendConfig(pdt.BaseModel):
     model_config = pdt.ConfigDict(validate_assignment=True)
@@ -78,6 +80,23 @@ class NotifyHubCliConfig(pdt.BaseModel):
     proxy: str = ""
     verbose: bool = False
     message: str = ""
+    enabled: bool = True
+
+    @pdt.field_validator("enabled", mode="before")
+    @classmethod
+    def _parse_enabled(cls, value: tp.Any) -> tp.Any:
+        # Exported-empty (NOTIFYHUB_CLI_ENABLED="") means "unset" → default (enabled);
+        # everything else must be booleanify-compatible ("t", "yes", "0", …).
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return True
+            if stripped == "0":
+                # booleanify's README documents '0' → False but its table only maps
+                # the integer 0 (upstream gap), so normalize it here.
+                return False
+            return booleanify(stripped)
+        return value
 
     @pdt.computed_field
     @property
@@ -94,6 +113,36 @@ class NotifyHubCliConfig(pdt.BaseModel):
         return sys.stdin.read().strip() or "HOST_ID (opencode)"
 
 
+class NotifyHubOpencodePluginConfig(pdt.BaseModel):
+    model_config = pdt.ConfigDict(validate_assignment=True)
+
+    muted_agents: tp.List[str] = pdt.Field(
+        default_factory=lambda: ["empty"],
+        description=(
+            "OpenCode agent names whose sessions never send notifications "
+            "(e.g. the Midscene AndroidWorld benchmark uses the 'empty' agent "
+            "for raw model calls); empty = notify for every agent"
+        ),
+    )
+
+    @pdt.field_validator("muted_agents", mode="before")
+    @classmethod
+    def _parse_muted_agents(cls, value: tp.Any) -> tp.Any:
+        # Accept a comma-separated env var (NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS);
+        # confstack passes env values as raw strings, unlike file/CLI lists.
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+
+class NotifyHubPluginsConfig(pdt.BaseModel):
+    model_config = pdt.ConfigDict(validate_assignment=True)
+
+    opencode: NotifyHubOpencodePluginConfig = pdt.Field(
+        default_factory=NotifyHubOpencodePluginConfig
+    )
+
+
 class NotifyHubConfig(pdt.BaseModel):
 
     backend: NotifyHubBackendConfig = pdt.Field(
@@ -103,3 +152,6 @@ class NotifyHubConfig(pdt.BaseModel):
         default_factory=lambda: NotifyHubE2EConfig()
     )
     cli: NotifyHubCliConfig = pdt.Field(default_factory=lambda: NotifyHubCliConfig())
+    plugins: NotifyHubPluginsConfig = pdt.Field(
+        default_factory=NotifyHubPluginsConfig
+    )

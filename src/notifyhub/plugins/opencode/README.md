@@ -76,12 +76,33 @@ opencode plugin list
 The plugin reads these environment variables from the OpenCode server process, so set them before
 launching OpenCode:
 
-| Variable                | Default                                      | Purpose                              |
-| ----------------------- | -------------------------------------------- | ------------------------------------ |
-| `NOTIFYHUB_CLI_HOST`    | `0.0.0.0`                                    | NotifyHub host                       |
-| `NOTIFYHUB_CLI_PORT`    | `9080`                                       | NotifyHub port                       |
-| `NOTIFYHUB_PUSH_SCRIPT` | `~/.config/opencode/plugin/notifyhub-push.py` | Override the CLI path (project installs) |
-| `VERBOSE_INT`           | `0`                                          | Forwarded to the NotifyHub CLI       |
+| Variable                                      | Default                                        | Purpose                              |
+| --------------------------------------------- | ---------------------------------------------- | ------------------------------------ |
+| `NOTIFYHUB_CLI_HOST`                          | `0.0.0.0`                                      | NotifyHub host                       |
+| `NOTIFYHUB_CLI_PORT`                          | `9080`                                         | NotifyHub port                       |
+| `NOTIFYHUB_PUSH_SCRIPT`                       | `~/.config/opencode/plugin/notifyhub-push.py`  | Override the CLI path (project installs) |
+| `NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS`     | `empty`                                        | Comma-separated agent names never notified; overrides the config file |
+| `VERBOSE_INT`                                 | `0`                                            | Forwarded to the NotifyHub CLI       |
+
+### Muting specific agents
+
+Agents that are raw model-completion endpoints (rather than user-facing chats) can be muted so their
+turns never notify. The list is read live from `plugins.opencode.muted_agents` in the NotifyHub config
+(`~/.config/notifyhub/config.json` / `config.jsonl`, comments allowed); the env var above overrides it.
+The default `["empty"]` covers the Midscene AndroidWorld benchmark, which creates every model call
+with the `empty` agent:
+
+```json
+{
+  "plugins": {
+    "opencode": {
+      "muted_agents": ["empty"]
+    }
+  }
+}
+```
+
+Use `[]` to notify for every agent.
 
 ## Development
 

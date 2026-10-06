@@ -19,6 +19,7 @@ dependencies = [
     "mactoast",
     "typed-argument-parser",
     "confstack",
+    "booleanify",
     "json5",
     "watchfiles",
 ]

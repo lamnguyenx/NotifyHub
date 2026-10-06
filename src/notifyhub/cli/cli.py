@@ -5,6 +5,7 @@ import sys
 import json
 import typing as tp
 
+import pydantic as pdt
 import requests
 from tap import Tap
 from confstack import confstackify
@@ -17,6 +18,15 @@ CLI_DEFAULTS: tp.Dict[str, tp.Any] = {
     "proxy": "",
     "verbose": False,
 }
+
+# Exporting these as empty strings is the documented mute switch
+# (e.g. NOTIFYHUB_CLI_HOST=""), so a shell or project can silence notifications.
+MUTE_ENV_VARS = ("NOTIFYHUB_CLI_HOST", "NOTIFYHUB_CLI_PORT")
+
+
+def muted_by_empty_env() -> bool:
+    # Whitespace-only counts as empty: same intent, fewer surprises.
+    return any(var in os.environ and not os.environ[var].strip() for var in MUTE_ENV_VARS)
 
 
 class CliArgs(Tap):
@@ -82,7 +92,20 @@ def main() -> None:
         if k in CLI_FIELDS and v != CLI_DEFAULTS.get(k)
     }
     overrides = {"cli": active_overrides} if active_overrides else {}
-    config = confstackify(NotifyHubConfig, "notifyhub", overrides=overrides)
+
+    # Mute: exit 0 before config loading — an empty port would otherwise crash in
+    # validation, and silent success keeps the OpenCode plugin console quiet.
+    if muted_by_empty_env():
+        exit(0)
+
+    try:
+        config = confstackify(NotifyHubConfig, "notifyhub", overrides=overrides)
+    except pdt.ValidationError as e:
+        print(f"✗ Invalid config: {e}")
+        exit(1)
+
+    if not config.cli.enabled:
+        exit(0)
 
     DRY_RUN_FLAGS = {"--dry-run", "--dry_run", "-d"}
     extra_args = cli.extra_args or []

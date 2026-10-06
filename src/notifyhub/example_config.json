@@ -15,5 +15,10 @@
     "port": 9080,
     "proxy": "",
     "verbose": false
+  },
+  "plugins": {
+    "opencode": {
+      "muted_agents": ["empty"]
+    }
   }
 }
