@@ -99,7 +99,7 @@ NotifyHub/
 │   ├── issues/
 │   └── refs/
 ├── tests/                            # pytest suites (tests/notifyhub/...)
-├── local/                            # Shell scripts (e.g., noti.sh)
+├── local/                            # Shell scripts (e.g., push-funnel-noti.sh)
 ├── exp/                              # Experimental / scratch space
 └── src/
     └── notifyhub/
@@ -342,7 +342,7 @@ make remove-plugin    # uninstall
 
 The plugin is a **dependency-free single file** (type-only import of `@opencode/plugin`, so no
 `node_modules` is needed in `~/.config/opencode`), hot-reloads when the installed file changes, and reads
-`NOTIFYHUB_CLI_HOST`, `NOTIFYHUB_CLI_PORT`, `NOTIFYHUB_CLI_ENABLED`, and `NOTIFYHUB_PUSH_SCRIPT`. It also
+`NOTIFYHUB_CLI_HOST`, `NOTIFYHUB_CLI_PORT`, `NOTIFYHUB_CLI_SCHEME`, `NOTIFYHUB_CLI_ENABLED`, and `NOTIFYHUB_PUSH_SCRIPT`. It also
 mutes specific agents via `plugins.opencode.muted_agents` in the NotifyHub config (or the comma-separated
 `NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS`). Development happens in `src/notifyhub/plugins/opencode/`:
 
@@ -658,6 +658,37 @@ NotifyHub provides a CLI for sending notifications:
 python src/notifyhub/cli/cli.py --backend.port 9080 '{"message": "Hello World"}'
 ```
 
+By default the CLI talks to `http://0.0.0.0:9080`. To push to a server published
+over TLS (for example a Tailscale funnel at `https://nuc.tail0ec64c.ts.net`), set
+the scheme to `https` — the funnel's default `443` port is then omitted:
+
+```bash
+# Flags…
+python src/notifyhub/cli/cli.py --scheme https --host nuc.tail0ec64c.ts.net --port 443 'hello'
+
+# …or env vars (also honored by the OpenCode plugin):
+NOTIFYHUB_CLI_SCHEME=https \
+NOTIFYHUB_CLI_HOST=nuc.tail0ec64c.ts.net \
+NOTIFYHUB_CLI_PORT=443 \
+python src/notifyhub/cli/cli.py 'hello'
+```
+
+`NOTIFYHUB_CLI_SCHEME` accepts `http`/`https` (case-insensitive; `https://` is
+normalized); an empty value falls back to `http`.
+
+For people **outside your tailnet** who just need to push (no Python, no repo),
+ship `local/push-funnel-noti.sh` — a dependency-free `bash`+`curl` one-file drop:
+
+```bash
+./push-funnel-noti.sh "build finished"          # or pipe: echo hi | ./push-funnel-noti.sh
+NOTIFYHUB_URL=https://other.example.com ./push-funnel-noti.sh "hello"
+```
+
+> ⚠️ A funnel makes the backend **public**. It has no auth, so anyone with the URL
+> can push, read, and delete. e2e encryption is not auth. See
+> [`docs/important/funnel-remote-push.md`](docs/important/funnel-remote-push.md)
+> for setup, client config, and the troubleshooting table.
+
 ---
 
 ## 16. Terminal UI (TUI)
@@ -689,6 +720,7 @@ re-downloads the full list.
 | ------- | ------- | ----------- |
 | `NOTIFYHUB_CLI_HOST` | `localhost` | Backend host |
 | `NOTIFYHUB_CLI_PORT` | `9080` | Backend port |
+| `NOTIFYHUB_CLI_SCHEME` | `http` | URL scheme (`http`/`https`). Set `https` to reach a TLS endpoint such as a Tailscale funnel; the `443` default port is then omitted from the address |
 | `NOTIFYHUB_CLI_ENABLED` | `true` | Parsed via `booleanify` (`1/on/t/true/y/yes` ↔ `0/off/f/false/n/no`); `false` mutes sends. Exporting `NOTIFYHUB_CLI_HOST` or `NOTIFYHUB_CLI_PORT` as an empty string also mutes — the CLI and plugin exit silently |
 | `NOTIFYHUB_TUI_PAGE_SIZE` | `30` | Notifications loaded per page (`init` + each lazy load) |
 | `NOTIFYHUB_E2E_KEY` | _(unset)_ | AES-256-GCM key (base64/hex) to decrypt e2e envelopes; overrides config/key file |

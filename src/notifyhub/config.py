@@ -77,6 +77,7 @@ class NotifyHubCliConfig(pdt.BaseModel):
 
     host: str = "0.0.0.0"
     port: int = 9080
+    scheme: str = "http"
     proxy: str = ""
     verbose: bool = False
     message: str = ""
@@ -98,10 +99,35 @@ class NotifyHubCliConfig(pdt.BaseModel):
             return booleanify(stripped)
         return value
 
+    @pdt.field_validator("scheme", mode="before")
+    @classmethod
+    def _normalize_scheme(cls, value: tp.Any) -> tp.Any:
+        # Accept "https", "HTTPS", "https:", "https:// ", or an exported-empty
+        # (NOTIFYHUB_CLI_SCHEME="") → default "http", mirroring `enabled`.
+        if isinstance(value, str):
+            stripped = value.strip().lower()
+            if not stripped:
+                return "http"
+            if "://" in stripped:
+                stripped = stripped.split("://", 1)[0]
+            return stripped.rstrip(":/") or "http"
+        return value
+
+    @pdt.field_validator("scheme")
+    @classmethod
+    def _validate_scheme(cls, value: str) -> str:
+        if value not in ("http", "https"):
+            raise ValueError("scheme must be 'http' or 'https'")
+        return value
+
     @pdt.computed_field
     @property
     def address(self) -> str:
-        return f"http://{self.host}:{self.port}"
+        # Omit the scheme's default port (80/443) so a funnel/HTTPS target reads
+        # as a clean URL; non-default ports are kept.
+        default_port = 443 if self.scheme == "https" else 80
+        port = "" if self.port == default_port else f":{self.port}"
+        return f"{self.scheme}://{self.host}{port}"
 
     def get_message(self, message_args: tp.Optional[tp.List[str]] = None) -> str:
         import sys

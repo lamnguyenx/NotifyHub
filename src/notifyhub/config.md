@@ -89,6 +89,12 @@
       <td>NOTIFYHUB_CLI_PORT</td>
     </tr>
     <tr>
+      <td>cli.scheme</td>
+      <td>&#34;http&#34;</td>
+      <td>notifyhub.cli.scheme</td>
+      <td>NOTIFYHUB_CLI_SCHEME</td>
+    </tr>
+    <tr>
       <td>cli.proxy</td>
       <td>&#34;&#34;</td>
       <td>notifyhub.cli.proxy</td>

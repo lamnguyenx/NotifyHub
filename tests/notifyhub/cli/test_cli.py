@@ -68,6 +68,38 @@ def test_cli_dry_run_with_default_host_port():
     assert "Dry run: Would send notification to http://0.0.0.0:9080" in result.stdout
 
 
+def test_cli_dry_run_with_https_scheme_flags():
+    """--scheme https targets a TLS endpoint; the :443 default port is omitted."""
+    result = run_cli(
+        [
+            "--dry_run",
+            "--scheme",
+            "https",
+            "--host",
+            "nuc.tail0ec64c.ts.net",
+            "--port",
+            "443",
+            "funnel message",
+        ]
+    )
+    assert result.returncode == 0
+    assert "Dry run: Would send notification to https://nuc.tail0ec64c.ts.net" in result.stdout
+
+
+def test_cli_dry_run_with_https_scheme_from_env():
+    """NOTIFYHUB_CLI_SCHEME=https is picked up from the environment."""
+    result = run_cli(
+        ["--dry_run", "funnel message"],
+        env_overrides={
+            "NOTIFYHUB_CLI_SCHEME": "https",
+            "NOTIFYHUB_CLI_HOST": "nuc.tail0ec64c.ts.net",
+            "NOTIFYHUB_CLI_PORT": "443",
+        },
+    )
+    assert result.returncode == 0
+    assert "Dry run: Would send notification to https://nuc.tail0ec64c.ts.net" in result.stdout
+
+
 @pytest.mark.parametrize(
     "env_overrides",
     [

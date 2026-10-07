@@ -8,7 +8,9 @@ decrypt locally.
 > **Threat model:** the server holds the key (this is *not* a zero-knowledge
 > design). It protects payloads **on the wire** (SSE/REST) and **at rest**
 > (in-memory store, disk), but **not** against someone with access to the server
-> process/memory. It also does not replace auth — the API still has none.
+> process/memory. It also does not replace auth — the API still has none. See
+> [`funnel-remote-push.md`](funnel-remote-push.md) for the public exposure and the
+> auth gap.
 
 ## Envelope format
 

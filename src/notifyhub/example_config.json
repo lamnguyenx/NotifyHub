@@ -13,6 +13,7 @@
   "cli": {
     "host": "localhost",
     "port": 9080,
+    "scheme": "http",
     "proxy": "",
     "verbose": false
   },

@@ -11,10 +11,11 @@ from tap import Tap
 from confstack import confstackify
 from notifyhub.config import NotifyHubConfig
 
-CLI_FIELDS = frozenset({"host", "port", "proxy", "verbose"})
+CLI_FIELDS = frozenset({"host", "port", "scheme", "proxy", "verbose"})
 CLI_DEFAULTS: tp.Dict[str, tp.Any] = {
     "host": "0.0.0.0",
     "port": 9080,
+    "scheme": "http",
     "proxy": "",
     "verbose": False,
 }
@@ -32,6 +33,7 @@ def muted_by_empty_env() -> bool:
 class CliArgs(Tap):
     host: str = "0.0.0.0"
     port: int = 9080
+    scheme: str = "http"
     proxy: str = ""
     verbose: bool = False
     dry_run: bool = False

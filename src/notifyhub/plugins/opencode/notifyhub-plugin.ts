@@ -267,6 +267,7 @@ function notifyhubPush(message: string, directory?: string): void {
       env: {
         NOTIFYHUB_CLI_HOST: process.env.NOTIFYHUB_CLI_HOST ?? "0.0.0.0",
         NOTIFYHUB_CLI_PORT: process.env.NOTIFYHUB_CLI_PORT ?? "9080",
+        NOTIFYHUB_CLI_SCHEME: process.env.NOTIFYHUB_CLI_SCHEME ?? "http",
         VERBOSE_INT: "0",
         ...process.env,
       },

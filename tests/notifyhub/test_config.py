@@ -318,3 +318,42 @@ class TestPluginsOpencodeMutedAgents:
         ):
             result = confstackify(config.NotifyHubConfig, APP_NAME)
             assert result.plugins.opencode.muted_agents == ["bench", "other"]
+
+
+class TestCliSchemeAndAddress:
+    """cli.scheme lets the CLI target an HTTPS endpoint (e.g. a Tailscale funnel)."""
+
+    def test_default_address_is_http_with_port(self):
+        assert config.NotifyHubCliConfig().address == "http://0.0.0.0:9080"
+
+    def test_https_funnel_address_omits_default_port(self):
+        cfg = config.NotifyHubCliConfig(
+            host="nuc.tail0ec64c.ts.net", port=443, scheme="https"
+        )
+        assert cfg.address == "https://nuc.tail0ec64c.ts.net"
+
+    def test_https_non_default_port_is_kept(self):
+        cfg = config.NotifyHubCliConfig(host="example.com", port=8443, scheme="https")
+        assert cfg.address == "https://example.com:8443"
+
+    def test_http_default_port_is_omitted(self):
+        cfg = config.NotifyHubCliConfig(host="example.com", port=80)
+        assert cfg.address == "http://example.com"
+
+    @pytest.mark.parametrize("value", ["https", "HTTPS", " https:// ", "https:", "https://"])
+    def test_scheme_is_normalized(self, value):
+        assert config.NotifyHubCliConfig(scheme=value).scheme == "https"
+
+    @pytest.mark.parametrize("value", ["", " ", "\t"])
+    def test_empty_or_blank_scheme_defaults_to_http(self, value):
+        assert config.NotifyHubCliConfig(scheme=value).scheme == "http"
+
+    def test_invalid_scheme_raises_validation_error(self):
+        with pytest.raises(pdt.ValidationError):
+            config.NotifyHubCliConfig(scheme="ftp")
+
+    def test_env_var_routes_scheme_through_validator(self):
+        with patch.dict(os.environ, {"NOTIFYHUB_CLI_SCHEME": "https"}):
+            result = confstackify(config.NotifyHubConfig, APP_NAME)
+            assert result.cli.scheme == "https"
+            assert result.cli.address.startswith("https://")
