@@ -1,4 +1,4 @@
-.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti send-simple-bark send-backend-bark chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin test-bg clean fe fh beh t tb tf tfh tc mapping m tui-deps tui tui-typecheck td ttc ssb sbb e2e-key e2ekey e2e-status e2es
+.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti send-simple-bark send-backend-bark chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin install-plugin-claude remove-plugin-claude test-bg clean fe fh beh t tb tf tfh tc mapping m tui-deps tui tui-typecheck td ttc ssb sbb e2e-key e2ekey e2e-status e2es
 
 # -----------------------------------
 #            Dependencies
@@ -139,3 +139,11 @@ uninstall-plugin remove-plugin rm-plugin:
 	rm -f ~/.config/opencode/plugin/notifyhub-push.py
 	rm -f ~/.config/opencode/plugin/opencode-trace.py
 	@echo "Plugin removed."
+
+install-plugin-claude:
+	@echo "Installing NotifyHub hooks for Claude Code..."
+	cd src/notifyhub/plugins/claude && python3 install.py
+
+uninstall-plugin-claude remove-plugin-claude:
+	@echo "Removing NotifyHub hooks from Claude Code..."
+	cd src/notifyhub/plugins/claude && python3 install.py --remove

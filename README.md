@@ -351,6 +351,33 @@ make plugin-deps      # npm install (types for the v2 plugin API)
 cd src/notifyhub/plugins/opencode && npm run typecheck
 ```
 
+### Claude Code Hooks (Optional)
+
+The same notifications are available for **Claude Code** via its hooks system — see
+[`docs/important/claude-code-hooks.md`](docs/important/claude-code-hooks.md) for the full guide.
+Claude Code has no in-process plugin event stream, so the port is a Python hook script it spawns
+per event, plus a merge-preserving settings installer and a plugin-layout alternative:
+
+| Claude Code hook | Notification |
+|---|---|
+| `Stop` | `[#tag:@USER] …` + `[#tag:@ASSISTANT] …` message excerpts |
+| `StopFailure` | `[#claude-code.error] <error message>` |
+| `Notification` (`permission_prompt`) | `[#claude-code.permission] <message>` |
+| `Notification` (elicitation / `agent_needs_input`) | `[#claude-code.question] <message>` |
+
+```bash
+make install-plugin         # once, if not already done: installs the shared notifyhub-push.py
+make install-plugin-claude  # merges the hooks into ~/.claude/settings.json
+make backend                # start the NotifyHub server
+# restart Claude Code sessions, then verify with /hooks
+make remove-plugin-claude   # uninstall
+```
+
+Hooks run straight from `src/notifyhub/plugins/claude/notifyhub-claude.py` (live edits, no
+reinstall), share `notifyhub-push.py` and the mute env vars with the OpenCode plugin, and the
+directory doubles as a Claude Code plugin (`claude --plugin-dir src/notifyhub/plugins/claude`).
+Port history: [`docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md`](docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md).
+
 ---
 
 ## 11. Backend Configuration

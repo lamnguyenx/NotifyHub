@@ -1,0 +1,15 @@
+{
+  "name": "notifyhub",
+  "version": "1.0.0",
+  "displayName": "NotifyHub",
+  "description": "Push Claude Code turn completions, errors, permission prompts, and questions to a local NotifyHub server",
+  "author": {
+    "name": "Lam Nguyen",
+    "url": "https://github.com/lamnguyenx"
+  },
+  "homepage": "https://github.com/lamnguyenx/NotifyHub",
+  "repository": "https://github.com/lamnguyenx/NotifyHub",
+  "license": "MIT",
+  "keywords": ["notifications", "notifyhub"],
+  "hooks": "./hooks/hooks.json"
+}

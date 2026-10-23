@@ -1,0 +1,42 @@
+{
+  "description": "NotifyHub notifications: turn completion, API errors, permission prompts, questions",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/notifyhub-claude.py",
+            "args": [],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/notifyhub-claude.py",
+            "args": [],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/notifyhub-claude.py",
+            "args": [],
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

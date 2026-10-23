@@ -7,6 +7,8 @@ TypeScript file** that OpenCode loads from its local plugin directory and that p
 NotifyHub server by spawning `notifyhub-push.py` (the NotifyHub CLI).
 
 Migration history and the full v1 → v2 debugging story: `docs/plans/2026/09/28/2026-09-28-opencode-v2-plugin-migration.md`.
+The Claude Code counterpart (hooks port) lives at `src/notifyhub/plugins/claude/` — see
+[`claude-code-hooks.md`](claude-code-hooks.md).
 
 ## Requirements
 
