@@ -56,7 +56,7 @@ should use the `hooks.json` installer instead.
 | `Stop` | `session.execution.succeeded` | `[#tag:@USER] …` + `[#tag:@ASSISTANT] …` (last user + assistant message) |
 | `Interrupt` | `session.execution.interrupted` | same body, recovered from the transcript |
 | `PostModelRequest` (`status: failed`) | `session.execution.failed` | `[#codex.error] <error message>` |
-| `PermissionRequest` | `permission.asked` | `[#codex.permission] <approval reason or tool name>` |
+| `PermissionRequest` (human reviewer) | `permission.asked` | `[#codex.permission] <approval reason or tool name>` |
 | `PreToolUse` (`request_user_input`) | `form.created` (question tool) | `[#codex.question] <question>` |
 
 Details:
@@ -80,6 +80,11 @@ Details:
 - **`PermissionRequest`**: the notification uses `tool_input.description` when Codex provides an
   approval reason, otherwise `Codex needs your permission to use <tool_name>`. The hook returns no
   decision, so Codex's normal approval prompt continues. It runs async, so the prompt is not delayed.
+  Codex fires this event **before** the reviewer runs, so the script skips it when the turn will not
+  stop for a person: `permission_mode: "bypassPermissions"` (Full Access / `approval_policy: "never"`)
+  or `approvals_reviewer: "auto_review"` (the guardian reviews the request instead). The reviewer is
+  read from the turn's `turn_context` entry in the rollout transcript, because the hook payload does
+  not carry it. When the transcript or `turn_context` is missing, the notification is kept.
 - **`PreToolUse` (`request_user_input`)**: Codex's question tool. The hook extracts the question text
   (and any additional questions) and notifies. The tool is available in Plan mode by default; the
   `default_mode_request_user_input` feature enables it in default mode too. Older Codex versions without
@@ -94,6 +99,22 @@ Details:
 - **Side-effect only**: the script never writes stdout and always exits 0, so it can never block or
   alter a turn. This matters because Codex parses stdout as hook output for `Stop`/`Interrupt` and
   treats plain text as invalid. Push failures are reported on stderr, which lands in the Codex log.
+
+## Agent status reporting
+
+The hooks also report live session state to `POST /api/status/codex/<state>` (see
+[`agent-status.md`](agent-status.md)):
+
+| Codex hook | Status | How |
+|---|---|---|
+| `UserPromptSubmit` | `running` | inline `sh -c 'curl --data-binary @- …'` hook (async, 3s) — the raw payload goes straight to the backend, which extracts `session_id`/`cwd`/the task excerpt |
+| `PostModelRequest` (every attempt) | `running` | posted in-process by `notifyhub-codex.py` — a heartbeat that also revives entries the backend marked stale |
+| `PermissionRequest` | `blocked` when a human must decide, else `running` | posted by `notifyhub-codex.py`, reusing the `needs_human_permission()` check (`auto_review` approvals are not user-visible blockers) |
+| `PreToolUse` (`request_user_input`) | `blocked` | posted by `notifyhub-codex.py` |
+| `Stop` / `Interrupt` | `idle` | posted by `notifyhub-codex.py` |
+
+Completion pushes stamp `NOTIFYHUB_SESSION_ID` (→ `data.session_id` on the notification) so the
+TUI dock resolves the running row when the notification lands.
 
 ## Configuration
 
@@ -142,9 +163,11 @@ echo '{"hook_event_name":"Stop","stop_hook_active":false,"turn_id":"t1",
 ```
 
 Useful cases: `stop_hook_active: true` (silent), `Interrupt` with a synthetic rollout transcript,
-`PermissionRequest` with `tool_input.description`, `PreToolUse` with `tool_name: "request_user_input"`,
-`PostModelRequest` with `status: "failed"`, and `NOTIFYHUB_CLI_ENABLED=false` (silent). For the installer,
-point `CODEX_HOME` at a temporary directory or use `--dry-run`.
+`PermissionRequest` with `tool_input.description` (and a `turn_context` line saying
+`approvals_reviewer: "auto_review"` for the silent path), `PreToolUse` with
+`tool_name: "request_user_input"`, `PostModelRequest` with `status: "failed"`, and
+`NOTIFYHUB_CLI_ENABLED=false` (silent). For the installer, point `CODEX_HOME` at a temporary directory
+or use `--dry-run`.
 
 A synthetic transcript line looks like:
 
@@ -162,6 +185,8 @@ A synthetic transcript line looks like:
 | Hooks missing from `/hooks` | `~/.codex/hooks.json` failed to parse, or `CODEX_HOME` points elsewhere — check the path the installer printed |
 | Codex warns about hooks at startup | `config.toml` also has inline `[hooks]`; Codex merges both. Move them into `hooks.json` if the warning is noisy |
 | Error notification on a turn that later succeeds | `PostModelRequest` fires per failed attempt; the retry succeeded. One notification per turn is deliberate |
+| No `[#codex.permission]` notification despite an approval prompt | The turn is `approvals_reviewer: "auto_review"` or Full Access, so Codex did not stop for a person. Set `approvals_reviewer = "user"` to get permission notifications |
+| `[#codex.permission]` fires for approvals you never saw | The turn context could not be read (missing/partial transcript), so the hook cannot tell it was auto-reviewed; check that Codex writes `turn_context` entries to the rollout |
 | No notification on an interrupt | Codex caps Interrupt hooks at 3 s; make sure the NotifyHub server is reachable and local |
 | Notifications work in the TUI but not `codex exec` | Completion/error hooks must be synchronous — `codex exec` cancels unfinished background hooks when it exits. The installer registers them with `async: false` |
 | No question notification | `request_user_input` is unavailable outside Plan mode unless `default_mode_request_user_input` is enabled; older Codex asks in plain text |

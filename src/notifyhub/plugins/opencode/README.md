@@ -22,6 +22,25 @@ Sends notifications to a local NotifyHub server whenever OpenCode needs attentio
 | `permission.asked`                            | `[#opencode.permission] OpenCode needs your permission`   |
 | `form.created` (the `question` tool)          | `[#opencode.question] OpenCode is asking you a question`  |
 
+**Status** (ported from herdr's opencode agent-state plugin — the plugin is the
+lifecycle authority because it sees the server's own event stream; reports go
+to `POST /api/status/opencode/<state>` in-process, no spawn — operator guide:
+`docs/important/agent-status.md`):
+
+| OpenCode v2 event | Status |
+| --- | --- |
+| `session.execution.started` | `running` (attaches a truncated excerpt of the prompt as the task) |
+| `session.idle` | `idle` |
+| `session.execution.succeeded` / `failed` / `interrupted` | `idle` |
+| `permission.asked`, `form.created` | `blocked` |
+| `permission.replied` | `running` (reject settles via the following `session.idle` / execution event) |
+
+Identical consecutive reports are skipped locally; a backend that is down is
+silently ignored. Completion pushes stamp `NOTIFYHUB_SESSION_ID` (`→ data.session_id`
+on the notification) so consumers can resolve the running row when the card lands.
+A long-lived opencode server/TUI keeps the previously-loaded plugin instance until
+it restarts.
+
 Turn-completion bodies are read through `ctx.session.context({ sessionID })` and truncated to the last
 5 lines / 200 characters (the same rules the retired `opencode-trace.py --notifyhub` preset used).
 

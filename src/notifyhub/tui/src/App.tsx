@@ -2,15 +2,18 @@ import { useState, useCallback, useEffect } from "react"
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useTheme } from "./theme"
 import { useNotifications } from "./hooks/useNotifications"
+import { useNow } from "./hooks/useNow"
 import { ErrorBoundary } from "./components/ErrorBoundary"
 import { NotificationStream } from "./components/NotificationStream"
+import { AgentStatusDock } from "./components/AgentStatusDock"
 import { StatusPopup } from "./components/StatusPopup"
 import { HelpPopup } from "./components/HelpPopup"
 
 export function App() {
   const [showStatus, setShowStatus] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const { notifications, serverInfo, hasMore, loadingMore, handleDelete, loadMore, lockedCount } = useNotifications()
+  const { notifications, agentStatus, serverInfo, hasMore, loadingMore, handleDelete, loadMore, lockedCount } = useNotifications()
+  const dockNow = useNow(10_000)
   const renderer = useRenderer()
   const theme = useTheme()
 
@@ -48,6 +51,7 @@ export function App() {
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
       <box width="100%" flexGrow={1}>
         <ErrorBoundary>
+          <AgentStatusDock entries={agentStatus} now={dockNow} />
           <NotificationStream
             notifications={notifications}
             onDelete={handleDelete}

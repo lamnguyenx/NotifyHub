@@ -35,6 +35,12 @@
       <td>NOTIFYHUB_BACKEND_NOTIFICATIONS_MAX_COUNT</td>
     </tr>
     <tr>
+      <td>backend.agent_status_stale_seconds</td>
+      <td>300</td>
+      <td>notifyhub.backend.agent_status_stale_seconds</td>
+      <td>NOTIFYHUB_BACKEND_AGENT_STATUS_STALE_SECONDS</td>
+    </tr>
+    <tr>
       <td>backend.telegram_chat_id</td>
       <td>&#34;&#34;</td>
       <td>notifyhub.backend.telegram_chat_id</td>

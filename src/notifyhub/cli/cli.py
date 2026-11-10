@@ -129,6 +129,12 @@ def main() -> None:
     json_data = {"pwd": os.getcwd(), "message": message}
     if host_model:
         json_data["host_model"] = host_model
+    # Correlation key for the agent-status feature: reporters that know their
+    # session (the NotifyHub plugins/hook scripts) pass it through this env var
+    # so a completion notification can be matched to its live status entry.
+    session_id = os.environ.get("NOTIFYHUB_SESSION_ID", "").strip()
+    if session_id:
+        json_data["session_id"] = session_id
     payload = {"data": json_data}
 
     if cli.dry_run:

@@ -1,7 +1,7 @@
 import type { Plugin } from "@opencode/plugin"
 import { spawn } from "child_process"
 import { readFileSync, statSync } from "fs"
-import { homedir } from "os"
+import { homedir, hostname } from "os"
 import { join } from "path"
 
 type PluginContext = Plugin.Context
@@ -249,7 +249,7 @@ async function ownedSessionDirectory(ctx: PluginContext, sessionID: string): Pro
   return session.subpath ? join(session.location.directory, session.subpath) : session.location.directory
 }
 
-function notifyhubPush(message: string, directory?: string): void {
+function notifyhubPush(message: string, directory?: string, sessionID?: string): void {
   if (notificationsMuted()) return
   const notifyhubPush =
     process.env.NOTIFYHUB_PUSH_SCRIPT ?? join(homedir(), ".config", "opencode", "plugin", "notifyhub-push.py")
@@ -268,6 +268,7 @@ function notifyhubPush(message: string, directory?: string): void {
         NOTIFYHUB_CLI_HOST: process.env.NOTIFYHUB_CLI_HOST ?? "0.0.0.0",
         NOTIFYHUB_CLI_PORT: process.env.NOTIFYHUB_CLI_PORT ?? "9080",
         NOTIFYHUB_CLI_SCHEME: process.env.NOTIFYHUB_CLI_SCHEME ?? "http",
+        NOTIFYHUB_SESSION_ID: sessionID,
         VERBOSE_INT: "0",
         ...process.env,
       },
@@ -281,6 +282,75 @@ function notifyhubPush(message: string, directory?: string): void {
   child.on("error", (error) => {
     console.error(`NotifyHub notification error: ${error}`)
   })
+}
+
+// --- Agent status reporting -------------------------------------------------
+//
+// Ported from herdr's opencode integration (herdr-agent-state.js): the plugin
+// is the authority for the session lifecycle because it sees the server's own
+// event stream. POST /api/status lets the backend show
+// running/idle/blocked per session; like herdr's pane.report_agent, reports
+// are fire-and-forget and failures are silent.
+
+type AgentState = "running" | "idle" | "blocked"
+
+/** Last state posted per session, so identical reports are not re-sent. */
+const lastPostedState = new Map<string, AgentState>()
+
+function statusEndpoint(): string {
+  const scheme = process.env.NOTIFYHUB_CLI_SCHEME || "http"
+  const host = process.env.NOTIFYHUB_CLI_HOST || "0.0.0.0"
+  const port = process.env.NOTIFYHUB_CLI_PORT || "9080"
+  if ((scheme === "https" && port === "443") || (scheme === "http" && port === "80")) {
+    return `${scheme}://${host}/api/status`
+  }
+  return `${scheme}://${host}:${port}/api/status`
+}
+
+async function reportStatus(
+  ctx: PluginContext,
+  sessionID: string | undefined,
+  state: AgentState,
+): Promise<void> {
+  if (!sessionID || notificationsMuted()) return
+  if (lastPostedState.get(sessionID) === state) return
+
+  const directory = await ownedSessionDirectory(ctx, sessionID)
+  if (!directory) return
+
+  // Only turn starts carry a fresh task excerpt; later transitions on the
+  // same turn (blocked → running after a permission, idle) keep the existing
+  // one server-side (absent fields never clobber what is stored).
+  let task: string | undefined
+  if (state === "running") {
+    try {
+      const messages = await ctx.session.context({ sessionID })
+      const userText = lastUserText(messages)
+      if (userText) task = truncateText([userText])
+    } catch {
+      // Context is best-effort; the status post must not depend on it.
+    }
+  }
+
+  lastPostedState.set(sessionID, state)
+  try {
+    // 3s deadline: status is best-effort and must never delay a turn.
+    const signal = AbortSignal.timeout(3_000)
+    await fetch(`${statusEndpoint()}/opencode/${state}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionID,
+        pwd: directory,
+        host: hostname(),
+        ...(task ? { task } : {}),
+      }),
+      signal,
+    })
+  } catch {
+    // Backend unreachable: keep the local cache so a later successful post
+    // still reflects a real transition and is not skipped as a duplicate.
+  }
 }
 
 // Mirrors the truncation rules of the retired opencode-trace.py --notifyhub preset.
@@ -348,30 +418,48 @@ const plugin: Plugin.Plugin = {
       for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
         try {
           switch (event.type) {
+            case "session.execution.started": {
+              await reportStatus(ctx, event.data.sessionID, "running")
+              break
+            }
             case "session.execution.succeeded":
             case "session.execution.interrupted": {
+              await reportStatus(ctx, event.data.sessionID, "idle")
               const directory = await ownedSessionDirectory(ctx, event.data.sessionID)
               if (!directory) break
               const messages = await ctx.session.context({ sessionID: event.data.sessionID })
-              notifyhubPush(notificationBody(messages), directory)
+              notifyhubPush(notificationBody(messages), directory, event.data.sessionID)
               break
             }
             case "session.execution.failed": {
+              await reportStatus(ctx, event.data.sessionID, "idle")
               const directory = await ownedSessionDirectory(ctx, event.data.sessionID)
               if (!directory) break
-              notifyhubPush(`[#opencode.error] ${event.data.error.message}`, directory)
+              notifyhubPush(`[#opencode.error] ${event.data.error.message}`, directory, event.data.sessionID)
+              break
+            }
+            case "session.idle": {
+              await reportStatus(ctx, event.data.sessionID, "idle")
               break
             }
             case "permission.asked": {
+              await reportStatus(ctx, event.data.sessionID, "blocked")
               const directory = await ownedSessionDirectory(ctx, event.data.sessionID)
               if (!directory) break
-              notifyhubPush("[#opencode.permission] OpenCode needs your permission", directory)
+              notifyhubPush("[#opencode.permission] OpenCode needs your permission", directory, event.data.sessionID)
+              break
+            }
+            case "permission.replied": {
+              // Once/always resume the turn; reject surfaces its own follow-up
+              // (session.idle / execution.*), which will settle the state.
+              await reportStatus(ctx, event.data.sessionID, "running")
               break
             }
             case "form.created": {
+              await reportStatus(ctx, event.data.form.sessionID, "blocked")
               const directory = await ownedSessionDirectory(ctx, event.data.form.sessionID)
               if (!directory) break
-              notifyhubPush("[#opencode.question] OpenCode is asking you a question", directory)
+              notifyhubPush("[#opencode.question] OpenCode is asking you a question", directory, event.data.form.sessionID)
               break
             }
           }

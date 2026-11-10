@@ -210,6 +210,9 @@ function ensureKey(): Promise<CryptoKey | null> {
   return keyPromise
 }
 
+/** Resolve the configured e2e key (null when none); shared with api.ts. */
+export { ensureKey }
+
 /** Whether an e2e key is configured in this process. */
 export function hasE2EKeySync(): boolean {
   return configuredKey() !== null

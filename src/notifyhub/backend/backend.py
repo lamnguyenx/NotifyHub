@@ -13,11 +13,19 @@ import json
 import os
 import textwrap
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 
 from confstack import confstackify
 
-from .models import NotificationStore, Notification, serialize_notification
+from .models import (
+    AgentStatusStore,
+    DEFAULT_STATUS_STALE_SECONDS,
+    NotificationStore,
+    Notification,
+    STATUS_AGENTS,
+    STATUS_STATES,
+    serialize_notification,
+)
 from ..config import NotifyHubConfig
 from ..crypto import (
     CryptoError,
@@ -90,6 +98,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 sse_manager = SSEManager()
 store = NotificationStore(sse_manager=sse_manager)
+status_store = AgentStatusStore(sse_manager=sse_manager)
 _e2e_enabled: bool = False
 _e2e_key: tp.Optional[bytes] = None
 _telegram_bot_token: tp.Optional[str] = None
@@ -256,6 +265,101 @@ async def notify(request: NotifyRequest):
         return {"error": traceback.format_exc().split("\n")}
 
 
+TASK_EXCERPT_MAX_CHARS = 160
+
+
+def task_excerpt(body: dict) -> tp.Optional[str]:
+    """One-line task excerpt for the running turn, or None.
+
+    claude/codex curl hooks pipe their raw hook payload, whose UserPromptSubmit
+    carries `prompt`; the OpenCode plugin posts `task` explicitly. Whitespace
+    is collapsed (the TUI row is a single line) and the tail is dropped."""
+    raw = body.get("task")
+    if not isinstance(raw, str):
+        raw = body.get("prompt")
+    if not isinstance(raw, str):
+        return None
+    collapsed = " ".join(raw.split())
+    if not collapsed:
+        return None
+    if len(collapsed) > TASK_EXCERPT_MAX_CHARS:
+        collapsed = collapsed[: TASK_EXCERPT_MAX_CHARS - 1].rstrip() + "…"
+    return collapsed
+
+
+@app.post("/api/status/{agent}/{state}")
+async def report_status(agent: str, state: str, request: Request):
+    """Ingest one agent lifecycle report (herdr-style thin reporters).
+
+    The body is whatever the reporter has: claude/codex hooks pipe their raw
+    hook payload (session_id/cwd live inside it), the OpenCode plugin posts
+    explicit fields, and an e2e envelope is accepted too. The server owns the
+    parsing, so reporters stay one-line `curl --data-binary @-` commands.
+    """
+    try:
+        if agent not in STATUS_AGENTS:
+            raise ValueError(
+                f"unknown agent {agent!r}; expected one of {sorted(STATUS_AGENTS)}"
+            )
+        if state not in STATUS_STATES:
+            raise ValueError(
+                f"unknown state {state!r}; expected one of {sorted(STATUS_STATES)}"
+            )
+
+        raw = await request.body()
+        try:
+            body = json.loads(raw) if raw.strip() else {}
+        except (ValueError, UnicodeDecodeError):
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        if is_envelope(body):
+            if not _e2e_key:
+                raise CryptoError(
+                    "received an encrypted envelope but no e2e key is configured"
+                )
+            body = decrypt_payload(body, _e2e_key)
+
+        session_id = str(body.get("session_id") or body.get("sessionId") or "").strip()
+        if not session_id:
+            raise ValueError(
+                "session_id is required (claude/codex hook payloads carry it)"
+            )
+        pwd = body.get("pwd") if isinstance(body.get("pwd"), str) else None
+        cwd = body.get("cwd") if isinstance(body.get("cwd"), str) else None
+        body_host = body.get("host")
+        host = (
+            body_host
+            if isinstance(body_host, str) and body_host.strip()
+            else (request.client.host if request.client else None)
+        )
+
+        changed = status_store.update(
+            agent, session_id, state, pwd=pwd or cwd, host=host, task=task_excerpt(body)
+        )
+        return {"success": True, "changed": changed}
+    except CryptoError as e:
+        return {"error": [f"E2E crypto error: {e}"]}
+    except Exception:
+        return {"error": traceback.format_exc().split("\n")}
+
+
+@app.get("/api/status")
+async def get_status():
+    """Live agent session states.
+
+    Ephemeral server-owned runtime facts (RAM only, never persisted). While a
+    `running` entry that stops refreshing past the stale window is served as
+    `stale`, the stored state is untouched, so a late refresh revives it.
+    Entries are wrapped in e2e envelopes per-item (like notifications) when
+    a key is configured.
+    """
+    return {
+        "agents": status_store.list_payloads(),
+        "server_time": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.get("/api/e2e")
 async def e2e_status():
     """Report server-side e2e encryption state (no secrets)."""
@@ -380,10 +484,25 @@ async def root():
 
 def _load_runtime(config: NotifyHubConfig) -> None:
     """Apply config to module globals (re-applied on reload-worker import)."""
-    global sse_manager, store, _e2e_enabled, _e2e_key, _telegram_bot_token, _telegram_chat_id, _telegram_group_chat_id, _telegram_notify_tags, _macos_notifications_enabled, _bark_device_key, _bark_aes_key, _bark_notify_tags
+    global sse_manager, store, status_store, _e2e_enabled, _e2e_key, _telegram_bot_token, _telegram_chat_id, _telegram_group_chat_id, _telegram_notify_tags, _macos_notifications_enabled, _bark_device_key, _bark_aes_key, _bark_notify_tags
     sse_manager = SSEManager(heartbeat_interval=config.backend.sse_heartbeat_interval)
     store = NotificationStore(
         sse_manager=sse_manager, max_count=config.backend.notifications_max_count
+    )
+    status_store = AgentStatusStore(
+        sse_manager=sse_manager,
+        # getattr: the deployed image may predate this config field (mixed
+        # hotfixes ship backend.py without the matching config.py).
+        stale_after=getattr(
+            config.backend,
+            "agent_status_stale_seconds",
+            DEFAULT_STATUS_STALE_SECONDS,
+        ),
+        # `_e2e_key` is resolved at call time so the transform follows key
+        # reloads without rebuilding the store.
+        entry_transform=(
+            (lambda payload: encrypt_payload(payload, _e2e_key)) if config.e2e.enabled else None
+        ),
     )
 
     _e2e_enabled = bool(config.e2e.enabled)

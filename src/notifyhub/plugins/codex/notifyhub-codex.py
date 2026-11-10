@@ -13,7 +13,7 @@ plugin distribution:
   Stop              -> turn completion ([#tag:@USER] + [#tag:@ASSISTANT])
   Interrupt         -> interrupted turn (same body, transcript-recovered)
   PostModelRequest  -> model request failure ([#codex.error])
-  PermissionRequest -> [#codex.permission] ...
+  PermissionRequest -> [#codex.permission] ... (only when a human must decide)
   PreToolUse (request_user_input) -> [#codex.question] ...
 
 The script is side-effect only: it always exits 0 and never writes stdout.
@@ -24,11 +24,13 @@ invalid, so writing nothing is the safe no-op. Push failures go to stderr.
 import hashlib
 import json
 import os
+import socket
 import subprocess
 import sys
 import tempfile
 import time
 import typing as tp
+import urllib.request
 
 MAX_LINES = 5
 MAX_CHARS = 200
@@ -222,6 +224,56 @@ def transcript_texts(transcript_path: str, turn_id: str) -> tp.Tuple[str, str]:
     return (user_text or user_fallback, assistant_text or assistant_fallback)
 
 
+def turn_context(transcript_path: str, turn_id: str) -> tp.Dict[str, tp.Any]:
+    """Resolved settings Codex recorded for a turn in the rollout transcript.
+
+    The PermissionRequest payload only carries `permission_mode`, which maps
+    every approval policy except "never" to "default"; it cannot tell a user
+    prompt apart from an automatic review. The transcript's `turn_context`
+    entry can: it records `approvals_reviewer` ("user" or "auto_review") and the
+    effective `approval_policy`. Return the last matching entry so mid-turn
+    setting changes win."""
+    if not transcript_path or not turn_id:
+        return {}
+    context: tp.Dict[str, tp.Any] = {}
+    try:
+        with open(transcript_path, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(entry, dict) or entry.get("type") != "turn_context":
+                    continue
+                payload = entry.get("payload")
+                if not isinstance(payload, dict):
+                    continue
+                if str(payload.get("turn_id") or "") != turn_id:
+                    continue
+                context = payload
+    except OSError:
+        pass
+    return context
+
+
+def needs_human_permission(payload: tp.Dict[str, tp.Any]) -> bool:
+    """True when a PermissionRequest will actually stop for a person.
+
+    Full Access (`permission_mode: bypassPermissions`) and Never never prompt.
+    `approvals_reviewer: auto_review` hands approvals to Codex's guardian, so
+    the user sees nothing to act on; notifying would be a false alarm. Missing
+    transcript fields keep the notification, since older Codex versions may not
+    record the turn context."""
+    if payload.get("permission_mode") == "bypassPermissions":
+        return False
+    context = turn_context(
+        str(payload.get("transcript_path") or ""), str(payload.get("turn_id") or "")
+    )
+    if context.get("approval_policy") == "never":
+        return False
+    return context.get("approvals_reviewer") != "auto_review"
+
+
 def question_text(tool_input: tp.Any) -> str:
     """Question(s) from a request_user_input tool call."""
     if not isinstance(tool_input, dict):
@@ -269,6 +321,8 @@ def notification_body(payload: tp.Dict[str, tp.Any]) -> tp.Optional[str]:
         return f"[#codex.error] {error}"
 
     if event == "PermissionRequest":
+        if not needs_human_permission(payload):
+            return None
         tool_input = payload.get("tool_input")
         description = tool_input.get("description") if isinstance(tool_input, dict) else None
         tool = payload.get("tool_name") or "a tool"
@@ -330,7 +384,7 @@ def claim_once(kind: str, payload: tp.Dict[str, tp.Any]) -> bool:
         return True
 
 
-def push(message: str, directory: tp.Optional[str], timeout: float = DEFAULT_PUSH_TIMEOUT) -> None:
+def push(message: str, directory: tp.Optional[str], timeout: float = DEFAULT_PUSH_TIMEOUT, session_id: str = "") -> None:
     script = os.environ.get("NOTIFYHUB_PUSH_SCRIPT") or os.path.join(
         os.path.expanduser("~"), ".config", "opencode", "plugin", "notifyhub-push.py"
     )
@@ -345,6 +399,7 @@ def push(message: str, directory: tp.Optional[str], timeout: float = DEFAULT_PUS
             capture_output=True,
             text=True,
             timeout=timeout,
+            env={**os.environ, "NOTIFYHUB_SESSION_ID": session_id} if session_id else None,
         )
         if result.returncode != 0:
             output = (result.stdout + result.stderr).strip()
@@ -353,6 +408,76 @@ def push(message: str, directory: tp.Optional[str], timeout: float = DEFAULT_PUS
         print(f"NotifyHub push script not found: {script}", file=sys.stderr)
     except subprocess.TimeoutExpired:
         print("NotifyHub notification timed out", file=sys.stderr)
+
+
+# No proxy: status goes straight to the backend, mirroring requests'
+# trust_env=False in the CLI.
+_DIRECT_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def post_status(payload: tp.Dict[str, tp.Any], state: str) -> None:
+    """Best-effort lifecycle report to POST /api/status/codex/<state>.
+
+    Same NOTIFYHUB_CLI_HOST/PORT/SCHEME resolution as the push CLI, honoring
+    the mute rules. Failures are silent; per-event timeout discipline matches
+    push() (Interrupt caps hooks at 3s, other sync hooks at 5-10s).
+    """
+    if notifications_muted():
+        return
+    session = str(payload.get("session_id") or "").strip()
+    if not session:
+        return
+    host = os.environ.get("NOTIFYHUB_CLI_HOST") or "127.0.0.1"
+    port = os.environ.get("NOTIFYHUB_CLI_PORT") or "9080"
+    scheme = os.environ.get("NOTIFYHUB_CLI_SCHEME") or "http"
+    body = json.dumps(
+        {
+            "session_id": session,
+            "cwd": payload.get("cwd"),
+            "host": socket.gethostname(),
+        }
+    ).encode()
+    request = urllib.request.Request(
+        f"{scheme}://{host}:{port}/api/status/codex/{state}",
+        data=body,
+        headers={"content-type": "application/json"},
+        method="POST",
+    )
+    try:
+        with _DIRECT_OPENER.open(request, timeout=2):
+            pass
+    except Exception:
+        pass
+
+
+def status_event(payload: tp.Dict[str, tp.Any]) -> tp.Optional[str]:
+    """Map a hook event to a lifecycle state, or None when it has none."""
+    event = payload.get("hook_event_name")
+
+    if event in ("Stop", "Interrupt"):
+        # A stop caused by another Stop hook continuing the turn is not a real
+        # completion; the turn keeps running, so the status stays untouched.
+        if event == "Stop" and payload.get("stop_hook_active"):
+            return None
+        return "idle"
+
+    if event == "PostModelRequest":
+        # Fires per model request attempt, retries included — a heartbeat
+        # that also revives an entry past the stale window.
+        return "running"
+
+    if event == "PermissionRequest":
+        # Only a prompt a human must answer blocks; auto_review/guardian
+        # approvals keep the turn running (needs_human_permission reads the
+        # transcript's turn context for that decision).
+        return "blocked" if needs_human_permission(payload) else "running"
+
+    if event == "PreToolUse":
+        if payload.get("tool_name") == "request_user_input":
+            return "blocked"
+        return None
+
+    return None
 
 
 def main() -> None:
@@ -368,6 +493,10 @@ def main() -> None:
         return
 
     event = payload.get("hook_event_name")
+    status = status_event(payload)
+    if status:
+        post_status(payload, status)
+
     message = notification_body(payload)
     if message is None:
         return
@@ -385,7 +514,12 @@ def main() -> None:
         timeout = SYNC_PUSH_TIMEOUT
     else:
         timeout = DEFAULT_PUSH_TIMEOUT
-    push(message, payload.get("cwd"), timeout=timeout)
+    push(
+        message,
+        payload.get("cwd"),
+        timeout=timeout,
+        session_id=str(payload.get("session_id") or "").strip(),
+    )
 
 
 if __name__ == "__main__":

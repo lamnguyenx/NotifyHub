@@ -78,6 +78,27 @@ Details:
   a turn (async-hook stdout is parsed as hook output by Claude Code). Push failures are reported on
   stderr, which lands in the debug log.
 
+## Agent status reporting
+
+Besides notifications, the hooks report live session state to `POST /api/status/claude/<state>`
+(see [`agent-status.md`](agent-status.md)):
+
+| Claude Code hook | Status | How |
+|---|---|---|
+| `UserPromptSubmit` | `running` | inline `sh -c 'curl --data-binary @- …'` hook — the raw payload (with the prompt) goes straight to the backend, which extracts `session_id`/`cwd`/the task excerpt |
+| `PostToolUse` | `running` | same curl one-liner: refreshes the entry and flips `blocked → running` after you answer a permission |
+| `Notification` (wired types) | `blocked` | posted in-process by `notifyhub-claude.py` (urllib, 2s timeout) |
+| `Stop` / `StopFailure` | `idle` | posted by `notifyhub-claude.py` |
+
+- The curl hooks resolve the backend via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` (like the push CLI),
+  and `${VAR-default}` (no colon) expansion keeps the documented empty-host **mute** working.
+- **`Stop`/`StopFailure` run `async: false`** (10s handler timeout, 5s-capped push spawn): `claude -p`
+  exits right after the turn and cancels unfinished async hooks — the same failure mode the Codex port
+  documented first. Interactive sessions are unaffected.
+- Completion pushes stamp `NOTIFYHUB_SESSION_ID` (spawned push script forwards it as
+  `data.session_id`) so the TUI dock can resolve the running row when the notification lands.
+- That this machine's funnel setup exports `NOTIFYHUB_CLI_SCHEME=https` is expected and supported.
+
 ## Configuration
 
 Hooks inherit the **Claude Code process environment**, so set variables before launching `claude`:

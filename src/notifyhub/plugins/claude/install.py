@@ -35,22 +35,46 @@ SETTINGS_PATH = os.path.expanduser(os.path.join("~", ".claude", "settings.json")
 # directory's notifyhub-claude.py, so foreign "Stop" hooks stay untouched.
 HOOK_MARKER = "notifyhub-claude.py"
 
+# Uninstall matches either hook flavor: the python notification script or the
+# curl status one-liners (which target this agent's status endpoint).
+STATUS_HOOK_MARKER = "/api/status/claude/"
+
+
+def status_curl_handler() -> tp.Dict[str, tp.Any]:
+    return {
+        "type": "command",
+        "command": (
+            "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; "
+            "p=\"${NOTIFYHUB_CLI_PORT-9080}\"; "
+            "s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; "
+            "[ -n \"$h\" ] && [ -n \"$p\" ] && "
+            "curl -fsS -m 2 -X POST -H \"content-type: application/json\" "
+            "--data-binary @- \"$s://$h:$p/api/status/claude/running\" "
+            ">/dev/null 2>&1; exit 0'"
+        ),
+        "async": True,
+    }
+
 HOOK_EVENTS: tp.Dict[str, tp.List[tp.Dict[str, tp.Any]]] = {
     # Turn finished (success or user interrupt) — the OpenCode plugin's
-    # session.execution.succeeded counterpart. async: spawn without blocking
-    # the UI; the script never writes stdout so it cannot alter the turn.
+    # session.execution.succeeded counterpart. Synchronous with a tight
+    # timeout: `claude -p` exits right after the turn and cancels unfinished
+    # async hooks, so the status/notification would be lost otherwise (the
+    # script caps its push spawn for these events to keep the wait short).
+    # The shell hook is curl-only; the python entry carries the message body.
     "Stop": [
         {
             "hooks": [
-                {"type": "command", "command": HOOK_SCRIPT, "args": [], "async": True}
+                {"type": "command", "command": HOOK_SCRIPT, "args": [], "async": False, "timeout": 10}
             ]
         }
     ],
     # Turn ended on an API error — session.execution.failed counterpart.
+    # Synchronous for the same `claude -p` reason.
     "StopFailure": [
         {
             "hooks": [
-                {"type": "command", "command": HOOK_SCRIPT, "args": [], "async": True}
+                {"type": "command", "command": HOOK_SCRIPT, "args": [], "async": False, "timeout": 10}
             ]
         }
     ],
@@ -66,12 +90,21 @@ HOOK_EVENTS: tp.Dict[str, tp.List[tp.Dict[str, tp.Any]]] = {
             ],
         }
     ],
+    # Lifecycle status (POST /api/status/claude/running) at turn start and per
+    # tool call. Plain sh+curl piping the hook payload (the server extracts
+    # session_id/cwd itself), so the per-tool-call hot path pays no python
+    # startup; PostToolUse also flips a permission-blocked session back to
+    # running once the user answers. `${VAR-default}` (without the colon)
+    # preserves the documented empty-host/port mute.
+    "UserPromptSubmit": [{"hooks": [status_curl_handler()]}],
+    "PostToolUse": [{"hooks": [status_curl_handler()]}],
 }
 
 
 def is_ours(entry: tp.Dict[str, tp.Any]) -> bool:
     for hook in entry.get("hooks", []):
-        if HOOK_MARKER in str(hook.get("command", "")):
+        command = str(hook.get("command", ""))
+        if HOOK_MARKER in command or STATUS_HOOK_MARKER in command:
             return True
     return False
 

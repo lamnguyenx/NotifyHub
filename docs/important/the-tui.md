@@ -50,7 +50,31 @@ Each notification is rendered as a bordered card (rounded corners) with:
 - **Tag highlighting** — `[#tag:...]` rendered in gray, `[#truncated:...]` in dark gray
 - **Selection** — highlighted border and background on the focused card
 
-### 3. Status Popup
+### 3. Live Agent Status Dock
+Above the notification stream, a bordered dock shows **sessions in motion** — the "loading
+animation while a chat is on" (fed by the [agent-status](agent-status.md) reporters):
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│⠙ ◇ opencode · NotifyHub · 2m ago (fix the login redirect bug) │  ← spinner while running
+│⚠ ✳ claude · hanoi-testing-platform · 40s · waiting for you    │  ← blocked on a permission
+│◼ ◐ codex · VoiceAI_ASR · 31m · stalled?                       │  ← no refresh for 5+ min
+└────────────────────────────────────────────────────────────────┘
+```
+
+- Entries arrive via the `agent_status` SSE event (e2e-decrypted like notifications) and resync
+  from `GET /api/status` on reconnect
+- **running** rows animate a braille spinner and carry the directory-color hash, elapsed `since`
+  time, and a one-line excerpt of the running task
+- **idle** entries are hidden (their completion already rendered as a notification card); the
+  row also disappears the moment its completion notification lands — matched by
+  `data.session_id` stamped on every completion push
+- **stale** is mirrored client-side (running + `updated` older than 5 min) so the marker appears
+  even between SSE events
+- An entry that cannot be decrypted (wrong/missing key) is dropped rather than locked — status
+  is ephemeral, recomputed on every event
+
+### 4. Status Popup
 Press `s` to toggle a centered overlay showing:
 - Connection status (`● Connected` / `○ Disconnected`) with host:port
 - Total notification count
@@ -58,7 +82,7 @@ Press `s` to toggle a centered overlay showing:
 - E2E status: server state + `kid`, whether a local key is set, and the locked-row count
 - Dismisses on any key press
 
-### 4. End-to-End Decryption
+### 5. End-to-End Decryption
 When the backend has [e2e encryption](e2e-encryption.md) enabled, payloads arrive
 as AES-256-GCM envelopes and the TUI decrypts them locally (`utils/crypto.ts`,
 WebCrypto). Cards that cannot be decrypted render as a `LOCKED` card showing the
@@ -101,15 +125,16 @@ src/notifyhub/tui/
 ├── src/
 │   ├── index.tsx             # Entry point — creates CliRenderer, mounts App
 │   ├── App.tsx               # Main layout, keyboard nav, popup management
-│   ├── types.ts              # NotificationItem, NotificationData, ServerInfo, E2EInfo types
+│   ├── types.ts              # NotificationItem, NotificationData, ServerInfo, E2EInfo, AgentStatusEntry types
 │   ├── utils/
 │   │   ├── api.ts            # REST API client + SSE connection (manual parser)
 │   │   └── crypto.ts         # AES-256-GCM envelope decryption (WebCrypto)
 │   ├── hooks/
-│   │   └── useNotifications.ts  # SSE subscription + notification state mgmt
+│   │   └── useNotifications.ts  # SSE subscription + notification/agent-status state mgmt
 │   └── components/
 │       ├── NotificationStream.tsx   # Live auto-scrolling feed with nav
 │       ├── NotificationRow.tsx      # Notification card renderer (+ LOCKED cards)
+│       ├── AgentStatusDock.tsx      # Live running/blocked/stalled agent rows (spinner)
 │       └── StatusPopup.tsx          # Centered status overlay
 │
 ├── src/__tests__/            # bun test suites (utils, components, crypto)
@@ -121,12 +146,14 @@ src/notifyhub/tui/
 The TUI connects to the SSE stream using the Fetch API + ReadableStream reader:
 1. Sends `GET /events`
 2. Parses SSE protocol manually (`event:` and `data:` fields with CRLF line endings)
-3. Handles events: `init`, `notification`, `delete`, `clear`, `heartbeat`, `shutdown`
+3. Handles events: `init`, `notification`, `delete`, `clear`, `heartbeat`, `shutdown`,
+   `agent_status` (live agent session states → the dock)
 
 ### REST Endpoints
 - `GET /api/notifications` — Fetch all notifications (used on connect and periodic refresh)
 - `DELETE /api/notifications?id=xxx` — Delete a single notification
 - `GET /api/e2e` — Server e2e state `{enabled, alg, kid}` (shown in the status popup)
+- `GET /api/status` — Live agent statuses (dock resync on SSE reconnect)
 
 ## Commands
 

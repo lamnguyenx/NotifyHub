@@ -206,9 +206,20 @@ The project uses **Server-Sent Events (SSE)**, not WebSockets:
 - **Backend** (`backend.py`):
   - `SSEManager` class maintains a list of `asyncio.Queue` connections
   - `connect()` adds a new queue, `disconnect()` removes on close, `broadcast()` sends to all connected clients
-  - The `/events` endpoint returns an `EventSourceResponse` that yields events: `init` (current notifications, capped by the optional `?limit=` query param), `notification`, `clear`, `delete`, `heartbeat` (every N seconds, configurable), and `shutdown`
+  - The `/events` endpoint returns an `EventSourceResponse` that yields events: `init` (current notifications, capped by the optional `?limit=` query param), `notification`, `clear`, `delete`, `heartbeat` (every N seconds, configurable), `shutdown`, and `agent_status` (live agent session states — see below)
   - Uses `asyncio.wait_for(queue.get(), timeout=1.0)` for a non-blocking loop with heartbeat counting
   - `GET /api/notifications` supports pagination via `?limit=`, `?offset=`, and `?before=<id>` (stable cursor for loading older items); `GET /api/notifications/count` returns `{"count": N}` without shipping the full payload. This keeps large histories from being loaded into memory at once.
+
+### Live agent status (`/api/status`)
+
+The backend also tracks **which agent session is doing what right now** (RAM-only, herdr-style):
+the opencode plugin and the claude/codex hooks report `running` / `blocked` / `idle` per session
+to `POST /api/status/<agent>/<state>`, and every meaningful change is broadcast as an SSE
+`agent_status` event. Entries carry the directory, host, a one-line excerpt of the running task,
+and turn `stale` after `backend.agent_status_stale_seconds` (default 300) without a refresh.
+Completion notifications carry `data.session_id`, so clients can resolve a running row exactly
+when its turn's notification lands. The TUI renders this as a live dock (§16); operator guide:
+[`docs/important/agent-status.md`](docs/important/agent-status.md).
 
 - **Vite proxy** (`vite.config.js`):
   - `/events` is proxied to `http://localhost:9080` with `ws: true` (WebSocket support in proxy config, though the app uses SSE not WS)
@@ -396,7 +407,7 @@ spawns hook scripts per event, but requires non-managed hooks to be trusted once
 | `Stop` | `[#tag:@USER] …` + `[#tag:@ASSISTANT] …` message excerpts |
 | `Interrupt` | same body, recovered from the transcript |
 | `PostModelRequest` (`status: failed`) | `[#codex.error] <error message>` |
-| `PermissionRequest` | `[#codex.permission] <reason or tool name>` |
+| `PermissionRequest` (human reviewer) | `[#codex.permission] <reason or tool name>` |
 | `PreToolUse` (`request_user_input`) | `[#codex.question] <question>` |
 
 ```bash
@@ -410,7 +421,9 @@ make remove-plugin-codex    # uninstall
 The installer respects `CODEX_HOME`, preserves foreign hooks, and warns when `config.toml` also has
 inline `[hooks]` tables. Completion/error hooks run synchronously because `codex exec` cancels
 unfinished background hooks when it exits; permission and question hooks stay async so they never
-delay a prompt. The directory doubles as a Codex plugin (`.codex-plugin/plugin.json` +
+delay a prompt. Permission notifications are skipped when Codex auto-reviews the request
+(`approvals_reviewer = "auto_review"`) or runs in Full Access, so only prompts that actually wait for
+you notify. The directory doubles as a Codex plugin (`.codex-plugin/plugin.json` +
 `hooks/hooks.json`) for marketplace / desktop distribution.
 Port history: [`docs/plans/2026/11/09/2026-11-09-codex-hooks-port.md`](docs/plans/2026/11/09/2026-11-09-codex-hooks-port.md).
 
@@ -454,10 +467,16 @@ For persistent configuration, create a JSON file at `~/.config/notifyhub/config.
   "backend": {
     "port": 9080,
     "host": "0.0.0.0",
-    "sse_heartbeat_interval": 30
+    "sse_heartbeat_interval": 30,
+    "agent_status_stale_seconds": 300
   }
 }
 ```
+
+`agent_status_stale_seconds` marks a `running` agent-status entry `stale` (crashed
+agent, no idle event) after that many seconds without a refresh — see
+[live agent status](#live-agent-status-apistatus). Env equivalent:
+`NOTIFYHUB_BACKEND_AGENT_STATUS_STALE_SECONDS`.
 
 **Configuration Hierarchy:**
 1. Hardcoded defaults
@@ -769,6 +788,17 @@ With e2e encryption enabled, the TUI prints the key source on startup
 the key from `~/.config/notifyhub/config.jsonl` (or `NOTIFYHUB_E2E_KEY` / a key
 file). Rows it cannot decrypt render as `LOCKED`.
 
+### Live agent status dock
+
+Above the stream, a dock shows **sessions in motion**: `⠙ ◇ opencode · MyProject ·
+2m ago (fix the login bug)` while running (animated spinner + task excerpt),
+`⚠ ✳ claude · … · waiting for you` when blocked on a permission, `◼ ◐ codex · … ·
+stalled?` when a `running` entry hasn't refreshed in 5 minutes. Rows vanish when
+the turn finishes — resolved by `session_id` against the completion notification —
+and resync from `GET /api/status` on reconnect. Details:
+[`docs/important/the-tui.md`](docs/important/the-tui.md) and
+[`docs/important/agent-status.md`](docs/important/agent-status.md).
+
 ### Paginated loading
 
 The TUI does **not** keep every notification in memory. On startup it opens the SSE
@@ -785,6 +815,7 @@ re-downloads the full list.
 | `NOTIFYHUB_CLI_PORT` | `9080` | Backend port |
 | `NOTIFYHUB_CLI_SCHEME` | `http` | URL scheme (`http`/`https`). Set `https` to reach a TLS endpoint such as a Tailscale funnel; the `443` default port is then omitted from the address |
 | `NOTIFYHUB_CLI_ENABLED` | `true` | Parsed via `booleanify` (`1/on/t/true/y/yes` ↔ `0/off/f/false/n/no`); `false` mutes sends. Exporting `NOTIFYHUB_CLI_HOST` or `NOTIFYHUB_CLI_PORT` as an empty string also mutes — the CLI and plugin exit silently |
+| `NOTIFYHUB_SESSION_ID` | _(unset)_ | When set (by the NotifyHub agent plugins/hook scripts), the pushed notification carries `data.session_id` so it correlates with its live status entry |
 | `NOTIFYHUB_TUI_PAGE_SIZE` | `30` | Notifications loaded per page (`init` + each lazy load) |
 | `NOTIFYHUB_E2E_KEY` | _(unset)_ | AES-256-GCM key (base64/hex) to decrypt e2e envelopes; overrides config/key file |
 | `NOTIFYHUB_CONFIG` | `~/.config/notifyhub/config.jsonl` | Config file to read `e2e.key` from (JSON5) |

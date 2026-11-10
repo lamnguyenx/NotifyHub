@@ -18,6 +18,15 @@ class NotifyHubBackendConfig(pdt.BaseModel):
         1000,
         description="Maximum number of notifications to store (None for unlimited)",
     )
+    agent_status_stale_seconds: int = pdt.Field(
+        300,
+        description=(
+            "Mark a 'running' agent status stale after this many seconds "
+            "without a refresh (crashed agents); reporters using claude "
+            "PostToolUse / codex PostModelRequest / opencode session events "
+            "refresh actively during long turns"
+        ),
+    )
     telegram_chat_id: str = pdt.Field(
         "",
         description="Telegram chat ID to send notifications to (empty = disabled)",

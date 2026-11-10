@@ -1,5 +1,5 @@
 {
-  "description": "NotifyHub notifications: turn completion, API errors, permission prompts, questions",
+  "description": "NotifyHub notifications + agent status: turn completion, errors, permission prompts, questions, live session state",
   "hooks": {
     "Stop": [
       {
@@ -8,7 +8,8 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/notifyhub-claude.py",
             "args": [],
-            "async": true
+            "async": false,
+            "timeout": 10
           }
         ]
       }
@@ -20,7 +21,8 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/notifyhub-claude.py",
             "args": [],
-            "async": true
+            "async": false,
+            "timeout": 10
           }
         ]
       }
@@ -33,6 +35,28 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/notifyhub-claude.py",
             "args": [],
+            "async": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; p=\"${NOTIFYHUB_CLI_PORT-9080}\"; s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; [ -n \"$h\" ] && [ -n \"$p\" ] && curl -fsS -m 2 -X POST -H \"content-type: application/json\" --data-binary @- \"$s://$h:$p/api/status/claude/running\" >/dev/null 2>&1; exit 0'",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; p=\"${NOTIFYHUB_CLI_PORT-9080}\"; s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; [ -n \"$h\" ] && [ -n \"$p\" ] && curl -fsS -m 2 -X POST -H \"content-type: application/json\" --data-binary @- \"$s://$h:$p/api/status/claude/running\" >/dev/null 2>&1; exit 0'",
             "async": true
           }
         ]

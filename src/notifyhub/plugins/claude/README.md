@@ -21,6 +21,32 @@ So where the OpenCode plugin is one resident TypeScript file, this port is:
 | `Notification` (`permission_prompt`) | `permission.asked` | `[#claude-code.permission] <message>` |
 | `Notification` (`elicitation_dialog`, `elicitation_url_dialog`, `agent_needs_input`) | `form.created` (the `question` tool) | `[#claude-code.question] <message>` |
 
+## Status mapping
+
+Besides notifications, the hooks report live session state to the backend's
+`POST /api/status/claude/<state>` endpoint (operator guide:
+`docs/important/agent-status.md`):
+
+| Claude Code hook | Status |
+| --- | --- |
+| `UserPromptSubmit` (curl hook) | `running` (the piped payload's `prompt` also becomes the task excerpt, extracted server-side) |
+| `PostToolUse` (curl hook) | `running` (refresh; flips `blocked` → `running` after an answered permission) |
+| `Notification` (`permission_prompt`, elicitation, `agent_needs_input`) | `blocked` |
+| `Stop` / `StopFailure` | `idle` (a `stop_hook_active` stop is not a completion: state untouched) |
+
+The `running` hooks are inline `sh -c 'curl --data-binary @-'` commands — the hook
+payload on stdin goes straight to the server (which extracts `session_id`/`cwd`/the prompt),
+so the per-tool-call path pays no python startup. They resolve the backend via
+`NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` like the push CLI, and `${VAR-default}`
+expansion keeps the documented empty-host mute working.
+
+`Stop`/`StopFailure` hooks run `async: false` (10s handler / 5s push timeout): `claude -p`
+exits right after the turn and cancels unfinished async hooks, which would lose the idle
+report and the completion notification (the same failure mode the Codex installer documents).
+Completion pushes also stamp `NOTIFYHUB_SESSION_ID`, which the push CLI forwards as
+`data.session_id` so consumers can resolve the running row when the card lands.
+`hooks/hooks.json` (the plugin-layout distribution) carries the same five events.
+
 Notes on fidelity to the OpenCode plugin:
 
 - **Turn body**: `Stop` carries `last_assistant_message` directly; the user prompt is recovered from the

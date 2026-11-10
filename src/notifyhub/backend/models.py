@@ -32,6 +32,156 @@ class Notification(BaseModel):
     data: dict
 
 
+# Agents reporting lifecycle status via POST /api/status (mirrors herdr's
+# pane.report_agent model: thin reporters, server-owned runtime facts).
+STATUS_AGENTS = frozenset({"opencode", "claude", "codex"})
+STATUS_STATES = frozenset({"running", "idle", "blocked"})
+
+# Default staleness window for `running` entries whose agent died without
+# an idle event (crash, terminal kill). Configurable via
+# backend.agent_status_stale_seconds.
+DEFAULT_STATUS_STALE_SECONDS = 300
+
+
+class AgentStatus(BaseModel):
+    """Last known lifecycle state of one agent session (in-memory only)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    agent: str
+    session_id: str
+    state: str
+    pwd: Optional[str] = None
+    host: Optional[str] = None
+    task: Optional[str] = None  # short excerpt of the running prompt, if known
+    since: str  # ISO timestamp of the entry's first observation
+    updated: str  # ISO timestamp of the last report (including refreshes)
+
+
+def serialize_status(s: AgentStatus, now: datetime, stale_after: int) -> dict:
+    """Serialize for REST/SSE; a `running` entry not refreshed within
+    `stale_after` seconds reports state="stale" without mutating the store."""
+    state = s.state
+    stale = False
+    if state == "running":
+        try:
+            age = (now - datetime.fromisoformat(s.updated)).total_seconds()
+        except ValueError:
+            age = 0
+        stale = age > stale_after
+        if stale:
+            state = "stale"
+    return {
+        "agent": s.agent,
+        "session_id": s.session_id,
+        "state": state,
+        "pwd": s.pwd,
+        "host": s.host,
+        "task": s.task,
+        "since": s.since,
+        "updated": s.updated,
+    }
+
+
+class AgentStatusStore:
+    """In-memory (agent, session_id) -> AgentStatus map.
+
+    Like NotificationStore, broadcasting is scheduled (never blocking) and
+    happens only on meaningful changes (new session, state transition, or
+    metadata change) — silent running-refreshes do not spam SSE clients.
+    """
+
+    def __init__(
+        self,
+        sse_manager=None,
+        stale_after: int = DEFAULT_STATUS_STALE_SECONDS,
+        entry_transform=None,
+    ):
+        self.statuses: "dict[tuple[str, str], AgentStatus]" = {}
+        self.sse_manager = sse_manager
+        self.stale_after = stale_after
+        # Optional outgoing payload transform (backend uses it to wrap each
+        # served/broadcast entry in an e2e envelope when a key is configured).
+        self.entry_transform = entry_transform
+
+    def update(
+        self,
+        agent: str,
+        session_id: str,
+        state: str,
+        pwd: Optional[str] = None,
+        host: Optional[str] = None,
+        task: Optional[str] = None,
+    ) -> bool:
+        """Record a report; returns True when it changed the visible state
+        (and thus scheduled an SSE broadcast)."""
+        key = (agent, session_id)
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.isoformat()
+        existing = self.statuses.get(key)
+        if existing is None:
+            self.statuses[key] = AgentStatus(
+                agent=agent,
+                session_id=session_id,
+                state=state,
+                pwd=pwd,
+                host=host,
+                task=task,
+                since=now,
+                updated=now,
+            )
+            self._broadcast(self.statuses[key])
+            return True
+
+        # Age of the previous report, measured before it is overwritten: a
+        # refresh that arrives after the stale window re-announces the entry,
+        # a periodic refresh while fresh stays silent.
+        try:
+            refreshed_late = (
+                now_dt - datetime.fromisoformat(existing.updated)
+            ).total_seconds() > self.stale_after
+        except ValueError:
+            refreshed_late = False
+
+        changed = (
+            existing.state != state
+            or (pwd is not None and existing.pwd != pwd)
+            # A new prompt on the same session (new turn) re-announces the
+            # entry with its new task excerpt.
+            or (task is not None and existing.task != task)
+        )
+        existing.state = state
+        if pwd is not None:
+            existing.pwd = pwd
+        if host is not None:
+            existing.host = host
+        if task is not None:
+            existing.task = task
+        existing.updated = now
+        if changed or refreshed_late:
+            self._broadcast(existing)
+        return changed or refreshed_late
+
+    def _payload(self, entry: AgentStatus) -> dict:
+        payload = serialize_status(entry, datetime.now(timezone.utc), self.stale_after)
+        return self.entry_transform(payload) if self.entry_transform else payload
+
+    def _broadcast(self, entry: AgentStatus) -> None:
+        if not self.sse_manager:
+            return
+        event_data = {
+            "event": "agent_status",
+            "data": json.dumps(self._payload(entry)),
+        }
+        try:
+            asyncio.create_task(self.sse_manager.broadcast(event_data))
+        except RuntimeError:
+            pass  # no running loop (tests); broadcast is best-effort
+
+    def list_payloads(self) -> List[dict]:
+        return [self._payload(s) for s in self.statuses.values()]
+
+
 def serialize_notification(n: Notification) -> dict:
     """Serialize a stored record for REST/SSE (wire shape is unchanged)."""
     return {

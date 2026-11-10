@@ -23,9 +23,11 @@ which Claude Code routes to its debug log.
 
 import json
 import os
+import socket
 import subprocess
 import sys
 import typing as tp
+import urllib.request
 
 MAX_LINES = 5
 MAX_CHARS = 200
@@ -44,7 +46,11 @@ PERMISSION_TYPES = frozenset({"permission_prompt"})
 QUESTION_TYPES = frozenset({"elicitation_dialog", "elicitation_url_dialog", "agent_needs_input"})
 HANDLED_NOTIFICATION_TYPES = PERMISSION_TYPES | QUESTION_TYPES
 
-DEFAULT_PUSH_TIMEOUT = 20  # the CLI itself times out its HTTP POST at 10s
+DEFAULT_PUSH_TIMEOUT = 20  # async hooks; the CLI itself times out its HTTP POST at 10s
+# Stop/StopFailure hooks run synchronously so `claude -p` cannot exit and kill
+# them mid-run; the push spawn is capped to keep that wait short (the status
+# POST itself has its own 2s timeout).
+SYNC_PUSH_TIMEOUT = 5
 
 
 def booleanify(value: tp.Optional[str]) -> tp.Optional[bool]:
@@ -184,7 +190,7 @@ def notification_body(payload: tp.Dict[str, tp.Any]) -> tp.Optional[str]:
     return None
 
 
-def push(message: str, directory: tp.Optional[str]) -> None:
+def push(message: str, directory: tp.Optional[str], timeout: float = DEFAULT_PUSH_TIMEOUT, session_id: str = "") -> None:
     script = os.environ.get("NOTIFYHUB_PUSH_SCRIPT") or os.path.join(
         os.path.expanduser("~"), ".config", "opencode", "plugin", "notifyhub-push.py"
     )
@@ -198,7 +204,8 @@ def push(message: str, directory: tp.Optional[str]) -> None:
             cwd=cwd,
             capture_output=True,
             text=True,
-            timeout=DEFAULT_PUSH_TIMEOUT,
+            timeout=timeout,
+            env={**os.environ, "NOTIFYHUB_SESSION_ID": session_id} if session_id else None,
         )
         if result.returncode != 0:
             output = (result.stdout + result.stderr).strip()
@@ -209,6 +216,62 @@ def push(message: str, directory: tp.Optional[str]) -> None:
         print("NotifyHub notification timed out", file=sys.stderr)
 
 
+# No proxy: status goes straight to the backend, mirroring requests'
+# trust_env=False in the CLI.
+_DIRECT_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def post_status(payload: tp.Dict[str, tp.Any], state: str) -> None:
+    """Best-effort lifecycle report to POST /api/status/claude/<state>.
+
+    Same NOTIFYHUB_CLI_HOST/PORT/SCHEME resolution as the push CLI, honoring
+    the mute rules. Failures are silent: hooks are async (`async: true` in
+    settings.json), so this never blocks the turn and must never fail it.
+    """
+    if notifications_muted():
+        return
+    session = str(payload.get("session_id") or "").strip()
+    if not session:
+        return
+    host = os.environ.get("NOTIFYHUB_CLI_HOST") or "127.0.0.1"
+    port = os.environ.get("NOTIFYHUB_CLI_PORT") or "9080"
+    scheme = os.environ.get("NOTIFYHUB_CLI_SCHEME") or "http"
+    body = json.dumps(
+        {
+            "session_id": session,
+            "cwd": payload.get("cwd"),
+            "host": socket.gethostname(),
+        }
+    ).encode()
+    request = urllib.request.Request(
+        f"{scheme}://{host}:{port}/api/status/claude/{state}",
+        data=body,
+        headers={"content-type": "application/json"},
+        method="POST",
+    )
+    try:
+        with _DIRECT_OPENER.open(request, timeout=2):
+            pass
+    except Exception:
+        pass
+
+
+def status_event(payload: tp.Dict[str, tp.Any]) -> tp.Optional[str]:
+    """Map a hook event to a lifecycle state, or None when it has none."""
+    event = payload.get("hook_event_name")
+    if event == "Stop":
+        # A stop that another Stop hook continues is not a real completion;
+        # the turn keeps running, so the status must stay "running".
+        return None if payload.get("stop_hook_active") else "idle"
+    if event == "StopFailure":
+        return "idle"
+    if event == "Notification" and str(
+        payload.get("notification_type") or ""
+    ) in HANDLED_NOTIFICATION_TYPES:
+        return "blocked"
+    return None
+
+
 def main() -> None:
     try:
         payload = json.loads(sys.stdin.read() or "{}")
@@ -217,10 +280,16 @@ def main() -> None:
         return
     if not isinstance(payload, dict):
         return
+    status = status_event(payload)
+    if status:
+        post_status(payload, status)
     message = notification_body(payload)
     if message is None or notifications_muted():
         return
-    push(message, payload.get("cwd"))
+    event = payload.get("hook_event_name")
+    timeout = SYNC_PUSH_TIMEOUT if event in ("Stop", "StopFailure") else DEFAULT_PUSH_TIMEOUT
+    session = str(payload.get("session_id") or "").strip()
+    push(message, payload.get("cwd"), timeout=timeout, session_id=session)
 
 
 if __name__ == "__main__":

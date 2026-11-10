@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from "react"
-import type { NotificationItem, ServerInfo } from "../types"
+import type { AgentStatusEntry, NotificationItem, ServerInfo } from "../types"
 import {
+  fetchAgentStatus,
   fetchNotifications,
   connectSSE,
   deleteNotification,
   checkServerStatus,
   PAGE_SIZE,
 } from "../utils/api"
-import { decryptItem, decryptItems } from "../utils/crypto"
+import { decryptItem, decryptItems, isEnvelope, decryptEnvelope, ensureKey } from "../utils/crypto"
 
 export function safeParse<T>(json: string, fallback: T): T {
   try {
@@ -15,6 +16,25 @@ export function safeParse<T>(json: string, fallback: T): T {
   } catch {
     return fallback
   }
+}
+
+/** Decrypt one SSE agent_status payload (an entry or its e2e envelope). */
+async function decryptStatusEntry(raw: unknown): Promise<AgentStatusEntry | null> {
+  if (isEnvelope(raw)) {
+    const key = await ensureKey()
+    if (!key) return null
+    try {
+      raw = await decryptEnvelope(raw, key)
+    } catch {
+      return null
+    }
+  }
+  if (typeof raw !== "object" || raw === null) return null
+  const v = raw as Record<string, unknown>
+  if (typeof v.agent !== "string" || typeof v.session_id !== "string" || typeof v.state !== "string") {
+    return null
+  }
+  return raw as AgentStatusEntry
 }
 
 export function useNotifications() {
@@ -30,6 +50,20 @@ export function useNotifications() {
     host: "localhost",
   })
 
+  const [agentStatus, setAgentStatus] = useState<AgentStatusEntry[]>([])
+
+  const upsertAgentStatus = useCallback((entry: AgentStatusEntry) => {
+    setAgentStatus((prev) => {
+      const next = prev.filter((e) => e.session_id !== entry.session_id)
+      next.unshift(entry)
+      return next
+    })
+  }, [])
+
+  const removeAgentStatus = useCallback((sessionId: string) => {
+    setAgentStatus((prev) => prev.filter((e) => e.session_id !== sessionId))
+  }, [])
+
   // Status poll: only fetches the count, never the full list.
   const refresh = useCallback(async () => {
     const info = await checkServerStatus()
@@ -38,7 +72,7 @@ export function useNotifications() {
 
   useEffect(() => {
     const disconnect = connectSSE(
-      (event, data) => {
+      async (event, data) => {
         switch (event) {
           case "init": {
             // Server sends at most PAGE_SIZE items; older history is lazy-loaded.
@@ -62,6 +96,14 @@ export function useNotifications() {
                   if (prev.some((n) => n.id === decrypted.id)) return prev
                   return [decrypted, ...prev]
                 })
+                // A completion notification resolves the live row for the
+                // same session (both reporters stamp data.session_id).
+                const sid =
+                  !decrypted.locked &&
+                  typeof (decrypted.data as Record<string, unknown>)?.session_id === "string"
+                    ? ((decrypted.data as Record<string, unknown>).session_id as string)
+                    : null
+                if (sid) removeAgentStatus(sid)
               })
               setServerInfo((prev) => ({
                 ...prev,
@@ -70,6 +112,11 @@ export function useNotifications() {
                 notificationsCount: prev.notificationsCount + 1,
               }))
             }
+            break
+          }
+          case "agent_status": {
+            const entry = await decryptStatusEntry(safeParse<unknown>(data, null))
+            if (entry) upsertAgentStatus(entry)
             break
           }
           case "delete": {
@@ -99,6 +146,13 @@ export function useNotifications() {
       },
       (streaming) => {
         setServerInfo((prev) => ({ ...prev, streaming }))
+        // (Re)connected: resync live agent rows (events missed while offline
+        // are not replayed).
+        if (streaming) {
+          fetchAgentStatus()
+            .then((entries) => setAgentStatus(entries))
+            .catch(() => {})
+        }
       },
       PAGE_SIZE,
     )
@@ -156,6 +210,7 @@ export function useNotifications() {
 
   return {
     notifications,
+    agentStatus,
     serverInfo,
     hasMore,
     loadingMore,

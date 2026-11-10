@@ -34,3 +34,17 @@ export interface ServerInfo {
   host: string
   e2e?: E2EInfo
 }
+
+/** Live agent session status (GET /api/status, SSE agent_status). */
+export type AgentState = "running" | "idle" | "blocked" | "stale"
+
+export interface AgentStatusEntry {
+  agent: string
+  session_id: string
+  state: AgentState
+  pwd: string | null
+  host: string | null
+  task: string | null
+  since: string
+  updated: string
+}

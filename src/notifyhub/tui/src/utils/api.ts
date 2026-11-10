@@ -1,4 +1,5 @@
-import type { E2EInfo, NotificationItem, ServerInfo } from "../types"
+import type { AgentStatusEntry, E2EInfo, NotificationItem, ServerInfo } from "../types"
+import { decryptEnvelope, ensureKey, isEnvelope } from "./crypto"
 
 const DEFAULT_HOST = process.env.NOTIFYHUB_CLI_HOST ?? "localhost"
 const DEFAULT_PORT = parseInt(process.env.NOTIFYHUB_CLI_PORT ?? "9080", 10) || 9080
@@ -56,6 +57,32 @@ export async function fetchE2EStatus(): Promise<E2EInfo> {
   return data
 }
 
+/**
+ * Live agent statuses, decrypted. Entries arrive either plaintext or as one
+ * e2e envelope per entry (same wrapping as notifications); undecryptable
+ * entries are dropped — the live dock is best-effort display state, not data
+ * the user must recover.
+ */
+export async function fetchAgentStatus(): Promise<AgentStatusEntry[]> {
+  const res = await fetch(`${getApiBase()}/api/status`)
+  if (!res.ok) throw new Error(`Failed to fetch agent status: ${res.status}`)
+  const data = (await res.json()) as { agents: unknown[] }
+  const resolved = await Promise.all(
+    data.agents.map(async (entry) => {
+      if (!isEnvelope(entry)) return isStatusEntry(entry) ? entry : null
+      const key = await ensureKey()
+      if (!key) return null
+      try {
+        const plain = await decryptEnvelope(entry, key)
+        return isStatusEntry(plain) ? plain : null
+      } catch {
+        return null
+      }
+    }),
+  )
+  return resolved.filter((e): e is AgentStatusEntry => e !== null)
+}
+
 export async function deleteNotification(id: string): Promise<void> {
   const res = await fetch(`${getApiBase()}/api/notifications?id=${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -86,6 +113,13 @@ export async function checkServerStatus(): Promise<ServerInfo> {
 }
 
 export type SSEEventHandler = (event: string, data: string) => void
+
+/** Structural check for a decrypted/plain status entry. */
+function isStatusEntry(value: unknown): value is AgentStatusEntry {
+  if (typeof value !== "object" || value === null) return false
+  const v = value as Record<string, unknown>
+  return typeof v.agent === "string" && typeof v.session_id === "string" && typeof v.state === "string"
+}
 
 export function parseSSEStream(buffer: string, onEvent: SSEEventHandler): string {
   const lines = buffer.split("\n")

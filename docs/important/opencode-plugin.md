@@ -48,8 +48,32 @@ and 200 characters**, snapping to the nearest space/newline in an 8-character wi
 `[#truncated:+N LINES]` / `[#truncated:+N CHARS]`. This matches the retired `opencode-trace.py --notifyhub`
 preset exactly.
 
-`session.idle` still exists in v2 but is deprecated; the plugin deliberately does **not** subscribe to it,
-so a turn sends exactly one notification.
+`session.idle` still exists in v2 but is deprecated for **notifications**; the plugin does not
+send one on it, so a turn sends exactly one notification. (It *does* subscribe to `session.idle`
+for agent-status reporting — see below — where the dedup is a no-op.)
+
+## Agent status reporting
+
+The plugin is the **lifecycle authority** for OpenCode sessions (it sees the server's own event
+stream) and reports live state to `POST /api/status/opencode/<state>` in-process — no spawn:
+
+| OpenCode v2 event | Status |
+|---|---|
+| `session.execution.started` | `running` (attaches a ≤160-char task excerpt read from the session context) |
+| `permission.asked` / `form.created` | `blocked` |
+| `permission.replied` | `running` |
+| `session.idle` / `session.execution.succeeded` / `failed` / `interrupted` | `idle` |
+
+Identical consecutive states are deduped locally; a backend that is down is silently ignored.
+Completion pushes now also stamp `NOTIFYHUB_SESSION_ID` (see
+[`agent-status.md`](agent-status.md)), so the TUI dock resolves the running row when the
+notification lands. One plugin instance loads per OpenCode location and each receives every
+event — only the instance whose location owns the session reports, others stay silent
+(`ownedSessionDirectory` guard).
+
+> **Restart caveat**: OpenCode hot-reloads *watched plugin files* for new processes, but a
+> long-lived shared server (`opencode serve`) or running TUI keeps the previously-loaded plugin
+> instance until it restarts. If status posts stop after upgrading the plugin, restart OpenCode.
 
 ## Configuration
 

@@ -53,6 +53,21 @@ def task_complete(text: str, turn_id: str = "turn-1"):
     }
 
 
+def turn_context(
+    turn_id: str = "turn-1",
+    approval_policy: str = "on-request",
+    approvals_reviewer: str = "user",
+):
+    return {
+        "type": "turn_context",
+        "payload": {
+            "turn_id": turn_id,
+            "approval_policy": approval_policy,
+            "approvals_reviewer": approvals_reviewer,
+        },
+    }
+
+
 class TestTranscriptRecovery:
 
     def test_stop_skips_harness_user_messages(self, tmp_path):
@@ -161,6 +176,117 @@ class TestEventBodies:
         )
         assert body == "[#codex.permission] Codex needs your permission to use Bash"
 
+    def test_permission_request_skips_auto_reviewed_turn(self, tmp_path):
+        transcript = write_transcript(
+            tmp_path / "rollout.jsonl", [turn_context(approvals_reviewer="auto_review")]
+        )
+
+        assert (
+            hook.notification_body(
+                {
+                    "hook_event_name": "PermissionRequest",
+                    "turn_id": "turn-1",
+                    "transcript_path": transcript,
+                    "tool_name": "Bash",
+                    "tool_input": {"description": "Run the test suite"},
+                }
+            )
+            is None
+        )
+
+    def test_permission_request_notifies_for_user_reviewed_turn(self, tmp_path):
+        transcript = write_transcript(
+            tmp_path / "rollout.jsonl", [turn_context(approvals_reviewer="user")]
+        )
+
+        assert hook.notification_body(
+            {
+                "hook_event_name": "PermissionRequest",
+                "turn_id": "turn-1",
+                "transcript_path": transcript,
+                "tool_name": "Bash",
+                "tool_input": {"description": "Run the test suite"},
+            }
+        ) == "[#codex.permission] Run the test suite"
+
+    def test_permission_request_uses_latest_matching_turn_context(self, tmp_path):
+        transcript = write_transcript(
+            tmp_path / "rollout.jsonl",
+            [
+                turn_context(approvals_reviewer="auto_review"),
+                turn_context(approvals_reviewer="user"),
+            ],
+        )
+
+        assert hook.notification_body(
+            {
+                "hook_event_name": "PermissionRequest",
+                "turn_id": "turn-1",
+                "transcript_path": transcript,
+                "tool_name": "Bash",
+                "tool_input": {},
+            }
+        ) == "[#codex.permission] Codex needs your permission to use Bash"
+
+    def test_permission_request_ignores_auto_review_from_other_turns(self, tmp_path):
+        transcript = write_transcript(
+            tmp_path / "rollout.jsonl",
+            [turn_context(turn_id="turn-0", approvals_reviewer="auto_review")],
+        )
+
+        assert hook.notification_body(
+            {
+                "hook_event_name": "PermissionRequest",
+                "turn_id": "turn-1",
+                "transcript_path": transcript,
+                "tool_name": "Bash",
+                "tool_input": {},
+            }
+        ) == "[#codex.permission] Codex needs your permission to use Bash"
+
+    def test_permission_request_skips_bypass_permissions_mode(self):
+        assert (
+            hook.notification_body(
+                {
+                    "hook_event_name": "PermissionRequest",
+                    "permission_mode": "bypassPermissions",
+                    "tool_name": "Bash",
+                    "tool_input": {},
+                }
+            )
+            is None
+        )
+
+    def test_permission_request_skips_never_policy_from_transcript(self, tmp_path):
+        transcript = write_transcript(
+            tmp_path / "rollout.jsonl",
+            [turn_context(approval_policy="never", approvals_reviewer="user")],
+        )
+
+        assert (
+            hook.notification_body(
+                {
+                    "hook_event_name": "PermissionRequest",
+                    "turn_id": "turn-1",
+                    "transcript_path": transcript,
+                    "tool_name": "Bash",
+                    "tool_input": {},
+                }
+            )
+            is None
+        )
+
+    def test_permission_request_notifies_without_turn_context(self):
+        assert hook.notification_body(
+            {
+                "hook_event_name": "PermissionRequest",
+                "turn_id": "turn-1",
+                "transcript_path": "/nonexistent",
+                "tool_name": "Bash",
+                "tool_input": {},
+            }
+        ) == "[#codex.permission] Codex needs your permission to use Bash"
+
     def test_question_from_request_user_input(self):
         body = hook.notification_body(
             {
@@ -199,6 +325,47 @@ class TestEventBodies:
         )
 
 
+class TestStatusEvents:
+    """status_event(): hook payload → lifecycle state mapping."""
+
+    def test_stop_and_interrupt_idle(self):
+        assert hook.status_event({"hook_event_name": "Stop"}) == "idle"
+        assert hook.status_event({"hook_event_name": "Interrupt"}) == "idle"
+
+    def test_stop_hook_active_stays_running(self):
+        assert (
+            hook.status_event({"hook_event_name": "Stop", "stop_hook_active": True})
+            is None
+        )
+
+    def test_model_request_is_running_heartbeat(self):
+        for status in ("failed", "completed", "cancelled"):
+            assert (
+                hook.status_event(
+                    {"hook_event_name": "PostModelRequest", "status": status}
+                )
+                == "running"
+            )
+
+    def test_permission_request_blocked_for_humans(self):
+        assert hook.status_event({"hook_event_name": "PermissionRequest"}) == "blocked"
+
+    def test_question_tool_blocked(self):
+        assert (
+            hook.status_event(
+                {"hook_event_name": "PreToolUse", "tool_name": "request_user_input"}
+            )
+            == "blocked"
+        )
+        assert (
+            hook.status_event({"hook_event_name": "PreToolUse", "tool_name": "shell"})
+            is None
+        )
+
+    def test_unknown_event_none(self):
+        assert hook.status_event({"hook_event_name": "Whatever"}) is None
+
+
 class TestClaimOnce:
 
     def test_claim_is_once_per_session_turn_and_kind(self, tmp_path, monkeypatch):
@@ -227,6 +394,16 @@ class TestClaimOnce:
 
 
 class TestInstaller:
+
+    def test_status_events_installed_and_strippable(self):
+        hooks = {}
+        merged = install.merge_hooks(hooks)
+
+        # Turn start reports running via curl (no python on the prompt path).
+        assert install.STATUS_HOOK_MARKER in merged["UserPromptSubmit"][0]["hooks"][0]["command"]
+
+        stripped = install.strip_hooks(merged)
+        assert "UserPromptSubmit" not in stripped
 
     def test_merge_preserves_foreign_hooks_and_is_idempotent(self):
         foreign = {"hooks": [{"type": "command", "command": "echo foreign"}]}
@@ -326,8 +503,11 @@ class TestPluginLayout:
             "PostModelRequest",
             "PermissionRequest",
             "PreToolUse",
+            "UserPromptSubmit",
         }
         assert "${PLUGIN_ROOT}/notifyhub-codex.py" in data["hooks"]["Stop"][0]["hooks"][0]["command"]
+        # The status one-liner pipes stdin straight to the backend's status API.
+        assert "/api/status/codex/running" in data["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
 
     def test_plugin_manifest_points_at_hooks(self):
         data = json.loads(

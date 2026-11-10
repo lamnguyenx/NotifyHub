@@ -19,8 +19,28 @@ lifecycle event, passing the event as JSON on stdin. So this port is:
 | `Stop` | `session.execution.succeeded` | `[#tag:@USER] …` + `[#tag:@ASSISTANT] …` message excerpts |
 | `Interrupt` | `session.execution.interrupted` | same body, recovered from the transcript |
 | `PostModelRequest` (`status: failed`) | `session.execution.failed` | `[#codex.error] <error message>` |
-| `PermissionRequest` | `permission.asked` | `[#codex.permission] <approval reason or tool name>` |
+| `PermissionRequest` (human reviewer) | `permission.asked` | `[#codex.permission] <approval reason or tool name>` |
 | `PreToolUse` (`request_user_input`) | `form.created` (the question tool) | `[#codex.question] <question>` |
+
+## Status mapping
+
+The hooks also report live session state to `POST /api/status/codex/<state>`:
+
+| Codex hook | Status |
+|---|---|
+| `UserPromptSubmit` (curl hook) | `running` |
+| `PostModelRequest` (any status, per attempt) | `running` — a heartbeat that revives stale entries |
+| `PermissionRequest` | `blocked` for human reviewers, `running` when `auto_review` handles it |
+| `PreToolUse` (`request_user_input`) | `blocked` |
+| `Stop` / `Interrupt` | `idle` (a `stop_hook_active` stop leaves state untouched) |
+
+`UserPromptSubmit` is an inline `sh -c 'curl --data-binary @-'` command piping the
+hook payload straight to the server (which extracts `session_id`/`cwd` and the task
+excerpt from the prompt), resolved via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` like
+the push CLI; the other states are posted by `notifyhub-codex.py` in-process
+(`urllib`, proxy-free, 2s timeout). Completion pushes stamp `NOTIFYHUB_SESSION_ID`
+so notifications correlate with their status entry, and `hooks/hooks.json` (plugin
+layout) carries the same six events.
 
 Notes on fidelity to the OpenCode plugin:
 
@@ -31,6 +51,10 @@ Notes on fidelity to the OpenCode plugin:
   word-boundary snap, `[#truncated:...]` markers).
 - **`stop_hook_active`**: a `Stop` caused by another Stop hook continuing the turn is skipped, so
   hook-driven continuations don't re-notify.
+- **Permission notifications only for human reviewers**: Codex runs `PermissionRequest` before the
+  reviewer, so the hook reads the turn's `turn_context` from the rollout transcript and stays silent
+  when `approvals_reviewer` is `auto_review` or the policy is Full Access/Never. Those approvals are
+  handled by the guardian and never reach the user.
 - **Sync vs async**: `codex exec` exits immediately after a turn and cancels unfinished background
   hooks, so `Stop`, `Interrupt`, and `PostModelRequest` are registered **synchronously** (10s / 3s
   handler timeouts, 5s / 2.5s push timeouts). `PermissionRequest` and the question hook stay async so

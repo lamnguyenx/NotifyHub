@@ -34,6 +34,10 @@ HOOK_SCRIPT = os.path.join(PLUGIN_DIR, "notifyhub-codex.py")
 # directory's notifyhub-codex.py, so foreign hooks stay untouched.
 HOOK_MARKER = "notifyhub-codex.py"
 
+# Uninstall also matches the curl status one-liners (which target this
+# agent's status endpoint).
+STATUS_HOOK_MARKER = "/api/status/codex/"
+
 
 def codex_home() -> str:
     return os.environ.get("CODEX_HOME") or os.path.expanduser(os.path.join("~", ".codex"))
@@ -63,6 +67,30 @@ def command_handler(timeout: float, async_: bool) -> tp.Dict[str, tp.Any]:
     }
 
 
+def status_curl_handler() -> tp.Dict[str, tp.Any]:
+    return {
+        "type": "command",
+        # Codex may spawn hook commands without a shell, so the sh -c wrapper
+        # guarantees env expansion rather than relying on the caller.
+        "command": (
+            "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; "
+            "p=\"${NOTIFYHUB_CLI_PORT-9080}\"; "
+            "s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; "
+            "[ -n \"$h\" ] && [ -n \"$p\" ] && "
+            "curl -fsS -m 2 -X POST -H \"content-type: application/json\" "
+            "--data-binary @- \"$s://$h:$p/api/status/codex/running\" "
+            ">/dev/null 2>&1; exit 0'"
+        ),
+        "commandWindows": (
+            "cmd /c curl -fsS -m 2 -X POST -H \"content-type: application/json\" "
+            "--data-binary @- \"%NOTIFYHUB_CLI_SCHEME%://%NOTIFYHUB_CLI_HOST%:"
+            "%NOTIFYHUB_CLI_PORT%/api/status/codex/running\" >nul 2>&1"
+        ),
+        "async": True,
+        "timeout": 3,
+    }
+
+
 HOOK_EVENTS: tp.Dict[str, tp.List[tp.Dict[str, tp.Any]]] = {
     # Turn finished — the OpenCode plugin's session.execution.succeeded
     # counterpart. Synchronous: codex exec exits right after the turn and
@@ -82,6 +110,12 @@ HOOK_EVENTS: tp.Dict[str, tp.List[tp.Dict[str, tp.Any]]] = {
     "PreToolUse": [
         {"matcher": "^request_user_input$", "hooks": [command_handler(30, async_=True)]}
     ],
+    # Turn start → running. Plain sh+curl piping the hook payload (the server
+    # extracts session_id/cwd itself): no python startup on the prompt path.
+    # `${VAR-default}` (without the colon) preserves the documented
+    # empty-host/port mute. Stop/Interrupt/PermissionRequest/PostModelRequest
+    # status (idle/blocked/running) is posted by notifyhub-codex.py instead.
+    "UserPromptSubmit": [{"hooks": [status_curl_handler()]}],
 }
 
 
@@ -92,7 +126,10 @@ def is_ours(entry: tp.Any) -> bool:
     if not isinstance(hooks, list):
         return False
     for hook in hooks:
-        if isinstance(hook, dict) and HOOK_MARKER in str(hook.get("command", "")):
+        if not isinstance(hook, dict):
+            continue
+        command = str(hook.get("command", ""))
+        if HOOK_MARKER in command or STATUS_HOOK_MARKER in command:
             return True
     return False
 
