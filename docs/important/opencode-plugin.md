@@ -8,7 +8,8 @@ NotifyHub server by spawning `notifyhub-push.py` (the NotifyHub CLI).
 
 Migration history and the full v1 → v2 debugging story: `docs/plans/2026/09/28/2026-09-28-opencode-v2-plugin-migration.md`.
 The Claude Code counterpart (hooks port) lives at `src/notifyhub/plugins/claude/` — see
-[`claude-code-hooks.md`](claude-code-hooks.md).
+[`claude-code-hooks.md`](claude-code-hooks.md); the OpenAI Codex counterpart lives at
+`src/notifyhub/plugins/codex/` — see [`codex-hooks.md`](codex-hooks.md).
 
 ## Requirements
 

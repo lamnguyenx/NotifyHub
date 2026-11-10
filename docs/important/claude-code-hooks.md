@@ -9,6 +9,8 @@ which spawns the **same** `notifyhub-push.py` (the NotifyHub CLI) the OpenCode p
 
 Port history and the full trials/errors story:
 `docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md`.
+The OpenAI Codex counterpart (also hook-based, but with a `/hooks` trust gate) lives at
+`src/notifyhub/plugins/codex/` — see [`codex-hooks.md`](codex-hooks.md).
 
 ## Requirements
 

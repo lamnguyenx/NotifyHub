@@ -1,6 +1,6 @@
 # NotifyHub
 
-> **Summary**: NotifyHub is a single-page notification application designed for developers. It provides a real-time notification center where external processes, CLI tools, and CI/CD pipelines can push notifications. It was built primarily for integration with the **OpenCode** AI coding assistant, but serves as a general-purpose notification hub.
+> **Summary**: NotifyHub is a single-page notification application designed for developers. It provides a real-time notification center where external processes, CLI tools, and CI/CD pipelines can push notifications. It was built primarily for integration with the **OpenCode** AI coding assistant, and also ships integrations for **Claude Code** and **OpenAI Codex**, but serves as a general-purpose notification hub.
 
 - [NotifyHub](#notifyhub)
   - [1. What Is This Project?](#1-what-is-this-project)
@@ -29,6 +29,7 @@
 - A **CLI** for pushing notifications from scripts/terminals
 - A **TUI** (terminal UI) for viewing notifications in the terminal
 - An **OpenCode v2 plugin** that turns turn completions, errors, permission prompts, and questions into notifications
+- **Claude Code** and **OpenAI Codex** hook scripts that provide the same notifications for those coding agents
 
 ### Architecture Diagram
 
@@ -38,6 +39,8 @@ graph LR
         Browser[Web Browser]
         Terminal[Terminal / Script]
         OpenCode[OpenCode v2 Plugin]
+        Claude[Claude Code Hooks]
+        Codex[OpenAI Codex Hooks]
         CLI[NotifyHub CLI]
     end
 
@@ -57,6 +60,8 @@ graph LR
     React -- EventSource --> SSE
     Terminal --> CLI
     OpenCode -- spawns --> CLI
+    Claude -- spawns --> CLI
+    Codex -- spawns --> CLI
     CLI -- POST /api/notify --> API
 ```
 
@@ -124,10 +129,12 @@ NotifyHub/
         │       ├── hooks/
         │       └── utils/                # api.ts, crypto.ts (e2e decrypt)
         ├── plugins/
-        │   └── opencode/             # OpenCode v2 integration plugin
-        │       ├── notifyhub-plugin.ts
-        │       ├── package.json
-        │       └── tsconfig.json
+        │   ├── opencode/             # OpenCode v2 integration plugin
+        │   │   ├── notifyhub-plugin.ts
+        │   │   ├── package.json
+        │   │   └── tsconfig.json
+        │   ├── claude/               # Claude Code hooks integration
+        │   └── codex/                # OpenAI Codex hooks integration
         └── frontend/
             ├── package.json          # Bun-managed deps
             ├── vite.config.js        # Vite config with proxy
@@ -272,7 +279,7 @@ The project uses **Server-Sent Events (SSE)**, not WebSockets:
 3. **Fan-in compression**: Notification cards dynamically compress (fade, scale down) as they approach the bottom 15% of the viewport, creating a visual depth-of-field effect
 4. **Dual-serving modes**: Hot-reload (Vite on 9070 + FastAPI on 9080 with proxy) vs. production (FastAPI serves built static files from `static/` on port 9080)
 5. **CDP-based testing**: Playwright tests connect to an already-open Chrome instance rather than launching a new browser, for testing against a manually-observed session
-6. **OpenCode integration**: Plugin files in `plugins/opencode/` allow OpenCode v2 to push events to NotifyHub, with notification bodies built from the v2 session API (see `docs/important/opencode-plugin.md`)
+6. **Coding-agent integrations**: `plugins/opencode/` subscribes to OpenCode v2 events directly, while `plugins/claude/` and `plugins/codex/` are hook scripts spawned per lifecycle event (see `docs/important/opencode-plugin.md`, `claude-code-hooks.md`, `codex-hooks.md`)
 7. **Terminal UI**: A separate React-based TUI (`src/notifyhub/tui/`) using `@opentui` for terminal rendering
 
 ---
@@ -377,6 +384,35 @@ Hooks run straight from `src/notifyhub/plugins/claude/notifyhub-claude.py` (live
 reinstall), share `notifyhub-push.py` and the mute env vars with the OpenCode plugin, and the
 directory doubles as a Claude Code plugin (`claude --plugin-dir src/notifyhub/plugins/claude`).
 Port history: [`docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md`](docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md).
+
+### OpenAI Codex Hooks (Optional)
+
+The same notifications are available for **OpenAI Codex** (hooks are enabled by default) — see
+[`docs/important/codex-hooks.md`](docs/important/codex-hooks.md) for the full guide. Codex also
+spawns hook scripts per event, but requires non-managed hooks to be trusted once through `/hooks`:
+
+| Codex hook | Notification |
+|---|---|
+| `Stop` | `[#tag:@USER] …` + `[#tag:@ASSISTANT] …` message excerpts |
+| `Interrupt` | same body, recovered from the transcript |
+| `PostModelRequest` (`status: failed`) | `[#codex.error] <error message>` |
+| `PermissionRequest` | `[#codex.permission] <reason or tool name>` |
+| `PreToolUse` (`request_user_input`) | `[#codex.question] <question>` |
+
+```bash
+make install-plugin         # once, if not already done: installs the shared notifyhub-push.py
+make install-plugin-codex   # merges the hooks into ~/.codex/hooks.json
+make backend                # start the NotifyHub server
+# open /hooks in a Codex session and trust the NotifyHub entries
+make remove-plugin-codex    # uninstall
+```
+
+The installer respects `CODEX_HOME`, preserves foreign hooks, and warns when `config.toml` also has
+inline `[hooks]` tables. Completion/error hooks run synchronously because `codex exec` cancels
+unfinished background hooks when it exits; permission and question hooks stay async so they never
+delay a prompt. The directory doubles as a Codex plugin (`.codex-plugin/plugin.json` +
+`hooks/hooks.json`) for marketplace / desktop distribution.
+Port history: [`docs/plans/2026/11/09/2026-11-09-codex-hooks-port.md`](docs/plans/2026/11/09/2026-11-09-codex-hooks-port.md).
 
 ---
 

@@ -1,0 +1,71 @@
+{
+  "description": "NotifyHub notifications: turn completion, errors, permission prompts, questions",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/notifyhub-codex.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\notifyhub-codex.py\"",
+            "async": false,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/notifyhub-codex.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\notifyhub-codex.py\"",
+            "async": false,
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PostModelRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/notifyhub-codex.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\notifyhub-codex.py\"",
+            "async": false,
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/notifyhub-codex.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\notifyhub-codex.py\"",
+            "async": true,
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^request_user_input$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/notifyhub-codex.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\notifyhub-codex.py\"",
+            "async": true,
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
