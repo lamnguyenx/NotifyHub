@@ -102,7 +102,8 @@ NotifyHub/
 ├── docs/                             # Plans, issues, code reviews
 │   ├── plans/
 │   ├── issues/
-│   └── refs/
+│   ├── refs/
+│   └── _meta/                        # How-to guides (e.g., how-to-prototype.md)
 ├── tests/                            # pytest suites (tests/notifyhub/...)
 ├── local/                            # Shell scripts (e.g., push-funnel-noti.sh)
 ├── exp/                              # Experimental / scratch space
@@ -123,8 +124,11 @@ NotifyHub/
         │   ├── tsconfig.json
         │   └── src/
         │       ├── index.tsx
-        │       ├── App.tsx
+        │       ├── prototype.tsx        # mock-data harness entry
+        │       ├── render.tsx
+        │       ├── App.tsx              # AppView shell + live data wiring
         │       ├── types.ts
+        │       ├── prototypes/          # harness, scenarios, temporary seams
         │       ├── components/
         │       ├── hooks/
         │       └── utils/                # api.ts, crypto.ts (e2e decrypt)
@@ -778,13 +782,23 @@ NOTIFYHUB_URL=https://other.example.com ./push-funnel-noti.sh "hello"
 A terminal front-end built with React + `@opentui` lives in `src/notifyhub/tui/`.
 
 ```bash
-make tui          # run
-make tui-test     # bun test
+make tui           # run against the backend
+make tui-prototype # run with mock data (no backend)
+make tui-test      # bun test
 make tui-typecheck
 ```
 
 Module guide: [`src/notifyhub/tui/README.md`](src/notifyhub/tui/README.md). Rendering invariants
 (why cards/popups are sized the way they are): [`docs/important/tui-rendering-rules.md`](docs/important/tui-rendering-rules.md).
+Prototype rules: [`docs/_meta/how-to-prototype.md`](docs/_meta/how-to-prototype.md).
+Design history:
+[`2026-11-11-tui-prototype-mode.md`](docs/plans/2026/11/11/2026-11-11-tui-prototype-mode.md)
+and
+[`2026-11-11-tui-waiting-card-machine-id.md`](docs/plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md).
+
+`make tui-prototype` runs the real `AppView` and cards against fake scenarios — waiting states,
+card variants, locked rows, empty/offline, pagination — with no SSE or e2e key. Use `1`–`7` or
+`n`/`p` to switch scenarios and `t` to freeze relative time.
 
 ### Keys
 
@@ -809,8 +823,9 @@ file). Rows it cannot decrypt render as `LOCKED`.
 ### Live agent waiting cards
 
 Above the stream, **sessions in motion** render as notification cards in waiting: the
-project header and coding-agent pill (`◇ opencode`, `✳ claude`, `◐ codex`), the running
-prompt on the `@USER` line, and `@ASSISTANT loading ⠙` while running. When blocked on a
+project header, coding-agent pill (`◇ opencode`, `✳ claude`, `◐ codex`) and the reporting
+machine's host pill (`⌂ Mac153`), the running prompt on the `@USER` line, and `@ASSISTANT loading ⠙`
+while running. When blocked on a
 permission the assistant line becomes `waiting for you ⚠`; after 5 minutes without a
 refresh it becomes `stalled? ◼`. Cards vanish when the turn finishes — resolved by
 `session_id` against the completion notification — and resync from `GET /api/status`

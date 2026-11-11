@@ -436,6 +436,27 @@ afterAll(() => {
 })
 ```
 
+## Testing the prototype harness
+
+`PrototypeApp` renders the real `AppView` with fixtures, so no `fetch` mock is needed. Render it
+directly with `testRender()` and drive the harness keys:
+
+```tsx
+const r = await testRender(<PrototypeApp />, { width: 100, height: 36 })
+await act(async () => { await r.renderOnce() })
+r.mockInput.pressKey("n")
+await act(async () => { await r.renderOnce() })
+await act(async () => { await r.renderOnce() })
+expect(r.captureCharFrame()).toContain("PROTOTYPE 2/7")
+```
+
+- `n`/`p` switch scenarios; `1`–`7` jump directly (digit `key.name` is the character).
+- `t` freezes the relative clock; assert `time frozen` then `time live`.
+- The scenario bar text contains the scenario count. Adding a scenario means updating the
+  `PROTOTYPE 1/7` expectation and the tables in `docs/_meta/how-to-prototype.md` and
+  `src/prototypes/README.md`.
+- Spinner intervals still log `act(...)` warnings; assertions pass.
+
 ## Testing ErrorBoundary
 
 When testing error boundaries with a child that throws, the error is caught by the boundary and the fallback renders correctly. However, the error also propagates to the test runner as an unhandled exception (noisy but does not fail the test):
@@ -537,6 +558,13 @@ The mixing helper (`mixHex`, `getHostModelTagColor`) is a pure function — test
 
 ## Related plans
 
+- [Prototype mode](../plans/2026/11/11/2026-11-11-tui-prototype-mode.md) — `make tui-prototype`,
+  `AppView`, scenario harness and `Prototype.test.tsx`.
+- [Prototype harness](../plans/2026/11/11/2026-11-11-tui-prototype-mode-harness.md) — scenarios,
+  frozen clock, compact bar.
+- [Prototype tests](../plans/2026/11/11/2026-11-11-tui-prototype-mode-tests.md) — `Prototype.test.tsx`.
+- [Machine-ID tests](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id-tests.md) — host
+  pill, CLI fallback and plugin-layout assertions.
 - [Waiting cards — tests plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md) —
   139 → 141 tests, layout row indices, act-warning caveat.
 - [Waiting cards — component plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)

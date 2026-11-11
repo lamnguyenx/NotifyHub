@@ -8,7 +8,7 @@ make tui-test                  # from the repo root
 cd src/notifyhub/tui && bun test  # equivalent
 ```
 
-Current: **141 pass, 0 fail, 10 files**.
+Current: **146 pass, 0 fail, 11 files**.
 
 ## Suites
 
@@ -17,10 +17,11 @@ Current: **141 pass, 0 fail, 10 files**.
 | `App.test.tsx` | Layout, footer hints, popup toggles/mutual exclusion, dismissal |
 | `NotificationRow.test.tsx` | Card text, avatar, title, pwd, timestamp, host-model color, LOCKED rows |
 | `NotificationStream.test.tsx` | Empty state, rendering, select mode, navigation, delete |
-| `WaitingCards.test.tsx` | Waiting card chrome, `@USER` task, agent pill, blocked/stalled lines, idle hiding |
+| `WaitingCards.test.tsx` | Waiting card chrome, `@USER` task, agent/host pills, blocked/stalled lines, idle hiding |
 | `StatusPopup.test.tsx` | Connection/SSE/e2e rows, host:port, locked count |
 | `HelpPopup.test.tsx` | Heading, key bindings, dismiss instruction |
 | `layout.test.tsx` | Real column composition: waiting card, stream, footer at 60×20 |
+| `Prototype.test.tsx` | Mock overview, scenario switching/number keys, frozen clock |
 | `crypto.test.ts` | Envelope decryption, key resolution, locked rows |
 | `utils.test.ts` | Time formatting, tags, truncation, colors, API base URL, SSE parser |
 | `ErrorBoundary.test.tsx` | Fallback rendering (the thrown error is logged by the runner) |
@@ -76,13 +77,19 @@ process exits with code 0.
 3. For rendering, assert a specific row index or a unique line; dump
    `index + JSON.stringify(line)` when debugging a frame.
 4. For popups, assert both the first and last content rows.
-5. Run `make tui-test` and keep the suite at 141+ passing.
+5. Run `make tui-test` and keep the suite at 146+ passing.
 
 ## Related
 
 - [Waiting cards — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
 - [Waiting cards — component plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
 - [Waiting cards — tests plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
+- [Waiting card machine ID](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md)
+- [Machine-ID tests](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id-tests.md)
+- [Prototype mode](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-mode.md) ·
+  [`harness`](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-mode-harness.md) ·
+  [`tests`](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-mode-tests.md) ·
+  [`how-to-prototype`](../../../../../docs/_meta/how-to-prototype.md)
 - [Testing guide](../../../../../docs/important/tui-testing-guide.md)
 - [Rendering rules](../../../../../docs/important/tui-rendering-rules.md)
 - [Test-assertion plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-tests-popup-assertions.md)

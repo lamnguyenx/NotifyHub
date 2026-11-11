@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import socket
 import sys
 import json
 import typing as tp
@@ -124,7 +125,9 @@ def main() -> None:
 
     host_model = os.environ.get("HOST_MODEL", "").strip()
     if host_model in ("", "Unknown"):
-        host_model = os.environ.get("HOSTNAME", "").strip()
+        # HOSTNAME is a bash variable but often not exported; ask the OS so every
+        # push carries the machine tag even when the parent shell omitted it.
+        host_model = os.environ.get("HOSTNAME", "").strip() or socket.gethostname().strip()
 
     json_data = {"pwd": os.getcwd(), "message": message}
     if host_model:

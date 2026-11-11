@@ -23,12 +23,15 @@ interface Props {
   hasMore?: boolean
   loadingMore?: boolean
   onLoadMore?: () => void
+  /** Frozen clock for prototypes and screenshots; omit for the live clock. */
+  now?: Date
 }
 
-export function NotificationStream({ notifications, onDelete, hasMore, loadingMore, onLoadMore }: Props) {
+export function NotificationStream({ notifications, onDelete, hasMore, loadingMore, onLoadMore, now: frozenNow }: Props) {
   const [selectedIdx, setSelectedIdx] = useState(-1)
   const [selectMode, setSelectMode] = useState(false)
-  const now = useNow()
+  const liveNow = useNow()
+  const now = frozenNow ?? liveNow
   const playSound = useNotificationSound(SOUND_PATH)
   const prevCountRef = useRef(notifications.length)
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)

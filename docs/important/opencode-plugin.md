@@ -65,6 +65,8 @@ stream) and reports live state to `POST /api/status/opencode/<state>` in-process
 | `session.idle` / `session.execution.succeeded` / `failed` / `interrupted` | `idle` |
 
 Identical consecutive states are deduped locally; a backend that is down is silently ignored.
+The status body already carries `host: hostname()`, so the TUI waiting card shows the machine name
+without the `X-NotifyHub-Host` header the raw Claude/Codex hooks need.
 Completion pushes now also stamp `NOTIFYHUB_SESSION_ID` (see
 [`agent-status.md`](agent-status.md)), so the TUI waiting card resolves when the
 notification lands ([waiting cards plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)).

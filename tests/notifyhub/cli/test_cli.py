@@ -1,6 +1,7 @@
 import subprocess
 import json
 import os
+import socket
 
 import pytest
 
@@ -48,6 +49,39 @@ def test_cli_dry_run_with_stdin():
     payload = parse_payload(result.stdout)
     assert payload["data"]["message"] == "stdin message"
     assert "pwd" in payload["data"]
+
+
+def test_cli_host_model_prefers_explicit_override():
+    """HOST_MODEL still wins over the machine hostname."""
+    result = run_cli(
+        ["--dry_run", "test message"],
+        env_overrides={"HOST_MODEL": "gpt-4", "HOSTNAME": "Mac153"},
+    )
+    assert result.returncode == 0
+    payload = parse_payload(result.stdout)
+    assert payload["data"]["host_model"] == "gpt-4"
+
+
+def test_cli_host_model_uses_hostname_when_exported():
+    """An exported HOSTNAME is used before asking the OS."""
+    result = run_cli(
+        ["--dry_run", "test message"],
+        env_overrides={"HOST_MODEL": "", "HOSTNAME": "Mac153"},
+    )
+    assert result.returncode == 0
+    payload = parse_payload(result.stdout)
+    assert payload["data"]["host_model"] == "Mac153"
+
+
+def test_cli_host_model_falls_back_to_socket_hostname():
+    """Without HOST_MODEL/HOSTNAME, the push still carries the machine ID."""
+    result = run_cli(
+        ["--dry_run", "test message"],
+        env_overrides={"HOST_MODEL": "", "HOSTNAME": ""},
+    )
+    assert result.returncode == 0
+    payload = parse_payload(result.stdout)
+    assert payload["data"]["host_model"] == socket.gethostname()
 
 
 def test_cli_dry_run_with_custom_host_port():

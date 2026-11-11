@@ -8,7 +8,8 @@ hook script — `src/notifyhub/plugins/claude/notifyhub-claude.py` — registere
 which spawns the **same** `notifyhub-push.py` (the NotifyHub CLI) the OpenCode plugin uses.
 
 Port history and the full trials/errors story:
-`docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md`.
+`docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md`. The 2026-11-11 host-header fix is in
+[`2026-11-11-agent-status-host-header-plugins-claude.md`](../plans/2026/11/11/2026-11-11-agent-status-host-header-plugins-claude.md).
 The OpenAI Codex counterpart (also hook-based, but with a `/hooks` trust gate) lives at
 `src/notifyhub/plugins/codex/` — see [`codex-hooks.md`](codex-hooks.md).
 
@@ -92,6 +93,9 @@ Besides notifications, the hooks report live session state to `POST /api/status/
 
 - The curl hooks resolve the backend via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` (like the push CLI),
   and `${VAR-default}` (no colon) expansion keeps the documented empty-host **mute** working.
+- The same one-liners send `X-NotifyHub-Host: $(hostname)`, because the raw hook payload has no
+  machine field and the backend would otherwise record the request's client IP (often a Docker
+  bridge address). Re-run `make install-plugin-claude` after upgrading to pick up the header.
 - **`Stop`/`StopFailure` run `async: false`** (10s handler timeout, 5s-capped push spawn): `claude -p`
   exits right after the turn and cancels unfinished async hooks — the same failure mode the Codex port
   documented first. Interactive sessions are unaffected.

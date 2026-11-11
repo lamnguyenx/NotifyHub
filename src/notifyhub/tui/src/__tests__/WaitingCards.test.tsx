@@ -37,6 +37,7 @@ it("renders a waiting card with the user prompt and the coding agent", async () 
   expect(frame).toContain("project")
   expect(frame).toContain("/home/user/project")
   expect(frame).toContain("◇ opencode")
+  expect(frame).toContain("⌂ wsk")
   expect(frame).toContain("@USER")
   expect(frame).toContain("fix the flaky test")
   expect(frame).toContain("@ASSISTANT")
@@ -44,6 +45,23 @@ it("renders a waiting card with the user prompt and the coding agent", async () 
   expect(frame).toContain("2m ago")
   expect(frame).toContain("╭")
   expect(frame).toContain("╰")
+})
+
+it("renders the reporting machine as a host pill", async () => {
+  const frame = await frameOf(
+    <WaitingCards entries={[entry({ host: "Mac153" })]} now={new Date()} />,
+  )
+  expect(frame).toContain("◇ opencode")
+  expect(frame).toContain("⌂ Mac153")
+})
+
+it("omits the host pill when the reporter did not send a host", async () => {
+  const frame = await frameOf(
+    <WaitingCards entries={[entry({ host: null })]} now={new Date()} />,
+  )
+  expect(frame).toContain("◇ opencode")
+  expect(frame).toContain("@ASSISTANT")
+  expect(frame).not.toContain("wsk")
 })
 
 it("renders blocked and stalled states on the assistant line", async () => {

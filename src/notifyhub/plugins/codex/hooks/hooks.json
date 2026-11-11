@@ -72,8 +72,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; p=\"${NOTIFYHUB_CLI_PORT-9080}\"; s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; [ -n \"$h\" ] && [ -n \"$p\" ] && curl -fsS -m 2 -X POST -H \"content-type: application/json\" --data-binary @- \"$s://$h:$p/api/status/codex/running\" >/dev/null 2>&1; exit 0'",
-            "commandWindows": "cmd /c curl -fsS -m 2 -X POST -H \"content-type: application/json\" --data-binary @- \"%NOTIFYHUB_CLI_SCHEME%://%NOTIFYHUB_CLI_HOST%:%NOTIFYHUB_CLI_PORT%/api/status/codex/running\" >nul 2>&1",
+            "command": "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; p=\"${NOTIFYHUB_CLI_PORT-9080}\"; s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; [ -n \"$h\" ] && [ -n \"$p\" ] && curl -fsS -m 2 -X POST -H \"content-type: application/json\" -H \"x-notifyhub-host: $(hostname)\" --data-binary @- \"$s://$h:$p/api/status/codex/running\" >/dev/null 2>&1; exit 0'",
+            "commandWindows": "cmd /c curl -fsS -m 2 -X POST -H \"content-type: application/json\" -H \"x-notifyhub-host: %COMPUTERNAME%\" --data-binary @- \"%NOTIFYHUB_CLI_SCHEME%://%NOTIFYHUB_CLI_HOST%:%NOTIFYHUB_CLI_PORT%/api/status/codex/running\" >nul 2>&1",
             "async": true,
             "timeout": 3
           }

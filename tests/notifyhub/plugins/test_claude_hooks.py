@@ -69,6 +69,8 @@ class TestInstaller:
             assert "curl" in command
             # `${VAR-default}` (no colon) keeps the empty-string mute working.
             assert "${NOTIFYHUB_CLI_HOST-127.0.0.1}" in command
+            # The raw hook payload has no machine name; send it in a header.
+            assert "x-notifyhub-host: $(hostname)" in command
 
         stripped = install.strip_hooks(hooks)
         assert "UserPromptSubmit" not in stripped
@@ -79,3 +81,13 @@ class TestInstaller:
         merged = install.merge_hooks({})
         merged_again = install.merge_hooks(merged)
         assert merged == merged_again
+
+
+class TestPluginLayout:
+
+    def test_plugin_hooks_json_status_one_liners_carry_the_host_header(self):
+        data = json.loads((PLUGIN_DIR / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        for event in ("UserPromptSubmit", "PostToolUse"):
+            command = data["hooks"][event][0]["hooks"][0]["command"]
+            assert "/api/status/claude/running" in command
+            assert "x-notifyhub-host: $(hostname)" in command

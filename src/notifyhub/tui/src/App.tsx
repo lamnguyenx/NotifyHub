@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, type ReactNode } from "react"
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useTheme } from "./theme"
 import { useNotifications } from "./hooks/useNotifications"
@@ -8,12 +8,46 @@ import { NotificationStream } from "./components/NotificationStream"
 import { WaitingCards } from "./components/WaitingCards"
 import { StatusPopup } from "./components/StatusPopup"
 import { HelpPopup } from "./components/HelpPopup"
+import type { AgentStatusEntry, NotificationItem, ServerInfo } from "./types"
 
-export function App() {
+export interface AppViewProps {
+  notifications: NotificationItem[]
+  agentStatus: AgentStatusEntry[]
+  serverInfo: ServerInfo
+  hasMore?: boolean
+  loadingMore?: boolean
+  handleDelete: (id: string) => void
+  loadMore?: () => void
+  lockedCount?: number
+  /** Frozen clock for prototypes and screenshots; omit for the live clock. */
+  now?: Date
+  /** Harness chrome rendered above the waiting cards (prototype only). */
+  header?: ReactNode
+  /** Appended to the footer hints (prototype only). */
+  footerExtra?: string
+}
+
+/**
+ * The app's presentation shell, independent of where the data comes from.
+ * `App` wires the live SSE store; the prototype harness wires fixtures.
+ */
+export function AppView({
+  notifications,
+  agentStatus,
+  serverInfo,
+  hasMore,
+  loadingMore,
+  handleDelete,
+  loadMore,
+  lockedCount = 0,
+  now,
+  header,
+  footerExtra,
+}: AppViewProps) {
   const [showStatus, setShowStatus] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const { notifications, agentStatus, serverInfo, hasMore, loadingMore, handleDelete, loadMore, lockedCount } = useNotifications()
-  const waitingNow = useNow(10_000)
+  const liveNow = useNow(10_000)
+  const waitingNow = now ?? liveNow
   const renderer = useRenderer()
   const theme = useTheme()
 
@@ -52,6 +86,7 @@ export function App() {
 
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
+      {header}
       <box width="100%" flexGrow={1} flexDirection="column" minHeight={0}>
         <ErrorBoundary>
           <WaitingCards entries={agentStatus} now={waitingNow} />
@@ -61,6 +96,7 @@ export function App() {
             hasMore={hasMore}
             loadingMore={loadingMore}
             onLoadMore={loadMore}
+            now={now}
           />
         </ErrorBoundary>
       </box>
@@ -79,8 +115,35 @@ export function App() {
         <text fg={theme.dim}>
           v:select  |  arrows:scroll  |  s:status  |  h:help  |  q:quit
           {loadingMore ? "  |  loading older\u2026" : hasMore ? "  |  L:older" : ""}
+          {footerExtra ? `  |  ${footerExtra}` : ""}
         </text>
       </box>
     </box>
+  )
+}
+
+export function App() {
+  const {
+    notifications,
+    agentStatus,
+    serverInfo,
+    hasMore,
+    loadingMore,
+    handleDelete,
+    loadMore,
+    lockedCount,
+  } = useNotifications()
+
+  return (
+    <AppView
+      notifications={notifications}
+      agentStatus={agentStatus}
+      serverInfo={serverInfo}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
+      handleDelete={handleDelete}
+      loadMore={loadMore}
+      lockedCount={lockedCount}
+    />
   )
 }

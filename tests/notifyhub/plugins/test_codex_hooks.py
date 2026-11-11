@@ -400,7 +400,11 @@ class TestInstaller:
         merged = install.merge_hooks(hooks)
 
         # Turn start reports running via curl (no python on the prompt path).
-        assert install.STATUS_HOOK_MARKER in merged["UserPromptSubmit"][0]["hooks"][0]["command"]
+        handler = merged["UserPromptSubmit"][0]["hooks"][0]
+        assert install.STATUS_HOOK_MARKER in handler["command"]
+        # The raw hook payload has no machine name; send it in a header.
+        assert "x-notifyhub-host: $(hostname)" in handler["command"]
+        assert "x-notifyhub-host: %COMPUTERNAME%" in handler["commandWindows"]
 
         stripped = install.strip_hooks(merged)
         assert "UserPromptSubmit" not in stripped
@@ -507,7 +511,10 @@ class TestPluginLayout:
         }
         assert "${PLUGIN_ROOT}/notifyhub-codex.py" in data["hooks"]["Stop"][0]["hooks"][0]["command"]
         # The status one-liner pipes stdin straight to the backend's status API.
-        assert "/api/status/codex/running" in data["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"]
+        handler = data["hooks"]["UserPromptSubmit"][0]["hooks"][0]
+        assert "/api/status/codex/running" in handler["command"]
+        assert "x-notifyhub-host: $(hostname)" in handler["command"]
+        assert "x-notifyhub-host: %COMPUTERNAME%" in handler["commandWindows"]
 
     def test_plugin_manifest_points_at_hooks(self):
         data = json.loads(

@@ -146,6 +146,9 @@ class AgentStatusStore:
         changed = (
             existing.state != state
             or (pwd is not None and existing.pwd != pwd)
+            # A machine name arriving after the initial client-IP stamp should
+            # reach connected clients, not wait for the next state change.
+            or (host is not None and existing.host != host)
             # A new prompt on the same session (new turn) re-announces the
             # entry with its new task excerpt.
             or (task is not None and existing.task != task)

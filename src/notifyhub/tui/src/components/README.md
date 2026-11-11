@@ -10,7 +10,7 @@ the module overview is [`../../README.md`](../../README.md).
 |---|---|---|
 | `NotificationStream.tsx` | Scrollable feed, select mode, lazy-load trigger | Owns `selectedIdx` and `selectMode`; banner is outside the scrollbox |
 | `NotificationRow.tsx` | One notification card, plain or `LOCKED` | Hook-free dispatcher; card height is measured by Yoga |
-| `WaitingCards.tsx` | Waiting notification cards for running/blocked/stalled sessions | `flexShrink={0}`; `@USER` task + `@ASSISTANT loading`, agent pill, spinner + stale mirror |
+| `WaitingCards.tsx` | Waiting notification cards for running/blocked/stalled sessions | `flexShrink={0}`; `@USER` task + `@ASSISTANT loading`, agent/host pills, spinner + stale mirror |
 | `StatusPopup.tsx` | Centered connection/e2e status | 17 rows; width adapts to `host:port` |
 | `HelpPopup.tsx` | Centered key-binding reference | 18 rows; 60 columns max |
 | `ErrorBoundary.tsx` | Fallback when a child render throws | Shows `Rendering error: <message>` only |
@@ -41,7 +41,9 @@ the module overview is [`../../README.md`](../../README.md).
   `formatRelativeTime`, `getHostModelTagColor`, `truncate`) so the waiting card and the eventual
   completion card match.
 - The agent pill uses the dimmed tag color from `getHostModelTagColor(agent, background)`.
-  Unknown agents fall back to `●`.
+  Unknown agents fall back to `●`. The reporting machine's host pill sits to its right with the
+  same treatment (matching `host_model` on completed cards) and the one-cell `⌂` glyph; a null
+  host omits the pill. Avoid emoji such as `🖥` — double-width glyphs break narrow headers.
 - `@ASSISTANT` is a total state switch: `loading <spinner>` (running), `waiting for you ⚠`
   (blocked), `stalled? ◼` (stale), `idle` (unreachable through the container, kept for direct
   renders). The spinner interval runs only while running.
@@ -93,5 +95,8 @@ width  = min(terminal - 2, longest line + 2 (padding) + 2 (border))
 - [Waiting cards — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
 - [Waiting cards — component plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
 - [Waiting cards — tests plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
+- [Waiting card machine ID](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md)
+- [Machine-ID component](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id-component.md)
+- [Prototype harness](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-mode-harness.md)
 - [Component/lifecycle plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-components-cards-popups.md)
 - [Testing guide](../../../../../docs/important/tui-testing-guide.md)

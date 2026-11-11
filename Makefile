@@ -1,4 +1,4 @@
-.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti send-simple-bark send-backend-bark chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin install-plugin-claude remove-plugin-claude install-plugin-codex remove-plugin-codex test-bg clean fe fh beh t tb tf tfh tc mapping m tui-deps tui tui-typecheck td ttc ssb sbb e2e-key e2ekey e2e-status e2es
+.PHONY: backend frontend frontend-hotload frontend-deps plugin-deps noti send-simple-bark send-backend-bark chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin install-plugin-claude remove-plugin-claude install-plugin-codex remove-plugin-codex test-bg clean fe fh beh t tb tf tfh tc mapping m tui-deps tui tui-prototype tui-typecheck td tp ttc ssb sbb e2e-key e2ekey e2e-status e2es
 
 # -----------------------------------
 #            Dependencies
@@ -49,6 +49,9 @@ tui-deps td:
 tui:
 	@python -m notifyhub.crypto --status 2>/dev/null || true
 	cd src/notifyhub/tui && bun src/index.tsx
+
+tui-prototype tp:
+	cd src/notifyhub/tui && bun src/prototype.tsx
 
 tui-typecheck ttc:
 	cd src/notifyhub/tui && bun run typecheck

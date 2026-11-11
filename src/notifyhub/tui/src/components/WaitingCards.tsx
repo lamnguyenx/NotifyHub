@@ -20,6 +20,9 @@ const AGENT_GLYPH: Record<string, string> = {
   codex: "◐",
 }
 
+/** One-cell host/house marker; avoids the double-width monitor emoji. */
+const HOST_GLYPH = "⌂"
+
 function useSpinner(active: boolean): string {
   const [frame, setFrame] = useState(0)
   useEffect(() => {
@@ -85,6 +88,8 @@ export function WaitingCard({ entry, now }: CardProps) {
   const agent = entry.agent || "agent"
   const glyph = AGENT_GLYPH[agent] ?? "●"
   const agentBg = getHostModelTagColor(agent, theme.background)
+  const host = entry.host?.trim() ?? ""
+  const hostBg = host ? getHostModelTagColor(host, theme.background) : ""
   const elapsed = formatRelativeTime(entry.since, now)
   const task = entry.task?.trim() ?? ""
   const status = statusLine(state, spinner, theme)
@@ -108,6 +113,11 @@ export function WaitingCard({ entry, now }: CardProps) {
           <box backgroundColor={agentBg} flexShrink={0}>
             <text fg={theme.text}>{` ${glyph} ${agent} `}</text>
           </box>
+          {host ? (
+            <box backgroundColor={hostBg} flexShrink={0} marginLeft={1}>
+              <text fg={theme.text}>{` ${HOST_GLYPH} ${truncate(host, 24)} `}</text>
+            </box>
+          ) : null}
         </box>
         <box flexDirection="row" width="100%">
           <box flexGrow={1} />

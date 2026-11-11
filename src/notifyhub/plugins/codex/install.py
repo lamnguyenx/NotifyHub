@@ -78,11 +78,13 @@ def status_curl_handler() -> tp.Dict[str, tp.Any]:
             "s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; "
             "[ -n \"$h\" ] && [ -n \"$p\" ] && "
             "curl -fsS -m 2 -X POST -H \"content-type: application/json\" "
+            "-H \"x-notifyhub-host: $(hostname)\" "
             "--data-binary @- \"$s://$h:$p/api/status/codex/running\" "
             ">/dev/null 2>&1; exit 0'"
         ),
         "commandWindows": (
             "cmd /c curl -fsS -m 2 -X POST -H \"content-type: application/json\" "
+            "-H \"x-notifyhub-host: %COMPUTERNAME%\" "
             "--data-binary @- \"%NOTIFYHUB_CLI_SCHEME%://%NOTIFYHUB_CLI_HOST%:"
             "%NOTIFYHUB_CLI_PORT%/api/status/codex/running\" >nul 2>&1"
         ),

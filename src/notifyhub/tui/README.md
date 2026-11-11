@@ -13,6 +13,7 @@ Testing guide: [`docs/important/tui-testing-guide.md`](../../../docs/important/t
 ```bash
 make tui-deps      # cd src/notifyhub/tui && bun install
 make tui           # bun src/index.tsx (backend must be on :9080)
+make tui-prototype # bun src/prototype.tsx (mock data, no backend)
 make tui-test      # bun test
 make tui-typecheck # tsc --noEmit (see "Typecheck" below)
 ```
@@ -33,11 +34,16 @@ The backend can be reached through a Tailscale funnel: set `NOTIFYHUB_CLI_SCHEME
   fixed height.
 - **Waiting cards** — running/blocked/stalled sessions from `agent_status` events render as
   notification cards above the feed: the running prompt as `@USER`, a live `@ASSISTANT loading`
-  line (braille spinner), the coding-agent pill, and a client-side stale mirror (5 min).
+  line (braille spinner), the coding-agent pill, the reporting machine's host pill
+  (`⌂ Mac153`), and a client-side stale mirror (5 min).
 - **Status popup** (`s`) and **help popup** (`h`/`?`) — content-sized overlays; see
   `components/`.
 - **E2E decryption** — AES-256-GCM envelopes are decrypted locally (`utils/crypto.ts`). A row that
   cannot be decrypted renders as `LOCKED` with the envelope `kid`.
+- **Prototype mode** (`make tui-prototype`) — the real `AppView` and cards against fake scenarios:
+  waiting states, card variants, locked rows, empty/offline and pagination. No backend, no SSE, no
+  e2e key. Keys `1`–`7`/`n`/`p` switch scenarios; `t` freezes relative time. Rules:
+  [`docs/_meta/how-to-prototype.md`](../../../docs/_meta/how-to-prototype.md).
 
 ## Layout
 
@@ -45,13 +51,16 @@ The backend can be reached through a Tailscale funnel: set `NOTIFYHUB_CLI_SCHEME
 src/notifyhub/tui/
 ├── package.json / tsconfig.json
 ├── src/
-│   ├── index.tsx          # createCliRenderer + onDestroy exit; mounts App
-│   ├── App.tsx            # column layout, keyboard routing, popup state, quit
+│   ├── index.tsx          # mounts App through renderTui()
+│   ├── prototype.tsx      # mounts PrototypeApp through renderTui()
+│   ├── render.tsx         # createCliRenderer + ThemeProvider + onDestroy exit
+│   ├── App.tsx            # AppView shell + App live-data wiring
 │   ├── theme.tsx          # DARK_THEME / LIGHT_THEME + ThemeProvider
 │   ├── types.ts
 │   ├── hooks/             # useNotifications, useNow, useAudio
 │   ├── utils/             # api.ts (REST + SSE), crypto.ts (WebCrypto)
 │   ├── components/        # stream, cards, waiting cards, popups, error boundary
+│   ├── prototypes/        # harness, scenarios and (temporary) seams
 │   └── __tests__/         # bun test suites
 └── exp/                   # scratch captures from debugging sessions
 ```
@@ -93,7 +102,7 @@ Full explanations: [`docs/important/tui-rendering-rules.md`](../../../docs/impor
 ## Testing
 
 ```bash
-make tui-test   # 141 pass, 10 files
+make tui-test   # 146 pass, 11 files
 ```
 
 Use `testRender()` + `captureCharFrame()`; press keys twice through `renderOnce()` inside `act()`.
@@ -126,12 +135,24 @@ Compare against `HEAD` before treating a type error as a regression.
 
 ## History
 
+- [2026-11-11 prototype mode](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-mode.md)
+  — `make tui-prototype`, `AppView`, scenario harness
+- [2026-11-11 prototype harness](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-mode-harness.md)
+  — `prototypes/PrototypeApp.tsx`, `scenarios.ts`
+- [2026-11-11 prototype tests](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-mode-tests.md)
+  — `Prototype.test.tsx`
 - [2026-11-11 waiting notification cards](../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
   — parent: App wiring, dock removal, behavior
 - [2026-11-11 waiting card component](../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
   — `components/WaitingCards.tsx`
 - [2026-11-11 waiting card tests](../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
   — `WaitingCards.test.tsx`, `layout.test.tsx`
+- [2026-11-11 waiting card machine ID](../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md)
+  — host pill on waiting cards
+- [2026-11-11 machine-ID component](../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id-component.md)
+  — `⌂` host pill in `WaitingCards.tsx`
+- [2026-11-11 machine-ID tests](../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id-tests.md)
+  — host/null-host assertions plus backend/CLI/plugin coverage
 - [2026-11-11 render, popup and lifecycle fixes](../../../docs/plans/2026/11/11/2026-11-11-tui-render-popup-lifecycle.md)
 - [2026-11-11 component changes](../../../docs/plans/2026/11/11/2026-11-11-tui-components-cards-popups.md)
 - [2026-11-11 test assertions](../../../docs/plans/2026/11/11/2026-11-11-tui-tests-popup-assertions.md)

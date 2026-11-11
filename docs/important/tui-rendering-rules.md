@@ -124,8 +124,10 @@ useEffect(() => {
 - No fixed card height: the `@USER` task excerpt can wrap at narrow widths. Let Yoga measure it.
 - Cards are display-only; they are not selectable and have no delete handling. If you move them
   inside the scrollbox, add selection indexing and a delete story first.
-- The agent pill reuses `getHostModelTagColor`; the border is accent while running and warning
-  while blocked/stalled.
+- The agent pill and the host pill reuse `getHostModelTagColor`; the border is accent while
+  running and warning while blocked/stalled. The host pill sits to the right of the agent pill,
+  matching the `host_model` pill position on completed cards, and is omitted when `host` is null.
+  It carries the one-cell `⌂` host glyph; do not use `🖥` (double-width, breaks narrow headers).
 - The timestamp is `since` (session age), not turn age; the status API has no `turn_since`.
 
 ## 7. Quit: destroy the renderer **and** exit
@@ -144,7 +146,7 @@ loop alive, so the process hangs on a blank terminal.
 2. For the real check, run the TUI in a detached tmux pane, drive keys, and capture the pane.
 3. If the screen says `Rendering error: …`, render the suspected component directly — the
    ErrorBoundary only shows the message, not the stack.
-4. `make tui-test` must stay at 141+ passing; `make tui-typecheck` has pre-existing noise (missing
+4. `make tui-test` must stay at 146+ passing; `make tui-typecheck` has pre-existing noise (missing
    `bun:test`/Node types and `CliRenderer.on/off` in `theme.tsx`) — compare against `HEAD`.
 
 ## Related plans
@@ -152,3 +154,7 @@ loop alive, so the process hangs on a blank terminal.
 - [Waiting cards — parent plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
 - [Waiting cards — component plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
 - [Waiting cards — tests plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
+- [Machine-ID component](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id-component.md)
+- [Machine-ID tests](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id-tests.md)
+- [Prototype harness](../plans/2026/11/11/2026-11-11-tui-prototype-mode-harness.md)
+- [Prototype tests](../plans/2026/11/11/2026-11-11-tui-prototype-mode-tests.md)

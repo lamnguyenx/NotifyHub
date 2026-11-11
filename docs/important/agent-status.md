@@ -6,6 +6,12 @@
 Design + session history: `docs/plans/2026/11/10/2026-11-10-agent-status-live-broadcast.md`
 (and the per-module docs beside it). The TUI waiting-card view is documented in
 [`2026-11-11-tui-waiting-cards.md`](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md).
+The machine-ID/host work is in
+[`2026-11-11-tui-waiting-card-machine-id.md`](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md)
+(module plans:
+[backend](../plans/2026/11/11/2026-11-11-agent-status-host-header-backend.md),
+[CLI](../plans/2026/11/11/2026-11-11-agent-status-host-header-cli.md),
+[plugins](../plans/2026/11/11/2026-11-11-agent-status-host-header-plugins.md)).
 
 ## What it is
 
@@ -28,7 +34,11 @@ SSE  agent_status                    → one entry per meaningful change (new se
   (claude `PostToolUse`, codex `PostModelRequest`, opencode events).
 - **e2e**: serving/SSE entries are AES-256-GCM envelopes per entry when an e2e key is configured
   (same wrapping as notifications). Ingest accepts plaintext (TLS) or an envelope.
-- **Host field**: reporters may send `host`; otherwise the backend stamps the client IP.
+- **Host field**: reporters may send `host` in the JSON body (opencode plugin, Python hook
+  scripts) or as an `X-NotifyHub-Host` header (the raw `sh`+`curl` one-liners, which pipe the
+  upstream hook payload through unchanged). The backend prefers the body, then the header, then
+  the request's client IP. The header matters behind Docker/proxies: without it a raw curl from
+  the host can arrive with a bridge address such as `172.21.0.1` instead of the machine name.
 
 ## Reporters per agent
 
@@ -61,11 +71,13 @@ restarts**. Codex may ask to re-trust the changed `hooks.json` (via `/hooks` in 
 ## Reading it
 
 - **TUI** (`make tui`): sessions in motion render as waiting notification cards above the
-  stream — project/agent header, the task excerpt on the `@USER` line, and `@ASSISTANT loading
-  <spinner>` while running, `waiting for you ⚠` when blocked, `stalled? ◼` when past the stale
-  window. Cards vanish when idle or when their completion notification arrives. The card's time
-  is `since` (session age), not turn age. Design/lessons:
-  [`2026-11-11-tui-waiting-cards.md`](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md).
+  stream — project header, agent and host pills (`⌂ Mac153`, `⌂ wsk`, …), the task excerpt on the
+  `@USER` line, and `@ASSISTANT loading <spinner>` while running, `waiting for you ⚠` when
+  blocked, `stalled? ◼` when past the stale window. Cards vanish when idle or when their
+  completion notification arrives. The card's time is `since` (session age), not turn age.
+  Design/lessons:
+  [`2026-11-11-tui-waiting-cards.md`](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md) and
+  [`2026-11-11-tui-waiting-card-machine-id.md`](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md).
 - **curl** (entries are e2e envelopes when a key is configured):
 
 ```bash

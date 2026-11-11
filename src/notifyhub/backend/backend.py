@@ -328,11 +328,16 @@ async def report_status(agent: str, state: str, request: Request):
         pwd = body.get("pwd") if isinstance(body.get("pwd"), str) else None
         cwd = body.get("cwd") if isinstance(body.get("cwd"), str) else None
         body_host = body.get("host")
-        host = (
-            body_host
-            if isinstance(body_host, str) and body_host.strip()
-            else (request.client.host if request.client else None)
-        )
+        header_host = request.headers.get("x-notifyhub-host", "").strip()
+        host: tp.Optional[str] = None
+        if isinstance(body_host, str) and body_host.strip():
+            host = body_host.strip()
+        elif header_host:
+            # The raw hook one-liners pipe the upstream JSON untouched, so the
+            # machine name rides in a header instead of rewriting the body.
+            host = header_host
+        elif request.client:
+            host = request.client.host
 
         changed = status_store.update(
             agent, session_id, state, pwd=pwd or cwd, host=host, task=task_excerpt(body)

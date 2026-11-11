@@ -8,7 +8,8 @@ stdin. NotifyHub's integration is a single Python hook script —
 **same** `notifyhub-push.py` (the NotifyHub CLI) the OpenCode and Claude Code integrations use.
 
 Design notes and the payload-schema research:
-`docs/plans/2026/11/09/2026-11-09-codex-hooks-port.md`.
+`docs/plans/2026/11/09/2026-11-09-codex-hooks-port.md`. The 2026-11-11 host-header fix is in
+[`2026-11-11-agent-status-host-header-plugins-codex.md`](../plans/2026/11/11/2026-11-11-agent-status-host-header-plugins-codex.md).
 
 ## Requirements
 
@@ -103,7 +104,9 @@ Details:
 ## Agent status reporting
 
 The hooks also report live session state to `POST /api/status/codex/<state>` (see
-[`agent-status.md`](agent-status.md)):
+[`agent-status.md`](agent-status.md)). The raw curl one-liner sends
+`X-NotifyHub-Host: $(hostname)` (Windows: `%COMPUTERNAME%`) so the backend records the machine
+name rather than the request's client IP, which can be a Docker bridge address:
 
 | Codex hook | Status | How |
 |---|---|---|

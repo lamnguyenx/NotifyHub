@@ -54,7 +54,7 @@ Each notification is rendered as a bordered card (rounded corners) with:
 - **Timestamp** — relative via `formatRelativeTime`: `now`, `5m ago`, `3h ago`, `Yesterday`,
   or `MM/DD/YY`; sits on its own row beneath the host pill (or on the title row if no host_model)
 - **pwd path** — dimmed gray, truncated to 80 characters, omitted when missing
-- **Host-model tag** — `@Mac153` pill at the top-right corner of the card, colored via FNV-1a hash of host_model string into 15-color palette, then **dimmed** to 40% strength against the card background (`mixHex(bright, cardBg, 0.4)`) so it's visually secondary to the avatar. Text uses `theme.text` for contrast in both light and dark modes.
+- **Host-model tag** — `@Mac153` pill at the top-right corner of the card, colored via FNV-1a hash of host_model string into 15-color palette, then **dimmed** to 40% strength against the card background (`mixHex(bright, cardBg, 0.4)`) so it's visually secondary to the avatar. Text uses `theme.text` for contrast in both light and dark modes. The CLI resolves `host_model` from `HOST_MODEL`, then an exported `HOSTNAME`, then `socket.gethostname()`, so the pill does not disappear on shells that keep `HOSTNAME` unexported.
 - **Tag highlighting** — `[#tag:...]` rendered in gray, `[#truncated:...]` in dark gray
 - **Truncation markers** — adjacent markers from the plugins (`+24 LINES`, `+517 CHARS`) collapse
   into one bracketed note: `[+24 lines, +517 chars] `. The note owns its surrounding whitespace, so
@@ -71,14 +71,14 @@ the same chrome as a completed notification, with the running prompt and a live 
 
 ```
 ╭────────────────────────────────────────────────────────────────╮
-│  N  NotifyHub                                      ◇ opencode  │  ← project avatar + agent pill
+│  N  NotifyHub                             ◇ opencode  ⌂ Mac153 │  ← project avatar + agent/host pills
 │                                                         2m ago │  ← session age (`since`)
 │ /home/lamnt45/git/NotifyHub                                    │
 │ @USER add a waiting card to the TUI                            │  ← running prompt excerpt
 │ @ASSISTANT loading ⠙                                           │  ← live spinner while running
 ╰────────────────────────────────────────────────────────────────╯
 ╭────────────────────────────────────────────────────────────────╮
-│  H  hanoi-testing-platform                          ✳ claude   │
+│  H  hanoi-testing-platform                     ✳ claude  ⌂ wsk │
 │                                                        40s ago │
 │ /home/lamnt45/git/hanoi-testing-platform                       │
 │ @USER why does the parser drop the last chunk?                 │
@@ -89,8 +89,10 @@ the same chrome as a completed notification, with the running prompt and a live 
 - Entries arrive via the `agent_status` SSE event (e2e-decrypted like notifications) and resync
   from `GET /api/status` on reconnect
 - The header mirrors a real card: project avatar initial (pwd hash), bold project title, full pwd,
-  relative session age (`since`), and a pill naming the coding agent (`◇ opencode`, `✳ claude`,
-  `◐ codex`)
+  relative session age (`since`), a pill naming the coding agent (`◇ opencode`, `✳ claude`,
+  `◐ codex`), and the reporting machine's host pill (`⌂ Mac153`, `⌂ wsk`, …). The host pill uses
+  the same dimmed tag treatment as `host_model` on completed cards and is omitted when the
+  reporter sent no host
 - `@USER` shows the ≤160-char task excerpt reported with the running state; if the reporter had
   no prompt it renders a dim `(no task excerpt)`. The task excerpt is already in the
   `agent_status` payload — the old dock simply chose not to render it.
@@ -180,8 +182,13 @@ src/notifyhub/tui/
 ├── package.json               # Bun deps: @opentui/core, @opentui/react, react 19
 ├── tsconfig.json              # TypeScript + JSX config
 ├── src/
-│   ├── index.tsx              # Entry point — creates CliRenderer, onDestroy exit, mounts App
-│   ├── App.tsx                # Main layout, keyboard nav, popup management, quit
+│   ├── index.tsx              # Mounts App through renderTui()
+│   ├── prototype.tsx          # Mounts PrototypeApp through renderTui() (mock data)
+│   ├── render.tsx             # CliRenderer, ThemeProvider, onDestroy exit
+│   ├── App.tsx                # AppView shell (layout/keys/popups) + App live wiring
+│   ├── prototypes/            # Harness, scenarios and temporary seams
+│   │   ├── PrototypeApp.tsx   # Scenario switcher, frozen clock, prototype bar
+│   │   └── scenarios.ts       # Fake waiting cards, notification variants, e2e, empty
 │   ├── theme.tsx              # Dark/light palettes + ThemeProvider
 │   ├── types.ts               # NotificationItem, NotificationData, ServerInfo, E2EInfo, AgentStatusEntry
 │   ├── utils/
@@ -252,6 +259,11 @@ make tui-deps
 make tui
 # Equivalent: cd src/notifyhub/tui && bun src/index.tsx
 # make tui first prints "e2e key: <source> (kid …)" when a key is configured
+
+# Run the prototype harness with mock data (no backend, no e2e key)
+make tui-prototype
+# Keys: 1-7 jump scenarios, n/p cycle, t freezes time, v/s/h work as in the app
+# Rules: docs/_meta/how-to-prototype.md
 ```
 
 ## Configuration
@@ -277,11 +289,23 @@ key file:
 
 ## History
 
+- [2026-11-11 prototype mode](../plans/2026/11/11/2026-11-11-tui-prototype-mode.md)
+  — `make tui-prototype`, `AppView`, mock scenarios, `docs/_meta/how-to-prototype.md`.
+- [2026-11-11 prototype harness](../plans/2026/11/11/2026-11-11-tui-prototype-mode-harness.md)
+  — `PrototypeApp`, scenarios, frozen clock, compact bar.
+- [2026-11-11 prototype tests](../plans/2026/11/11/2026-11-11-tui-prototype-mode-tests.md)
+  — `Prototype.test.tsx`.
 - [2026-11-11 waiting notification cards](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
   — parent: dock replaced, App wiring, behavior, trials/lessons.
 - [2026-11-11 waiting card component](../plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
   — `WaitingCards.tsx` chrome, agent pill, `@USER`/`@ASSISTANT` lines.
 - [2026-11-11 waiting card tests](../plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
   — `WaitingCards.test.tsx`, `layout.test.tsx`, 139 → 141 tests.
+- [2026-11-11 machine ID on waiting cards](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md)
+  — host pill, `host_model` fallback, backend header precedence.
+- [2026-11-11 machine-ID component](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id-component.md)
+  — `⌂` host pill.
+- [2026-11-11 machine-ID tests](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id-tests.md)
+  — host/null-host assertions and integration coverage.
 - [2026-11-11 render, popup and lifecycle fixes](../plans/2026/11/11/2026-11-11-tui-render-popup-lifecycle.md)
 - [2026-11-10 agent status live broadcast](../plans/2026/11/10/2026-11-10-agent-status-live-broadcast.md)

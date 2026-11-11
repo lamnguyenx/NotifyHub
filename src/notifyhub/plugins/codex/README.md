@@ -38,9 +38,12 @@ The hooks also report live session state to `POST /api/status/codex/<state>`:
 hook payload straight to the server (which extracts `session_id`/`cwd` and the task
 excerpt from the prompt), resolved via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` like
 the push CLI; the other states are posted by `notifyhub-codex.py` in-process
-(`urllib`, proxy-free, 2s timeout). Completion pushes stamp `NOTIFYHUB_SESSION_ID`
-so notifications correlate with their status entry, and `hooks/hooks.json` (plugin
-layout) carries the same six events.
+(`urllib`, proxy-free, 2s timeout). The raw hook also sends `X-NotifyHub-Host: $(hostname)`
+(Windows: `%COMPUTERNAME%`): the piped payload has no machine field, so without it the
+backend records the request's client IP, often a Docker bridge address. Re-run
+`make install-plugin-codex` after upgrading and re-trust the changed entries via `/hooks`.
+Completion pushes stamp `NOTIFYHUB_SESSION_ID` so notifications correlate with their status
+entry, and `hooks/hooks.json` (plugin layout) carries the same six events.
 
 Notes on fidelity to the OpenCode plugin:
 
@@ -144,6 +147,8 @@ Manual verification against a running server: `make backend`, then run a Codex t
 - [NotifyHub](../../../..) — the notification server (repo root)
 - [Codex hooks guide](../../../../docs/important/codex-hooks.md) — install, config, gotchas
 - [Port plan](../../../../docs/plans/2026/11/09/2026-11-09-codex-hooks-port.md) — design notes
+- [Host-header plan](../../../../docs/plans/2026/11/11/2026-11-11-agent-status-host-header-plugins-codex.md)
+  — raw status hook machine name, 2026-11-11
 - [OpenCode plugin](../opencode) — the v2 plugin this port mirrors
 - [Claude Code hooks](../claude) — the sibling hook-based port
 - [Codex hooks reference](https://learn.chatgpt.com/docs/hooks)

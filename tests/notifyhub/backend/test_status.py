@@ -59,6 +59,12 @@ class TestAgentStatusStore:
         assert store.update("opencode", "s1", "running", pwd="/b") is True
         assert store.list_payloads()[0]["pwd"] == "/b"
 
+    def test_host_change_reannounces(self):
+        store = AgentStatusStore(stale_after=300)
+        store.update("claude", "s1", "running", host="172.21.0.1")
+        assert store.update("claude", "s1", "running", host="kientt44") is True
+        assert store.list_payloads()[0]["host"] == "kientt44"
+
     def test_new_task_excerpt_reannounces_and_refresh_keeps_it(self):
         store = AgentStatusStore(stale_after=300)
         store.update("claude", "s1", "running", task="first prompt")
@@ -135,6 +141,26 @@ class TestStatusAPI:
         client.post("/api/status/opencode/running", json={"session_id": "s"})
         entry = client.get("/api/status").json()["agents"][0]
         assert entry["host"] == "testclient"
+
+    def test_host_header_used_before_client_address(self, client):
+        # The raw curl hooks pipe the upstream JSON unchanged, so the machine
+        # name arrives in a header rather than the body.
+        client.post(
+            "/api/status/claude/running",
+            json={"session_id": "s"},
+            headers={"x-notifyhub-host": "kientt44"},
+        )
+        entry = client.get("/api/status").json()["agents"][0]
+        assert entry["host"] == "kientt44"
+
+    def test_body_host_wins_over_header(self, client):
+        client.post(
+            "/api/status/opencode/running",
+            json={"session_id": "s", "host": "wsk"},
+            headers={"x-notifyhub-host": "header-host"},
+        )
+        entry = client.get("/api/status").json()["agents"][0]
+        assert entry["host"] == "wsk"
 
     def test_unknown_agent_or_state_fails(self, client):
         assert "error" in client.post(

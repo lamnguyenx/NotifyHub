@@ -38,7 +38,10 @@ The `running` hooks are inline `sh -c 'curl --data-binary @-'` commands — the 
 payload on stdin goes straight to the server (which extracts `session_id`/`cwd`/the prompt),
 so the per-tool-call path pays no python startup. They resolve the backend via
 `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` like the push CLI, and `${VAR-default}`
-expansion keeps the documented empty-host mute working.
+expansion keeps the documented empty-host mute working. They also send
+`X-NotifyHub-Host: $(hostname)`: the raw hook payload has no machine field, and without the
+header the backend stamps the request's client IP (often a Docker bridge address). Re-run
+`make install-plugin-claude` after upgrading so the installed settings carry the header.
 
 `Stop`/`StopFailure` hooks run `async: false` (10s handler / 5s push timeout): `claude -p`
 exits right after the turn and cancels unfinished async hooks, which would lose the idle
@@ -125,5 +128,7 @@ Manual verification against a running server: `make backend`, then run a Claude 
 - [NotifyHub](../../../..) — the notification server (repo root)
 - [Claude Code hooks guide](../../../../docs/important/claude-code-hooks.md) — install, config, gotchas
 - [Port plan](../../../../docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md) — trials, errors, lessons learnt
+- [Host-header plan](../../../../docs/plans/2026/11/11/2026-11-11-agent-status-host-header-plugins-claude.md)
+  — raw status hook machine name, 2026-11-11
 - [OpenCode plugin](../opencode) — the v2 plugin this port mirrors
 - [Claude Code hooks reference](https://docs.claude.com/en/docs/claude-code/hooks)

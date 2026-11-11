@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "bun src/index.tsx",
     "start": "bun src/index.tsx",
+    "prototype": "bun src/prototype.tsx",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
