@@ -1,7 +1,16 @@
 import type { AgentStatusEntry, E2EInfo, NotificationItem, ServerInfo } from "../types"
 import { decryptEnvelope, ensureKey, isEnvelope } from "./crypto"
 
-const DEFAULT_HOST = process.env.NOTIFYHUB_CLI_HOST ?? "localhost"
+/** Mirror the CLI's scheme normalization (empty or "https://" → https/http). */
+function normalizeScheme(raw: string | undefined): "http" | "https" {
+  const value = (raw ?? "").trim().toLowerCase()
+  if (!value) return "http"
+  const head = value.includes("://") ? value.split("://", 1)[0]! : value
+  return head.replace(/[:/]+$/, "") === "https" ? "https" : "http"
+}
+
+const DEFAULT_SCHEME = normalizeScheme(process.env.NOTIFYHUB_CLI_SCHEME)
+const DEFAULT_HOST = process.env.NOTIFYHUB_CLI_HOST?.trim() || "localhost"
 const DEFAULT_PORT = parseInt(process.env.NOTIFYHUB_CLI_PORT ?? "9080", 10) || 9080
 const MAX_RECONNECT_DELAY = 30_000
 
@@ -16,11 +25,19 @@ function parsePageSize(): number {
 // Number of notifications loaded per page (initial SSE `init` + lazy `loadMore`).
 export const PAGE_SIZE = parsePageSize()
 
+let _scheme = DEFAULT_SCHEME
 let _host = DEFAULT_HOST
 let _port = DEFAULT_PORT
 
+/** Omit the scheme's default port (80/443), matching the CLI's address. */
+export function buildApiBase(scheme: string, host: string, port: number): string {
+  const defaultPort = scheme === "https" ? 443 : 80
+  const portPart = port === defaultPort ? "" : `:${port}`
+  return `${scheme}://${host}${portPart}`
+}
+
 export function getApiBase(): string {
-  return `http://${_host}:${_port}`
+  return buildApiBase(_scheme, _host, _port)
 }
 
 export interface FetchNotificationsOptions {
@@ -121,24 +138,33 @@ function isStatusEntry(value: unknown): value is AgentStatusEntry {
   return typeof v.agent === "string" && typeof v.session_id === "string" && typeof v.state === "string"
 }
 
+/**
+ * Parse complete SSE blocks and return the trailing incomplete block.
+ *
+ * Parsing must be block-based, not line-based: `event:` and `data:` can land
+ * in different network chunks. A line-based parser that only returns the
+ * unfinished *line* loses the event name (the 20 KB `init` payload always
+ * spans chunks), so the next chunk was emitted under the wrong event name.
+ */
 export function parseSSEStream(buffer: string, onEvent: SSEEventHandler): string {
-  const lines = buffer.split("\n")
-  const remainder = lines.pop() ?? ""
+  // Normalize CRLF first; a preceding chunk may end with "\r" and the next
+  // start with "\n", so this is done on the concatenated buffer each call.
+  const blocks = buffer.replace(/\r\n/g, "\n").split("\n\n")
+  const remainder = blocks.pop() ?? ""
 
-  let currentEvent = ""
-  let currentData = ""
+  for (const block of blocks) {
+    let currentEvent = ""
+    let currentData = ""
 
-  for (const raw of lines) {
-    const line = raw.trimEnd()
-    if (line.startsWith("event: ")) {
-      currentEvent = line.slice(7)
-    } else if (line.startsWith("data: ")) {
-      currentData += (currentData ? "\n" : "") + line.slice(6)
-    } else if (line.length === 0 && currentEvent && currentData) {
-      onEvent(currentEvent, currentData)
-      currentEvent = ""
-      currentData = ""
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event: ")) {
+        currentEvent = line.slice(7)
+      } else if (line.startsWith("data: ")) {
+        currentData += (currentData ? "\n" : "") + line.slice(6)
+      }
     }
+
+    if (currentEvent && currentData) onEvent(currentEvent, currentData)
   }
 
   return remainder

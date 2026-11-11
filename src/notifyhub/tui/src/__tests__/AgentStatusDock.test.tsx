@@ -31,13 +31,13 @@ async function frameOf(children: ReturnType<typeof AgentStatusDock>, height = 8)
   return frame
 }
 
-it("renders running rows with agent, dir and task excerpt", async () => {
+it("renders running rows with status only, without the task excerpt", async () => {
   const frame = await frameOf(
     <AgentStatusDock entries={[entry()]} now={new Date()} />,
   )
   expect(frame).toContain("opencode")
   expect(frame).toContain("project")
-  expect(frame).toContain("fix the flaky test")
+  expect(frame).not.toContain("fix the flaky test")
 })
 
 it("renders blocked and stalled states with their markers", async () => {

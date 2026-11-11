@@ -791,7 +791,7 @@ file). Rows it cannot decrypt render as `LOCKED`.
 ### Live agent status dock
 
 Above the stream, a dock shows **sessions in motion**: `⠙ ◇ opencode · MyProject ·
-2m ago (fix the login bug)` while running (animated spinner + task excerpt),
+2m ago` while running (animated spinner; status only, no task text),
 `⚠ ✳ claude · … · waiting for you` when blocked on a permission, `◼ ◐ codex · … ·
 stalled?` when a `running` entry hasn't refreshed in 5 minutes. Rows vanish when
 the turn finishes — resolved by `session_id` against the completion notification —

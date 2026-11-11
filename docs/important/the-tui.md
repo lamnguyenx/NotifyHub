@@ -25,7 +25,9 @@ graph TB
 ### 1. Live Notification Stream
 The main view is a real-time scrolling feed of notifications received via SSE from the backend.
 - Auto-scrolling feed (sticks to bottom)
-- Receives `init` snapshot on connect, then live `notification` events
+- Receives an `init` snapshot on connect, then live `notification` events
+- The `init` snapshot is capped by `NOTIFYHUB_TUI_PAGE_SIZE` (default 30); older pages load on
+  scroll or with `l`
 - Keyboard navigation: `j`/`k` or `↑`/`↓` to select individual cards
 - Delete selected notification: `Delete` or `Backspace`
 - Viewport culling for performance with large lists
@@ -56,7 +58,7 @@ animation while a chat is on" (fed by the [agent-status](agent-status.md) report
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│⠙ ◇ opencode · NotifyHub · 2m ago (fix the login redirect bug) │  ← spinner while running
+│⠙ ◇ opencode · NotifyHub · 2m ago                               │  ← spinner while running
 │⚠ ✳ claude · hanoi-testing-platform · 40s · waiting for you    │  ← blocked on a permission
 │◼ ◐ codex · VoiceAI_ASR · 31m · stalled?                       │  ← no refresh for 5+ min
 └────────────────────────────────────────────────────────────────┘
@@ -64,8 +66,11 @@ animation while a chat is on" (fed by the [agent-status](agent-status.md) report
 
 - Entries arrive via the `agent_status` SSE event (e2e-decrypted like notifications) and resync
   from `GET /api/status` on reconnect
-- **running** rows animate a braille spinner and carry the directory-color hash, elapsed `since`
-  time, and a one-line excerpt of the running task
+- **running** rows animate a braille spinner and carry the directory-color hash and elapsed
+  `since` time (status only — the task excerpt is not shown; it remains in the API payload for
+  other consumers)
+- The dock keeps its full height; the stream below uses the remaining space (`flexGrow`), so
+  live rows are never squeezed by a long notification list
 - **idle** entries are hidden (their completion already rendered as a notification card); the
   row also disappears the moment its completion notification lands — matched by
   `data.session_id` stamped on every completion push
@@ -144,8 +149,10 @@ src/notifyhub/tui/
 
 ### SSE Endpoint (`/events`)
 The TUI connects to the SSE stream using the Fetch API + ReadableStream reader:
-1. Sends `GET /events`
-2. Parses SSE protocol manually (`event:` and `data:` fields with CRLF line endings)
+1. Sends `GET /events?limit=<page size>`
+2. Parses SSE **blocks** manually: `event:`/`data:` fields, CRLF line endings, and payload lines
+   that span multiple network chunks (the parser keeps the whole incomplete block, so an event
+   name is never lost when a large payload is split)
 3. Handles events: `init`, `notification`, `delete`, `clear`, `heartbeat`, `shutdown`,
    `agent_status` (live agent session states → the dock)
 
@@ -170,7 +177,14 @@ make tui
 
 ## Configuration
 
-The TUI connects to `localhost:9080` by default. To change the backend address, update the default constants in `src/notifyhub/tui/src/utils/api.ts`.
+The TUI connects to `localhost:9080` by default and honors the same backend-address
+env vars as the CLI (so a TLS funnel target works unchanged):
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `NOTIFYHUB_CLI_HOST` | `localhost` | Backend host |
+| `NOTIFYHUB_CLI_PORT` | `9080` | Backend port |
+| `NOTIFYHUB_CLI_SCHEME` | `http` | `http` or `https`; the scheme's default port (80/443) is omitted from the URL |
 
 E2E decryption key (see [e2e-encryption.md](e2e-encryption.md)) — resolved in
 order: `NOTIFYHUB_E2E_KEY` env → `e2e.key` in `config.jsonl`/`config.json` →

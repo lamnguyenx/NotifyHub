@@ -10,7 +10,7 @@ import {
   truncate,
   formatRelativeTime,
 } from "../components/NotificationRow"
-import { parseSSEStream, type SSEEventHandler } from "../utils/api"
+import { buildApiBase, parseSSEStream, type SSEEventHandler } from "../utils/api"
 import { safeParse } from "../hooks/useNotifications"
 
 describe("parseMessage", () => {
@@ -264,12 +264,39 @@ describe("parseSSEStream", () => {
     expect(remainder).toBe("")
   })
 
-  it("returns incomplete data as remainder", () => {
+  it("returns the whole incomplete block as remainder", () => {
     const events: Array<[string, string]> = []
     const onEvent: SSEEventHandler = (event, data) => events.push([event, data])
     const remainder = parseSSEStream("event: init\ndata: partial", onEvent)
     expect(events).toEqual([])
-    expect(remainder).toBe("data: partial")
+    expect(remainder).toBe("event: init\ndata: partial")
+  })
+
+  it("keeps the event name when the data line spans chunks", () => {
+    const events: Array<[string, string]> = []
+    const onEvent: SSEEventHandler = (event, data) => events.push([event, data])
+    // Chunk 1 ends mid-data; event: init must survive into chunk 2.
+    const remainder = parseSSEStream('event: init\ndata: [{"id":', onEvent)
+    expect(events).toEqual([])
+    // Chunk 2 finishes the block and starts a heartbeat.
+    const rest = parseSSEStream(
+      `${remainder}"1"}]\n\nevent: heartbeat\ndata: {"t":1}\n\n`,
+      onEvent,
+    )
+    expect(events).toEqual([
+      ["init", '[{"id":"1"}]'],
+      ["heartbeat", '{"t":1}'],
+    ])
+    expect(rest).toBe("")
+  })
+
+  it("handles a CRLF split across chunks", () => {
+    const events: Array<[string, string]> = []
+    const onEvent: SSEEventHandler = (event, data) => events.push([event, data])
+    const remainder = parseSSEStream("event: init\r\ndata: hel", onEvent)
+    const rest = parseSSEStream(`${remainder}lo\r\n\r\n`, onEvent)
+    expect(events).toEqual([["init", "hello"]])
+    expect(rest).toBe("")
   })
 
   it("handles CRLF line endings", () => {
@@ -299,7 +326,7 @@ describe("parseSSEStream", () => {
       onEvent,
     )
     expect(events).toEqual([["a", "1"]])
-    expect(remainder).toBe("data: ")
+    expect(remainder).toBe("event: b\ndata: ")
   })
 
   it("handles empty buffer", () => {
@@ -330,6 +357,26 @@ describe("parseSSEStream", () => {
     )
     expect(events).toEqual([["msg", "line1\nline2"]])
     expect(remainder).toBe("")
+  })
+})
+
+describe("buildApiBase", () => {
+  it("keeps a non-default port", () => {
+    expect(buildApiBase("http", "localhost", 9080)).toBe("http://localhost:9080")
+  })
+
+  it("omits port 443 for https", () => {
+    expect(buildApiBase("https", "nuc.tail0ec64c.ts.net", 443)).toBe(
+      "https://nuc.tail0ec64c.ts.net",
+    )
+  })
+
+  it("omits port 80 for http", () => {
+    expect(buildApiBase("http", "localhost", 80)).toBe("http://localhost")
+  })
+
+  it("keeps a non-default https port", () => {
+    expect(buildApiBase("https", "example.com", 8443)).toBe("https://example.com:8443")
   })
 })
 

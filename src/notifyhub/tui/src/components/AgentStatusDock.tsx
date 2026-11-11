@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useTheme } from "../theme"
 import type { AgentState, AgentStatusEntry } from "../types"
-import { formatRelativeTime, getAvatarColor, getTitle, truncate } from "./NotificationRow"
+import { formatRelativeTime, getAvatarColor, getTitle } from "./NotificationRow"
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const
 const SPINNER_INTERVAL_MS = 120
@@ -61,14 +61,12 @@ export function AgentStatusRow({ entry, now }: RowProps) {
   }
 
   const elapsed = formatRelativeTime(entry.since, now)
-  const task = entry.task ? truncate(entry.task, 120) : ""
 
   return (
     <box flexDirection="row" width="100%" marginBottom={0}>
       <text fg={markerColor}>{marker} </text>
       <text fg={color}>{`${glyph} ${label}`}</text>
       <text fg={theme.dim}>{` · ${title} · ${elapsed}`}</text>
-      {task ? <text fg={theme.dim}>({task})</text> : null}
     </box>
   )
 }
@@ -95,6 +93,7 @@ export function AgentStatusDock({ entries, now }: Props) {
     <box
       width="100%"
       flexDirection="column"
+      flexShrink={0}
       borderStyle="single"
       borderColor={theme.border}
       paddingX={1}

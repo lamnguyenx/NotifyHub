@@ -120,7 +120,8 @@ export function NotificationStream({ notifications, onDelete, hasMore, loadingMo
       stickyScroll
       stickyStart="top"
       width="100%"
-      height="100%"
+      flexGrow={1}
+      minHeight={0}
       viewportCulling
     >
       {selectMode && (

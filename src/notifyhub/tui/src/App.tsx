@@ -49,7 +49,7 @@ export function App() {
 
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
-      <box width="100%" flexGrow={1}>
+      <box width="100%" flexGrow={1} flexDirection="column" minHeight={0}>
         <ErrorBoundary>
           <AgentStatusDock entries={agentStatus} now={dockNow} />
           <NotificationStream

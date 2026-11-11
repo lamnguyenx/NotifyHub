@@ -76,6 +76,43 @@ const lines = frame.split("\n")
 expect(lines[0]).toContain("Build passed")
 ```
 
+## Testing layout and flex sizing
+
+Layout regressions (a dock/header losing a row, a scrollbox covering a sibling, text bleeding
+into a header) are visible in the character frame. Render the **real composition** at a fixed
+size and assert on specific rows:
+
+```tsx
+const r = await testRender(
+  <box flexDirection="column" width="100%" height="100%">
+    <box width="100%" flexGrow={1} flexDirection="column" minHeight={0}>
+      <AgentStatusDock entries={entries} now={now} />
+      <NotificationStream notifications={items} onDelete={() => {}} />
+    </box>
+    <box width="100%" height={1}><text>FOOTER</text></box>
+  </box>,
+  { width: 60, height: 16 },
+)
+await act(async () => { await r.renderOnce() })
+
+const lines = r.captureCharFrame().split("\n")
+expect(lines[1]).toContain("proj1")
+expect(lines[2]).toContain("proj2")
+expect(lines[3]).toContain("proj3")
+expect(lines[15]).toContain("FOOTER")
+```
+
+Rules learned from the 2026-11-10 dock/stream bug:
+
+- In a column, a child with `height="100%"` claims the **whole** area and overflows past its
+  siblings; Yoga then shrinks the other children. Use `flexGrow={1}` + `minHeight={0}` for the
+  scrollable child and `flexShrink={0}` for headers/docks.
+- `expect(frame).toContain("proj1")` can pass even when another row was overwritten. Assert
+  specific row indices and assert the **absence** of stream text in the header rows.
+- Empty states hide layout bugs. Test with enough content to fill the viewport.
+- For quick probes, dump `index + JSON.stringify(line)` for each frame line so clipping/overlap
+  is visible in the test output.
+
 ## Testing colors and styles
 
 Use `captureSpans()` which returns structured data per character cell:
@@ -441,5 +478,7 @@ The mixing helper (`mixHex`, `getHostModelTagColor`) is a pure function — test
 - E2E crypto is pure/async — test it with the shared cross-language fixture + `setE2EKeyForTests`/`resetE2EKeyForTests`, no renderer needed
 - Avoid asserting on text with Unicode em dashes or arrows — use simpler substrings
 - Popups, borders, absolute positioning — all flattened into one grid
+- In column layouts, prefer `flexGrow` + `minHeight={0}` over `height="100%"`, and
+  `flexShrink={0}` for headers/docks; assert layout at specific row indices
 - `@opentui/react/test-utils`'s `testRender()` wraps `createTestRenderer` + `createRoot` with `act()` for React
 - Pure functions must be `export`ed from source files to be testable

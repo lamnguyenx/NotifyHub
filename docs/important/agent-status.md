@@ -19,7 +19,8 @@ SSE  agent_status                    → one entry per meaningful change (new se
 - **RAM-only**. Nothing is persisted; a backend restart clears it (reporters re-populate on the
   next event of each live session).
 - **Task excerpt**: entries carry a ≤160-char one-line excerpt of the running prompt (extracted
-  server-side from `UserPromptSubmit` payloads, or posted by the opencode plugin).
+  server-side from `UserPromptSubmit` payloads, or posted by the opencode plugin). It stays in
+  `GET /api/status` / `agent_status`; the TUI dock renders status only and does not display it.
 - **Staleness**: a `running` entry whose last refresh is older than
   `backend.agent_status_stale_seconds` (default **300**) is served as `stale` — the stored state
   isn't changed, so a late refresh revives it. Reporters refresh actively during long turns
@@ -59,7 +60,7 @@ restarts**. Codex may ask to re-trust the changed `hooks.json` (via `/hooks` in 
 ## Reading it
 
 - **TUI** (`make tui`): the AgentStatusDock above the stream shows live sessions — spinner +
-  agent/dir/task while running, `⚠ waiting for you` when blocked, `◼ stalled?` when past the
+  agent/dir while running, `⚠ waiting for you` when blocked, `◼ stalled?` when past the
   stale window. Rows vanish when idle or when their completion notification arrives.
 - **curl** (entries are e2e envelopes when a key is configured):
 
