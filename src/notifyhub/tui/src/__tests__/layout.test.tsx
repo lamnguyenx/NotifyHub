@@ -1,7 +1,7 @@
 import { testRender } from "@opentui/react/test-utils"
 import { expect, it } from "bun:test"
 import { act } from "react"
-import { WaitingCards } from "../components/WaitingCards"
+import { WaitingCards, loadingWordFor } from "../components/WaitingCards"
 import { NotificationStream } from "../components/NotificationStream"
 import type { AgentStatusEntry, NotificationItem } from "../types"
 
@@ -49,7 +49,7 @@ it("waiting cards keep their full height above the notification stream", async (
   expect(lines[4]).toContain("@USER")
   expect(lines[4]).toContain("task-1")
   expect(lines[5]).toContain("@ASSISTANT")
-  expect(lines[5]).toContain("loading")
+  expect(lines[5]).toContain(loadingWordFor("s1:task-1"))
   expect(lines.slice(0, 8).join("\n")).not.toContain("notification-")
 
   // The stream still renders in the space below the card.

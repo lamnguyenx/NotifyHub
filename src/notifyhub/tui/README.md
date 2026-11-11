@@ -13,7 +13,7 @@ Testing guide: [`docs/important/tui-testing-guide.md`](../../../docs/important/t
 ```bash
 make tui-deps      # cd src/notifyhub/tui && bun install
 make tui           # bun src/index.tsx (backend must be on :9080)
-make tui-prototype # bun src/prototype.tsx (mock data, no backend)
+make tui-prototype # bun --watch src/prototype.tsx (mock data, auto-restart on save)
 make tui-test      # bun test
 make tui-typecheck # tsc --noEmit (see "Typecheck" below)
 ```
@@ -30,19 +30,24 @@ The backend can be reached through a Tailscale funnel: set `NOTIFYHUB_CLI_SCHEME
   `Home`/`End` jump to the ends, `Delete`/`Backspace` deletes, `Esc` deselects. The selection is
   kept on-screen and the banner is pinned.
 - **Cards** — colored avatar from the pwd hash, title, full pwd, message with tag/truncation
-  highlighting, host-model pill, relative timestamp. Cards measure their content; there is no
-  fixed height.
+  highlighting, host-model pill, relative timestamp, and a quiet gray border (selected cards use
+  the accent). Cards measure their content; there is no fixed height.
 - **Waiting cards** — running/blocked/stalled sessions from `agent_status` events render as
-  notification cards above the feed: the running prompt as `@USER`, a live `@ASSISTANT loading`
-  line (braille spinner), the coding-agent pill, the reporting machine's host pill
-  (`⌂ Mac153`), and a client-side stale mirror (5 min).
+  notification cards above the feed: the running prompt as `@USER`, a live `@ASSISTANT` line with
+  a shimmering per-turn gerund (`loading`, `pondering`, `noodling`, …) + braille spinner snapped
+  to the card's bottom-right corner, an amber wash for permission/input waits, a red wash for
+  stalls, tight border-to-border stacking, the coding-agent pill, the reporting machine's host
+  pill (`⌂ Mac153`), and a client-side stale mirror (5 min).
 - **Status popup** (`s`) and **help popup** (`h`/`?`) — content-sized overlays; see
   `components/`.
 - **E2E decryption** — AES-256-GCM envelopes are decrypted locally (`utils/crypto.ts`). A row that
   cannot be decrypted renders as `LOCKED` with the envelope `kid`.
 - **Prototype mode** (`make tui-prototype`) — the real `AppView` and cards against fake scenarios:
   waiting states, card variants, locked rows, empty/offline and pagination. No backend, no SSE, no
-  e2e key. Keys `1`–`7`/`n`/`p` switch scenarios; `t` freezes relative time. Rules:
+  e2e key. Runs under `bun --watch`, so saving a source file auto-restarts the harness; state
+  (scenario, frozen clock) resets on each restart. `bun --hot` is not compatible with the
+  React/OpenTUI root. Keys `1`–`7`/`n`/`p` switch scenarios; `t` freezes relative time; `r`
+  restarts the harness (scenario 1, live clock, no deletions/popups). Rules:
   [`docs/_meta/how-to-prototype.md`](../../../docs/_meta/how-to-prototype.md).
 
 ## Layout
@@ -96,13 +101,15 @@ src/notifyhub/tui/
 5. **Banner is a sibling of the scrollbox**, not its first child.
 6. **Scroll by renderable id** with `scrollChildIntoView()` after layout.
 7. **Quit must call `process.exit(0)`**; `renderer.destroy()` alone leaves SSE/timers alive.
+8. **State colors are semantic** — running accent, permission waits amber, stalls red; the waiting
+   card uses a 10% border-color wash, and normal feed cards use `theme.cardBorder`.
 
 Full explanations: [`docs/important/tui-rendering-rules.md`](../../../docs/important/tui-rendering-rules.md).
 
 ## Testing
 
 ```bash
-make tui-test   # 146 pass, 11 files
+make tui-test   # 154 pass, 11 files
 ```
 
 Use `testRender()` + `captureCharFrame()`; press keys twice through `renderOnce()` inside `act()`.
@@ -135,6 +142,14 @@ Compare against `HEAD` before treating a type error as a regression.
 
 ## History
 
+- [2026-11-11 prototype polish](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
+  — watch mode, `r` restart, bottom-right loading status, per-turn gerunds, state colors, tints
+- [2026-11-11 polish components](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)
+  — `WaitingCards.tsx`, `NotificationRow.tsx`, `cardBorder`
+- [2026-11-11 polish harness](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-harness.md)
+  — `PrototypeApp.tsx`, `scenarios.ts`, forever-loading/stalled fixtures
+- [2026-11-11 polish tests](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-tests.md)
+  — alignment, shimmer, semantic colors, tint, restart
 - [2026-11-11 prototype mode](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-mode.md)
   — `make tui-prototype`, `AppView`, scenario harness
 - [2026-11-11 prototype harness](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-mode-harness.md)

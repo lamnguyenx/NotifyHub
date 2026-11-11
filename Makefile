@@ -51,7 +51,7 @@ tui:
 	cd src/notifyhub/tui && bun src/index.tsx
 
 tui-prototype tp:
-	cd src/notifyhub/tui && bun src/prototype.tsx
+	cd src/notifyhub/tui && bun --watch src/prototype.tsx
 
 tui-typecheck ttc:
 	cd src/notifyhub/tui && bun run typecheck

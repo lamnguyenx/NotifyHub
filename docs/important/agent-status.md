@@ -72,12 +72,15 @@ restarts**. Codex may ask to re-trust the changed `hooks.json` (via `/hooks` in 
 
 - **TUI** (`make tui`): sessions in motion render as waiting notification cards above the
   stream — project header, agent and host pills (`⌂ Mac153`, `⌂ wsk`, …), the task excerpt on the
-  `@USER` line, and `@ASSISTANT loading <spinner>` while running, `waiting for you ⚠` when
-  blocked, `stalled? ◼` when past the stale window. Cards vanish when idle or when their
+  `@USER` line, and `@ASSISTANT` with a shimmering loading gerund + spinner snapped to the card's
+  bottom-right while running, `waiting for you ⚠` (amber) when blocked on permission/input, and
+  `stalled? ◼` (red) when past the stale window. Cards vanish when idle or when their
   completion notification arrives. The card's time is `since` (session age), not turn age.
   Design/lessons:
-  [`2026-11-11-tui-waiting-cards.md`](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md) and
-  [`2026-11-11-tui-waiting-card-machine-id.md`](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md).
+  [`2026-11-11-tui-waiting-cards.md`](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md),
+  [`2026-11-11-tui-waiting-card-machine-id.md`](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md)
+  and
+  [`2026-11-11-tui-prototype-polish.md`](../plans/2026/11/11/2026-11-11-tui-prototype-polish.md).
 - **curl** (entries are e2e envelopes when a key is configured):
 
 ```bash

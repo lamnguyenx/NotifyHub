@@ -41,6 +41,7 @@ export function PrototypeApp() {
   const [deleted, setDeleted] = useState<string[]>([])
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMoreOverride, setHasMoreOverride] = useState<boolean | null>(null)
+  const [restartKey, setRestartKey] = useState(0)
   const loadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const scenarios = useMemo(() => buildScenarios(referenceNow), [referenceNow])
@@ -70,6 +71,18 @@ export function PrototypeApp() {
     [scenarios.length, frozenAt, clearLoadTimer],
   )
 
+  /** Fresh launch: scenario 1, live clock, no deletions or pending page load. */
+  const restart = useCallback(() => {
+    clearLoadTimer()
+    setScenarioIdx(0)
+    setReferenceNow(new Date())
+    setFrozenAt(null)
+    setDeleted([])
+    setLoadingMore(false)
+    setHasMoreOverride(null)
+    setRestartKey((key) => key + 1)
+  }, [clearLoadTimer])
+
   const toggleFreeze = useCallback(() => {
     if (frozenAt) {
       setFrozenAt(null)
@@ -98,6 +111,10 @@ export function PrototypeApp() {
   }, [])
 
   useKeyboard((key) => {
+    if (key.name === "r") {
+      restart()
+      return
+    }
     if (key.name === "n") {
       selectScenario(scenarioIdx + 1)
       return
@@ -122,6 +139,7 @@ export function PrototypeApp() {
 
   return (
     <AppView
+      key={restartKey}
       header={
         <PrototypeBar
           index={scenarioIdx + 1}
@@ -139,6 +157,7 @@ export function PrototypeApp() {
       loadMore={loadMore}
       lockedCount={notifications.filter((n) => n.locked).length}
       now={frozenAt ?? undefined}
+      footerExtra="r:restart"
     />
   )
 }

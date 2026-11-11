@@ -2,6 +2,7 @@ import { testRender } from "@opentui/react/test-utils"
 import { rgbToHex } from "@opentui/core"
 import { it, expect, afterEach } from "bun:test"
 import { NotificationRow, getHostModelTagColor } from "../components/NotificationRow"
+import { DARK_THEME } from "../theme"
 import type { NotificationItem } from "../types"
 
 const mockItem: NotificationItem = {
@@ -94,6 +95,29 @@ it("renders rounded border characters", async () => {
   expect(frame).toContain("╰")
 
   renderer.destroy()
+})
+
+it("uses a gray border for normal cards and accent for selected", async () => {
+  const normal = await testRender(<NotificationRow item={mockItem} />, { width: 80, height: 8 })
+  await normal.renderOnce()
+  const normalBorder = normal.captureSpans().lines
+    .flatMap((line) => line.spans)
+    .find((span) => span.text.includes("╭"))
+  expect(normalBorder).toBeDefined()
+  expect(rgbToHex(normalBorder!.fg).toLowerCase()).toBe(DARK_THEME.cardBorder.toLowerCase())
+  normal.renderer.destroy()
+
+  const selected = await testRender(
+    <NotificationRow item={mockItem} selected />,
+    { width: 80, height: 8 },
+  )
+  await selected.renderOnce()
+  const selectedBorder = selected.captureSpans().lines
+    .flatMap((line) => line.spans)
+    .find((span) => span.text.includes("╭"))
+  expect(selectedBorder).toBeDefined()
+  expect(rgbToHex(selectedBorder!.fg).toLowerCase()).toBe(DARK_THEME.borderSelected.toLowerCase())
+  selected.renderer.destroy()
 })
 
 it("shows default avatar N when pwd is empty", async () => {

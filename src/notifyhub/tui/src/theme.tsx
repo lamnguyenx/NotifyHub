@@ -9,6 +9,8 @@ export interface Theme {
   surfaceSelected: string
   border: string
   borderSelected: string
+  /** Softer gray for normal feed cards; popups keep `border`. */
+  cardBorder: string
   text: string
   dim: string
   pwdText: string
@@ -29,6 +31,7 @@ export const DARK_THEME: Theme = {
   surfaceSelected: "#2a2a2a",
   border: "#ffffff",
   borderSelected: "#6fc3df",
+  cardBorder: "#808080",
   text: "#ffffff",
   dim: "#969696",
   pwdText: "#a0a0a0",
@@ -49,6 +52,7 @@ export const LIGHT_THEME: Theme = {
   surfaceSelected: "#dceaf5",
   border: "#4a4a4a",
   borderSelected: "#0f6fae",
+  cardBorder: "#c0c0c0",
   text: "#1a1a1a",
   dim: "#6b6b6b",
   pwdText: "#555555",

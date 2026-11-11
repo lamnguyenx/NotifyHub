@@ -75,14 +75,14 @@ the same chrome as a completed notification, with the running prompt and a live 
 │                                                         2m ago │  ← session age (`since`)
 │ /home/lamnt45/git/NotifyHub                                    │
 │ @USER add a waiting card to the TUI                            │  ← running prompt excerpt
-│ @ASSISTANT loading ⠙                                           │  ← live spinner while running
+│ @ASSISTANT                                           loading ⠙ │  ← live spinner while running
 ╰────────────────────────────────────────────────────────────────╯
 ╭────────────────────────────────────────────────────────────────╮
 │  H  hanoi-testing-platform                     ✳ claude  ⌂ wsk │
 │                                                        40s ago │
 │ /home/lamnt45/git/hanoi-testing-platform                       │
 │ @USER why does the parser drop the last chunk?                 │
-│ @ASSISTANT waiting for you ⚠                                   │  ← blocked on a permission
+│ @ASSISTANT                                   waiting for you ⚠ │  ← blocked on a permission
 ╰────────────────────────────────────────────────────────────────╯
 ```
 
@@ -96,9 +96,15 @@ the same chrome as a completed notification, with the running prompt and a live 
 - `@USER` shows the ≤160-char task excerpt reported with the running state; if the reporter had
   no prompt it renders a dim `(no task excerpt)`. The task excerpt is already in the
   `agent_status` payload — the old dock simply chose not to render it.
-- `@ASSISTANT` is the live line: `loading <spinner>` while running, `waiting for you ⚠` when
-  blocked on a permission, `stalled? ◼` when a `running` entry has not refreshed for 5 minutes
-- Running cards use the accent border; blocked/stalled cards use the warning border. Cards are
+- `@ASSISTANT` is the live line, with its state and spinner snapped to the card's bottom-right
+  corner: a shimmering gerund + spinner while running (`loading`, `pondering`, `noodling`, …,
+  chosen once per turn from the session + task excerpt), `waiting for you ⚠` when blocked on a
+  permission, `stalled? ◼` when a `running` entry has not refreshed for 5 minutes
+- Running cards use the accent border, permission/input waits use the warning (amber) border, and
+  stalled cards use the danger (red) border. The `waiting for you ⚠` and `stalled? ◼` text follows
+  the same distinction, so an action-needed prompt never looks like a dead session. The card
+  background is a 10% mix of that border color into the theme background, giving each state a
+  faint wash without competing with the text. Cards are
   content-measured (`flexShrink={0}`) and the stream below uses the remaining space
   (`flexGrow`), so live cards are never squeezed by a long notification list
 - **idle** entries are hidden (their completion already rendered as a notification card); the
@@ -146,8 +152,10 @@ theme mode):
 | Page / renderer background | `#0a0a0a` |
 | Card / popup background | `#000000` |
 | Card background (selected) | `#2a2a2a` |
-| Card border | `#ffffff` |
+| Waiting-card background | 10% state border mixed into the theme background |
+| Card border (normal) | `#808080` |
 | Card border (selected) / accent | `#6fc3df` |
+| Popup border | `#ffffff` |
 | Title text (bold) / body text | `#ffffff` |
 | Dimmed text | `#969696` |
 | pwd path | `#a0a0a0` |
@@ -174,6 +182,10 @@ theme mode):
 | `Ctrl+C` | Quit (renderer `onDestroy`) |
 | `Ctrl+Z` | Suspend; `SIGCONT` resumes |
 
+Prototype-only: `1`–`7` jump scenarios, `n`/`p` cycle, `t` freezes time, `r` restarts the
+harness (scenario 1, live clock, fresh popups/selection/scroll). See
+[`docs/_meta/how-to-prototype.md`](../_meta/how-to-prototype.md).
+
 ## Project Structure
 
 ```
@@ -187,8 +199,8 @@ src/notifyhub/tui/
 │   ├── render.tsx             # CliRenderer, ThemeProvider, onDestroy exit
 │   ├── App.tsx                # AppView shell (layout/keys/popups) + App live wiring
 │   ├── prototypes/            # Harness, scenarios and temporary seams
-│   │   ├── PrototypeApp.tsx   # Scenario switcher, frozen clock, prototype bar
-│   │   └── scenarios.ts       # Fake waiting cards, notification variants, e2e, empty
+│   │   ├── PrototypeApp.tsx   # Scenario switcher, frozen clock, prototype bar, r restart
+│   │   └── scenarios.ts       # Fake waiting cards (forever/stalled), variants, e2e, empty
 │   ├── theme.tsx              # Dark/light palettes + ThemeProvider
 │   ├── types.ts               # NotificationItem, NotificationData, ServerInfo, E2EInfo, AgentStatusEntry
 │   ├── utils/
@@ -202,7 +214,7 @@ src/notifyhub/tui/
 │   │   ├── README.md                  # Component-level invariants
 │   │   ├── NotificationStream.tsx     # Live feed, select mode, scroll-to-selection
 │   │   ├── NotificationRow.tsx        # Card renderer (+ LOCKED cards, marker formatting)
-│   │   ├── WaitingCards.tsx           # Waiting notification cards (task + loading + agent)
+│   │   ├── WaitingCards.tsx           # Waiting notification cards (task + gerund + agent)
 │   │   ├── StatusPopup.tsx            # Centered status overlay (content-sized)
 │   │   ├── HelpPopup.tsx              # Centered key-binding reference (content-sized)
 │   │   └── ErrorBoundary.tsx          # "Rendering error: …" fallback
@@ -223,6 +235,9 @@ component. Full rationale: [`tui-rendering-rules.md`](tui-rendering-rules.md).
   instead of clipping them. Width must fit the longest line (`host:port`).
 - **Escape sequences belong in expressions.** `<text>{"NotifyHub \u2014 Help"}</text>`, not
   `<text>NotifyHub \u2014 Help</text>`.
+- **State needs two channels.** Running is accent, permission waits are amber, stalls are red;
+  the waiting-card border, status text/marker, and 10% background wash all use that mapping.
+  Docked cards use `gap={0}`; normal feed cards use the softer `theme.cardBorder`.
 - **Chrome rows are siblings of the scrollbox.** The SELECT MODE banner is `flexShrink={0}` above
   the scrollbox.
 - **Scroll by id.** Give cards a stable renderable id and call `scrollChildIntoView()` after
@@ -262,7 +277,11 @@ make tui
 
 # Run the prototype harness with mock data (no backend, no e2e key)
 make tui-prototype
-# Keys: 1-7 jump scenarios, n/p cycle, t freezes time, v/s/h work as in the app
+# Runs under `bun --watch`: saving a source file restarts the harness.
+# State (scenario, frozen clock) resets on restart; Bun --hot cannot preserve
+# the React/OpenTUI root across module re-evaluation.
+# Keys: 1-7 jump scenarios, n/p cycle, t freezes time, r restarts the harness,
+# v/s/h work as in the app
 # Rules: docs/_meta/how-to-prototype.md
 ```
 
@@ -289,6 +308,14 @@ key file:
 
 ## History
 
+- [2026-11-11 prototype polish](../plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
+  — parent: watch mode, `r` restart, `cardBorder`, docs.
+- [2026-11-11 prototype polish — components](../plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)
+  — bottom-right status, per-turn gerunds/shimmer, semantic colors, state tint, tight stack.
+- [2026-11-11 prototype polish — harness](../plans/2026/11/11/2026-11-11-tui-prototype-polish-harness.md)
+  — watch-mode loop, `r` remount, forever-loading/stalled fixtures.
+- [2026-11-11 prototype polish — tests](../plans/2026/11/11/2026-11-11-tui-prototype-polish-tests.md)
+  — alignment, word stability, shimmer, colors, tint, border, restart.
 - [2026-11-11 prototype mode](../plans/2026/11/11/2026-11-11-tui-prototype-mode.md)
   — `make tui-prototype`, `AppView`, mock scenarios, `docs/_meta/how-to-prototype.md`.
 - [2026-11-11 prototype harness](../plans/2026/11/11/2026-11-11-tui-prototype-mode-harness.md)

@@ -452,10 +452,14 @@ expect(r.captureCharFrame()).toContain("PROTOTYPE 2/7")
 
 - `n`/`p` switch scenarios; `1`–`7` jump directly (digit `key.name` is the character).
 - `t` freezes the relative clock; assert `time frozen` then `time live`.
+- `r` restarts the harness; switch/freeze first, then assert `PROTOTYPE 1/7` and `time live`.
+- The loading word is seeded per turn. Derive the expected text with `loadingWordFor(seed)` instead
+  of asserting the literal `loading`; use `captureSpans()` + `rgbToHex()` for the shimmer, status
+  colors, card tint and border shades.
 - The scenario bar text contains the scenario count. Adding a scenario means updating the
   `PROTOTYPE 1/7` expectation and the tables in `docs/_meta/how-to-prototype.md` and
   `src/prototypes/README.md`.
-- Spinner intervals still log `act(...)` warnings; assertions pass.
+- The per-card ticker still logs `act(...)` warnings; assertions pass.
 
 ## Testing ErrorBoundary
 
@@ -543,12 +547,13 @@ The mixing helper (`mixHex`, `getHostModelTagColor`) is a pure function — test
 - Popup height must include content rows + gaps + padding + border; assert the last content row
 - In column layouts, prefer `flexGrow` + `minHeight={0}` over `height="100%"`, and
   `flexShrink={0}` for headers/waiting cards; assert layout at specific row indices
-- A waiting card is **7 rows** (border, header, time, pwd, `@USER`, `@ASSISTANT`, border) plus a
-  one-row gap. The committed layout test uses one card at 60×20 and asserts rows 1/3/4/5; a
-  3-card composition needs at least 25 rows including the footer.
+- A waiting card is **7 rows** (border, header, time, pwd, `@USER`, `@ASSISTANT`, border), with
+  consecutive cards border-to-border, plus a one-row margin before the stream. The committed
+  layout test uses one card at 60×20 and asserts rows 1/3/4/5; a 3-card composition needs at least
+  25 rows including the footer and one stream row.
 - Cards should let Yoga measure their height (`flexShrink={0}`); a hand-computed height drifts
   with wrapping and resizes
-- Spinner intervals (`useSpinner`, 120 ms) cause React `act(...)` warnings in the in-memory
+- The per-card ticker (`useTicker`, 120 ms) causes React `act(...)` warnings in the in-memory
   renderer. They are the same pattern the old dock tests had; assertions still pass. Use fake
   timers if the noise becomes a problem.
 - `@opentui/react/test-utils`'s `testRender()` wraps `createTestRenderer` + `createRoot` with `act()` for React
@@ -558,6 +563,12 @@ The mixing helper (`mixHex`, `getHostModelTagColor`) is a pure function — test
 
 ## Related plans
 
+- [Prototype polish — parent plan](../plans/2026/11/11/2026-11-11-tui-prototype-polish.md) —
+  watch mode, `r`, waiting-card finish.
+- [Prototype polish — components](../plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)
+- [Prototype polish — harness](../plans/2026/11/11/2026-11-11-tui-prototype-polish-harness.md)
+- [Prototype polish — tests](../plans/2026/11/11/2026-11-11-tui-prototype-polish-tests.md) —
+  146 → 154 tests; span colors, word seeding, tint, restart.
 - [Prototype mode](../plans/2026/11/11/2026-11-11-tui-prototype-mode.md) — `make tui-prototype`,
   `AppView`, scenario harness and `Prototype.test.tsx`.
 - [Prototype harness](../plans/2026/11/11/2026-11-11-tui-prototype-mode-harness.md) — scenarios,

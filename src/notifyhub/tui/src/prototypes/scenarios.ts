@@ -13,6 +13,13 @@ export interface PrototypeScenario {
 
 const MINUTE = 60_000
 
+/**
+ * Far-future `updated` keeps a running fixture "loading" forever. The client
+ * stale mirror flips any running entry older than 5 minutes to "stalled?"; a
+ * scenario that wants that state overrides `updated` with an old timestamp.
+ */
+const FOREVER = new Date(8.64e15).toISOString()
+
 function ago(now: Date, minutes: number): string {
   return new Date(now.getTime() - minutes * MINUTE).toISOString()
 }
@@ -42,7 +49,7 @@ function status(
     host: "kientt44",
     task: "add a TUI prototype mode",
     since: ago(now, 12),
-    updated: now.toISOString(),
+    updated: state === "running" ? FOREVER : now.toISOString(),
     ...overrides,
   }
 }
@@ -98,6 +105,14 @@ export function buildScenarios(now: Date): PrototypeScenario[] {
       pwd: "/home/lamnt45/git/hanoi-testing-platform",
       task: "why does the parser drop the last chunk?",
       since: ago(now, 3),
+    }),
+    status("codex", "ses_proto_stalled", "running", now, {
+      pwd: "/home/lamnt45/git/xdgg-private",
+      host: "nuc",
+      task: "run the flaky suite again",
+      since: ago(now, 45),
+      // Silent past the 5-minute window: the card shows "stalled? ◼".
+      updated: ago(now, 10),
     }),
   ]
 
@@ -241,7 +256,7 @@ export function buildScenarios(now: Date): PrototypeScenario[] {
     {
       id: "overview",
       title: "overview",
-      blurb: "two waiting cards above a mixed feed",
+      blurb: "loading, blocked and stalled cards above a mixed feed",
       notifications: overviewNotifications,
       agentStatus: overviewWaiting,
       serverInfo: server({ notificationsCount: overviewNotifications.length }),

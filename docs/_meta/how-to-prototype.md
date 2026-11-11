@@ -63,7 +63,8 @@ flowchart TB
   the narrow check; a short window shows whether waiting cards squeeze the feed.
 - **Make time controllable.** `t` freezes/unfreezes relative timestamps and the 5-minute stale
   mirror at the current moment. Scenario timestamps are built against a reference time, so
-  "2m ago" does not drift between renders. The spinner still animates — it is state, not time.
+  "2m ago" does not drift between renders. The spinner and loading-word shimmer still animate —
+  they are state, not time. The gerund itself is seeded per turn, not rotated on a timer.
 - **Keep the page chrome apart.** `PrototypeBar` is harness-only. Do not move it into `AppView` or
   `App`; the app should never show "PROTOTYPE".
 
@@ -162,16 +163,19 @@ Afterwards, a diff of `src/notifyhub/tui/src/prototypes/` should show mostly del
 
 ## In this repository
 
-- Run: `make tui-prototype` (alias `make tp`). No backend needed.
+- Run: `make tui-prototype` (alias `make tp`). No backend needed. It uses `bun --watch`, so
+  saving a source file restarts the harness; scenario/frozen-clock state resets each time.
 - Harness: `src/notifyhub/tui/src/prototype.tsx`, `src/notifyhub/tui/src/prototypes/`.
 - Scenarios: `src/notifyhub/tui/src/prototypes/scenarios.ts`.
 - Tests: `src/notifyhub/tui/src/__tests__/Prototype.test.tsx` covers the first scenario, scenario
-  switching and the frozen clock.
+  switching, the frozen clock, `r` restart and the forever/stalled fixture timing.
+- Reset: `r` restarts the harness (scenario 1, live clock, fresh popups/selection/scroll) without
+  relaunching the process.
 - Scenario map:
 
 | Key | Scenario | Covers |
 |---|---|---|
-| `1` | overview | two waiting cards above a mixed feed |
+| `1` | overview | forever-loading, blocked and stalled cards above a mixed feed |
 | `2` | waiting states | running, blocked and stalled cards |
 | `3` | waiting edge cases | missing task, missing host, unknown agent |
 | `4` | notification cards | tags, truncation, empty bodies, long pwd |
@@ -179,6 +183,9 @@ Afterwards, a diff of `src/notifyhub/tui/src/prototypes/` should show mostly del
 | `6` | empty / offline | empty feed and disconnected status popup |
 | `7` | many / pagination | 30 cards, `l` loading state, `hasMore` footer |
 
-- Keys: `1`–`7` jump, `n`/`p` cycle, `t` freeze time, `v` select mode, `s` status, `h`/`?` help,
-  `q` quit.
-- Plan: [`docs/plans/2026/11/11/2026-11-11-tui-prototype-mode.md`](../plans/2026/11/11/2026-11-11-tui-prototype-mode.md).
+- Keys: `1`–`7` jump, `n`/`p` cycle, `t` freeze time, `r` restart (fresh launch), `v` select
+  mode, `s` status, `h`/`?` help, `q` quit.
+- Plans: [`prototype mode`](../plans/2026/11/11/2026-11-11-tui-prototype-mode.md) ·
+  [`prototype polish`](../plans/2026/11/11/2026-11-11-tui-prototype-polish.md) ·
+  [`polish harness`](../plans/2026/11/11/2026-11-11-tui-prototype-polish-harness.md) ·
+  [`polish tests`](../plans/2026/11/11/2026-11-11-tui-prototype-polish-tests.md).

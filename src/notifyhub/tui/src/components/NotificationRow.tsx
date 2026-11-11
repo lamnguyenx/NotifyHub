@@ -172,7 +172,7 @@ function renderSegments(segments: TagSegment[], lineKey: string, theme: Theme) {
 function LockedNotificationRow({ item, selected, now, id }: Props) {
   const theme = useTheme()
   const kid = envelopeKid(item)
-  const borderColor = selected ? theme.borderSelected : theme.border
+  const borderColor = selected ? theme.borderSelected : theme.cardBorder
   const cardBg = selected ? theme.surfaceSelected : theme.background
   return (
     <box
@@ -218,7 +218,7 @@ function PlainNotificationRow({ item, selected, now: propNow, id }: Props) {
   const avatarColor = getAvatarColor(pwd)
   const avatarInitial = title[0]?.toUpperCase() || "N"
   const cardBg = selected ? theme.surfaceSelected : theme.background
-  const borderColor = selected ? theme.borderSelected : theme.border
+  const borderColor = selected ? theme.borderSelected : theme.cardBorder
   const time = formatRelativeTime(item.timestamp, now)
   const hostModelColor = hostModel ? getHostModelTagColor(hostModel, cardBg) : ""
   // Drop trailing blank lines so cards don't end with empty padding.

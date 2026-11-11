@@ -783,7 +783,7 @@ A terminal front-end built with React + `@opentui` lives in `src/notifyhub/tui/`
 
 ```bash
 make tui           # run against the backend
-make tui-prototype # run with mock data (no backend)
+make tui-prototype # run with mock data (no backend; auto-restarts on save)
 make tui-test      # bun test
 make tui-typecheck
 ```
@@ -792,13 +792,17 @@ Module guide: [`src/notifyhub/tui/README.md`](src/notifyhub/tui/README.md). Rend
 (why cards/popups are sized the way they are): [`docs/important/tui-rendering-rules.md`](docs/important/tui-rendering-rules.md).
 Prototype rules: [`docs/_meta/how-to-prototype.md`](docs/_meta/how-to-prototype.md).
 Design history:
+[`2026-11-11-tui-prototype-polish.md`](docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md),
 [`2026-11-11-tui-prototype-mode.md`](docs/plans/2026/11/11/2026-11-11-tui-prototype-mode.md)
 and
 [`2026-11-11-tui-waiting-card-machine-id.md`](docs/plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md).
 
 `make tui-prototype` runs the real `AppView` and cards against fake scenarios — waiting states,
-card variants, locked rows, empty/offline, pagination — with no SSE or e2e key. Use `1`–`7` or
-`n`/`p` to switch scenarios and `t` to freeze relative time.
+card variants, locked rows, empty/offline, pagination — with no SSE or e2e key. It runs under
+`bun --watch`, so saving a source file restarts the harness automatically (prototype state resets
+on restart; Bun's `--hot` cannot preserve a React/OpenTUI root across reloads). Use `1`–`7` or
+`n`/`p` to switch scenarios, `t` to freeze relative time, and `r` to restart the harness (scenario
+1, live clock, no deletions/popups).
 
 ### Keys
 
@@ -813,8 +817,9 @@ card variants, locked rows, empty/offline, pagination — with no SSE or e2e key
 | `s` | Status popup (`h`/`?` for help) |
 | `q` | Quit (exit code 0) |
 
-Cards measure their content, so there is no blank padding after a resize. Popups are sized to
-their content: Help is 18 rows, Status 17 rows and wide enough for a funnel `host:port`.
+Cards measure their content, so there is no blank padding after a resize. Normal feed cards use a
+soft gray border; the selected card uses the accent. Popups are sized to their content: Help is
+18 rows, Status 17 rows and wide enough for a funnel `host:port`.
 With e2e encryption enabled, the TUI prints the key source on startup
 (`make tui` → `e2e key: config e2e.key (kid …)`) and decrypts automatically using
 the key from `~/.config/notifyhub/config.jsonl` (or `NOTIFYHUB_E2E_KEY` / a key
@@ -824,15 +829,17 @@ file). Rows it cannot decrypt render as `LOCKED`.
 
 Above the stream, **sessions in motion** render as notification cards in waiting: the
 project header, coding-agent pill (`◇ opencode`, `✳ claude`, `◐ codex`) and the reporting
-machine's host pill (`⌂ Mac153`), the running prompt on the `@USER` line, and `@ASSISTANT loading ⠙`
-while running. When blocked on a
-permission the assistant line becomes `waiting for you ⚠`; after 5 minutes without a
-refresh it becomes `stalled? ◼`. Cards vanish when the turn finishes — resolved by
-`session_id` against the completion notification — and resync from `GET /api/status`
-on reconnect. Details:
+machine's host pill (`⌂ Mac153`), the running prompt on the `@USER` line, and `@ASSISTANT` with
+a shimmering per-turn loading gerund + `⠙` snapped to the card's bottom-right while running.
+Permission/input waits turn the border and line amber (`waiting for you ⚠`); a session silent for
+5 minutes turns them red (`stalled? ◼`). Docked cards stack border-to-border with a faint
+state-colored background wash. Cards vanish when the turn finishes — resolved by `session_id`
+against the completion notification — and resync from `GET /api/status` on reconnect. Details:
 [`docs/important/the-tui.md`](docs/important/the-tui.md) and
-[`docs/important/agent-status.md`](docs/important/agent-status.md). Design, trials and
-lessons: [`docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md`](docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md).
+[`docs/important/agent-status.md`](docs/important/agent-status.md). Design, trials and lessons:
+[`2026-11-11-tui-prototype-polish.md`](docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
+and
+[`2026-11-11-tui-waiting-cards.md`](docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md).
 
 ### Paginated loading
 

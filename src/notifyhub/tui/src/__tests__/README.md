@@ -8,20 +8,20 @@ make tui-test                  # from the repo root
 cd src/notifyhub/tui && bun test  # equivalent
 ```
 
-Current: **146 pass, 0 fail, 11 files**.
+Current: **154 pass, 0 fail, 11 files**.
 
 ## Suites
 
 | File | Covers |
 |---|---|
 | `App.test.tsx` | Layout, footer hints, popup toggles/mutual exclusion, dismissal |
-| `NotificationRow.test.tsx` | Card text, avatar, title, pwd, timestamp, host-model color, LOCKED rows |
+| `NotificationRow.test.tsx` | Card text, avatar, title, pwd, timestamp, host-model color, gray/selected border, LOCKED rows |
 | `NotificationStream.test.tsx` | Empty state, rendering, select mode, navigation, delete |
-| `WaitingCards.test.tsx` | Waiting card chrome, `@USER` task, agent/host pills, blocked/stalled lines, idle hiding |
+| `WaitingCards.test.tsx` | Waiting-card chrome, right-aligned gerund + spinner, shimmer, blocked/stalled colors, tinted backgrounds, idle hiding |
 | `StatusPopup.test.tsx` | Connection/SSE/e2e rows, host:port, locked count |
 | `HelpPopup.test.tsx` | Heading, key bindings, dismiss instruction |
 | `layout.test.tsx` | Real column composition: waiting card, stream, footer at 60×20 |
-| `Prototype.test.tsx` | Mock overview, scenario switching/number keys, frozen clock |
+| `Prototype.test.tsx` | Mock overview, scenario switching/number keys, frozen clock, `r` restart, forever/stalled fixtures |
 | `crypto.test.ts` | Envelope decryption, key resolution, locked rows |
 | `utils.test.ts` | Time formatting, tags, truncation, colors, API base URL, SSE parser |
 | `ErrorBoundary.test.tsx` | Fallback rendering (the thrown error is logged by the runner) |
@@ -39,7 +39,10 @@ await act(async () => { await renderOnce() }) // render the state change
 ```
 
 - `captureSpans()` for per-cell colors/attributes; `rgbToHex()` from `@opentui/core` converts
-  `RGBA`.
+  `RGBA`. Use it for semantic colors, the card tint and border shades; text spans inherit the
+  card background, so the tint is observable there.
+- The loading word is seeded per turn, not fixed. Derive the expected value with
+  `loadingWordFor(seed)` instead of asserting the literal `loading`.
 - Mock `globalThis.fetch` when rendering the full `App` (`/api/notifications`, `/api/e2e`,
   `/events`), or the test will hit the real backend if it is running.
 - Assert **unique** strings. For popups, use full titles (`NotifyHub — Help`,
@@ -51,12 +54,13 @@ await act(async () => { await renderOnce() }) // render the state change
   `<text>{"\u2014"}</text>`, then assert the real glyph.
 - Call `renderer.destroy()` at the end of every test.
 - Waiting cards are **seven rows** (border, header, time, pwd, `@USER`, `@ASSISTANT`, border)
-  plus a one-row gap. A layout test with one card needs at least 9 rows above the stream; the
+  plus a one-row margin before the stream. A layout test with one card needs at least 9 rows
+  above the stream; the
   committed composition uses 60×20. Assert the card's row indices (1, 3, 4, 5), not just
   `toContain`, so an overlapping stream is visible.
-- Spinner intervals (`useSpinner`, 120 ms) cause React `act(...)` warnings in the in-memory
-  renderer. They are the same pattern the old dock tests had; the assertions still pass. If the
-  noise becomes a problem, use fake timers rather than removing the spinner.
+- The per-card ticker (`useTicker`, 120 ms) causes React `act(...)` warnings in the in-memory
+  renderer. It drives the spinner, shimmer and status updates; the assertions still pass. If the
+  noise becomes a problem, use fake timers rather than removing the ticker.
 
 ## What the tests cannot catch
 
@@ -77,10 +81,14 @@ process exits with code 0.
 3. For rendering, assert a specific row index or a unique line; dump
    `index + JSON.stringify(line)` when debugging a frame.
 4. For popups, assert both the first and last content rows.
-5. Run `make tui-test` and keep the suite at 146+ passing.
+5. Run `make tui-test` and keep the suite at 154+ passing.
 
 ## Related
 
+- [Prototype polish — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
+- [Prototype polish — components](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)
+- [Prototype polish — harness](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-harness.md)
+- [Prototype polish — tests](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-tests.md)
 - [Waiting cards — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
 - [Waiting cards — component plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
 - [Waiting cards — tests plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)

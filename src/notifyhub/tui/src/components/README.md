@@ -10,7 +10,7 @@ the module overview is [`../../README.md`](../../README.md).
 |---|---|---|
 | `NotificationStream.tsx` | Scrollable feed, select mode, lazy-load trigger | Owns `selectedIdx` and `selectMode`; banner is outside the scrollbox |
 | `NotificationRow.tsx` | One notification card, plain or `LOCKED` | Hook-free dispatcher; card height is measured by Yoga |
-| `WaitingCards.tsx` | Waiting notification cards for running/blocked/stalled sessions | `flexShrink={0}`; `@USER` task + `@ASSISTANT loading`, agent/host pills, spinner + stale mirror |
+| `WaitingCards.tsx` | Waiting notification cards for running/blocked/stalled sessions | `flexShrink={0}`; `@USER` task, per-turn gerund + spinner, state colors/tint, agent/host pills, stale mirror |
 | `StatusPopup.tsx` | Centered connection/e2e status | 17 rows; width adapts to `host:port` |
 | `HelpPopup.tsx` | Centered key-binding reference | 18 rows; 60 columns max |
 | `ErrorBoundary.tsx` | Fallback when a child render throws | Shows `Rendering error: <message>` only |
@@ -21,6 +21,8 @@ the module overview is [`../../README.md`](../../README.md).
 
 - No `height` on a card. Use `flexShrink={0}` inside the scrollbox; otherwise cards are squashed
   instead of scrolled.
+- Normal feed cards use `theme.cardBorder` (soft gray); the selected card uses `theme.borderSelected`
+  (accent). Popups keep the brighter `theme.border` so they stay visually above the feed.
 - `wrapMode="none"` on single-line fields (title, pwd) so they cannot add a row.
 - Strip trailing whitespace before splitting a message; render `\u00a0` for an empty body line.
 - Do not render an optional row (`pwd`) when the value is empty.
@@ -32,9 +34,11 @@ the module overview is [`../../README.md`](../../README.md).
 - Waiting cards are **pinned above the scrollbox** (`flexShrink={0}`), not scroll children. The
   stream keeps `flexGrow={1}` + `minHeight={0}`. Moving the cards inside the feed would make them
   scroll away and force select-mode/delete semantics onto display-only state.
-- The `WaitingCards` container is borderless with `gap={1}` + `marginBottom={1}`; each
-  `WaitingCard` owns its rounded border. The border color is accent while running, warning while
-  blocked/stalled.
+- The `WaitingCards` container is borderless with `gap={0}` + `marginBottom={1}`; consecutive
+  cards sit border-to-border to save vertical space, and each `WaitingCard` owns its rounded
+  border. The border color is accent while running, warning while blocked on a permission/input,
+  and danger while stalled. The card background is `mixHex(border, theme.background, 0.1)`, a
+  subtle state-colored wash that ties the body to the border.
 - No fixed height. The `@USER` task excerpt is one line from the API but can wrap at narrow
   widths; let Yoga measure the card.
 - Card chrome reuses `NotificationRow` helpers (`getTitle`, `getAvatarColor`,
@@ -44,9 +48,12 @@ the module overview is [`../../README.md`](../../README.md).
   Unknown agents fall back to `●`. The reporting machine's host pill sits to its right with the
   same treatment (matching `host_model` on completed cards) and the one-cell `⌂` glyph; a null
   host omits the pill. Avoid emoji such as `🖥` — double-width glyphs break narrow headers.
-- `@ASSISTANT` is a total state switch: `loading <spinner>` (running), `waiting for you ⚠`
-  (blocked), `stalled? ◼` (stale), `idle` (unreachable through the container, kept for direct
-  renders). The spinner interval runs only while running.
+- `@ASSISTANT` is a total state switch: a shimmering gerund + `<spinner>` (running),
+  `waiting for you ⚠` (blocked), `stalled? ◼` (stale), `idle` (unreachable through the container,
+  kept for direct renders). The state + spinner are right-aligned to the card's bottom-right
+  corner. The 120 ms ticker drives the spinner glyph and the accent wave; the word itself is
+  stable for a turn (`loading`/`pondering`/`noodling`/…) and changes when the task excerpt does,
+  i.e. on a new message. The ticker runs only while running.
 - The 5-minute stale window is mirrored client-side; SSE entries can remain `running` between
   events.
 - The timestamp is `since` — session age, not turn age. The status API has no `turn_since`.
@@ -92,6 +99,9 @@ width  = min(terminal - 2, longest line + 2 (padding) + 2 (border))
 
 ## Related
 
+- [Prototype polish — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
+- [Prototype polish — components](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)
+- [Prototype polish — tests](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-tests.md)
 - [Waiting cards — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
 - [Waiting cards — component plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
 - [Waiting cards — tests plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)

@@ -42,6 +42,8 @@ clipped text, worst after a resize.
 - `flexShrink={0}` is required inside a scrollbox; otherwise the scrollbox squashes cards to fit
   instead of scrolling.
 - Use `wrapMode="none"` for single-line fields (title, pwd) so they cannot add an extra row.
+- Normal feed cards use `theme.cardBorder` (gray); selected cards use `theme.borderSelected`.
+  Popups keep `theme.border` so their chrome stays brighter than the feed.
 - Strip trailing whitespace before splitting a message:
   `msg.replace(/\s+$/, "").split("\n")`.
 - Do not render an optional row (`pwd`) when the value is empty; an empty `<text>` still takes a
@@ -119,15 +121,22 @@ useEffect(() => {
 `WaitingCards` is pinned above the stream, not inside the scrollbox:
 
 - `WaitingCards` uses `flexShrink={0}`; the scrollbox keeps `flexGrow={1}` + `minHeight={0}`.
-- The container is borderless with `gap={1}` + `marginBottom={1}`; each `WaitingCard` owns its
-  rounded border. Do not wrap the list in a second border.
+- The container is borderless with `gap={0}` + `marginBottom={1}`; consecutive cards sit
+  border-to-border and each `WaitingCard` owns its rounded border. Do not wrap the list in a
+  second border.
 - No fixed card height: the `@USER` task excerpt can wrap at narrow widths. Let Yoga measure it.
 - Cards are display-only; they are not selectable and have no delete handling. If you move them
   inside the scrollbox, add selection indexing and a delete story first.
 - The agent pill and the host pill reuse `getHostModelTagColor`; the border is accent while
-  running and warning while blocked/stalled. The host pill sits to the right of the agent pill,
+  running, warning while blocked on a permission/input, and danger while stalled. The card
+  background is `mixHex(border, theme.background, 0.1)`, so the wash stays subtle in both light
+  and dark themes. The host pill sits to the right of the agent pill,
   matching the `host_model` pill position on completed cards, and is omitted when `host` is null.
   It carries the one-cell `⌂` host glyph; do not use `🖥` (double-width, breaks narrow headers).
+- The `@ASSISTANT` label stays left; the state + spinner right-align behind a `flexGrow` spacer,
+  so the live loading animation snaps to the card's bottom-right corner. One ticker drives the
+  spinner glyph and the accent wave; the gerund is seeded by session + task excerpt, so it changes
+  on a new message rather than on a timer.
 - The timestamp is `since` (session age), not turn age; the status API has no `turn_since`.
 
 ## 7. Quit: destroy the renderer **and** exit
@@ -146,11 +155,15 @@ loop alive, so the process hangs on a blank terminal.
 2. For the real check, run the TUI in a detached tmux pane, drive keys, and capture the pane.
 3. If the screen says `Rendering error: …`, render the suspected component directly — the
    ErrorBoundary only shows the message, not the stack.
-4. `make tui-test` must stay at 146+ passing; `make tui-typecheck` has pre-existing noise (missing
+4. `make tui-test` must stay at 154+ passing; `make tui-typecheck` has pre-existing noise (missing
    `bun:test`/Node types and `CliRenderer.on/off` in `theme.tsx`) — compare against `HEAD`.
 
 ## Related plans
 
+- [Prototype polish — parent plan](../plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
+- [Prototype polish — components](../plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)
+- [Prototype polish — harness](../plans/2026/11/11/2026-11-11-tui-prototype-polish-harness.md)
+- [Prototype polish — tests](../plans/2026/11/11/2026-11-11-tui-prototype-polish-tests.md)
 - [Waiting cards — parent plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
 - [Waiting cards — component plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
 - [Waiting cards — tests plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
