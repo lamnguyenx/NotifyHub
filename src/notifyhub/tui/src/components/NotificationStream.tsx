@@ -15,6 +15,8 @@ const SOUND_PATH = (() => {
   }
 })()
 
+const rowId = (id: string) => `notification-row-${id}`
+
 interface Props {
   notifications: NotificationItem[]
   onDelete: (id: string) => void
@@ -103,48 +105,59 @@ export function NotificationStream({ notifications, onDelete, hasMore, loadingMo
     } else if (key.name === "end") {
       setSelectedIdx(notifications.length > 0 ? notifications.length - 1 : -1)
     } else if (key.name === "delete" || key.name === "backspace") {
-      setSelectedIdx((prev) => {
-        if (notifications.length === 0 || prev < 0 || prev >= notifications.length) return prev
-        onDelete(notifications[prev].id)
-        return Math.max(0, Math.min(prev, notifications.length - 2))
-      })
+      if (notifications.length === 0 || selectedIdx < 0 || selectedIdx >= notifications.length) return
+      onDelete(notifications[selectedIdx].id)
+      setSelectedIdx(Math.max(0, Math.min(selectedIdx, notifications.length - 2)))
     } else if (key.name === "escape") {
       setSelectedIdx(-1)
     }
   })
 
+  // Keep the selected card visible while navigating in select mode.
+  const selectedId = selectedIdx >= 0 ? notifications[selectedIdx]?.id : undefined
+  useEffect(() => {
+    if (selectedId === undefined) return
+    // Defer one tick so the new selection has been laid out.
+    const t = setTimeout(() => scrollRef.current?.scrollChildIntoView(rowId(selectedId)), 0)
+    return () => clearTimeout(t)
+  }, [selectedId])
+
   return (
-    <scrollbox
-      ref={scrollRef}
-      focused
-      stickyScroll
-      stickyStart="top"
-      width="100%"
-      flexGrow={1}
-      minHeight={0}
-      viewportCulling
-    >
+    <>
       {selectMode && (
-        <box width="100%" height={1} backgroundColor={theme.accentBg} paddingX={1}>
-          <text fg={theme.accent}>SELECT MODE  |  j/k/\u2191/\u2193: navigate  |  Del: delete  |  Esc: deselect  |  v: exit</text>
-        </box>
-      )}
-      {notifications.length === 0 ? (
-        <box height={3} width="100%">
-          <text fg={theme.dim}>Waiting for notifications\u2026</text>
-        </box>
-      ) : (
-        notifications.map((n, i) => (
-          <NotificationRow key={n.id} item={n} selected={i === selectedIdx} now={now} />
-        ))
-      )}
-      {hasMore && (
-        <box width="100%" height={1} paddingX={1}>
-          <text fg={theme.dim}>
-            {loadingMore ? "Loading older notifications\u2026" : "\u2193 scroll down (or press L) to load older"}
+        <box width="100%" height={1} flexShrink={0} backgroundColor={theme.accentBg} paddingX={1}>
+          <text fg={theme.accent} wrapMode="none">
+            {"SELECT MODE  |  j/k/\u2191/\u2193: navigate  |  Del: delete  |  Esc: deselect  |  v: exit"}
           </text>
         </box>
       )}
-    </scrollbox>
+      <scrollbox
+        ref={scrollRef}
+        focused
+        stickyScroll
+        stickyStart="top"
+        width="100%"
+        flexGrow={1}
+        minHeight={0}
+        viewportCulling
+      >
+        {notifications.length === 0 ? (
+          <box height={3} width="100%" paddingX={1}>
+            <text fg={theme.dim}>{"Waiting for notifications\u2026"}</text>
+          </box>
+        ) : (
+          notifications.map((n, i) => (
+            <NotificationRow key={n.id} id={rowId(n.id)} item={n} selected={i === selectedIdx} now={now} />
+          ))
+        )}
+        {hasMore && (
+          <box width="100%" height={1} flexShrink={0} paddingX={1}>
+            <text fg={theme.dim}>
+              {loadingMore ? "Loading older notifications\u2026" : "\u2193 scroll down (or press L) to load older"}
+            </text>
+          </box>
+        )}
+      </scrollbox>
+    </>
   )
 }

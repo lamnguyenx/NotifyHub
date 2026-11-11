@@ -95,8 +95,9 @@ it("status and help are mutually exclusive", async () => {
   await press("s", mockInput, renderOnce)
   await press("h", mockInput, renderOnce)
   const frame = captureCharFrame()
-  expect(frame).toContain("Help")
-  expect(frame).not.toContain("Status")
+  // Match popup titles: the help body itself lists "s  Status popup".
+  expect(frame).toContain("NotifyHub — Help")
+  expect(frame).not.toContain("NotifyHub — Status")
   renderer.destroy()
 })
 

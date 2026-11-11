@@ -6,6 +6,8 @@
 
 The TUI is a full-screen terminal application that connects to the NotifyHub backend to display, browse, and manage notifications in real time. Built with [OpenTUI](https://opentui.dev) (React bindings) + Bun.
 
+Module README: [`src/notifyhub/tui/README.md`](../../src/notifyhub/tui/README.md).
+
 ## Architecture
 
 ```mermaid
@@ -28,8 +30,11 @@ The main view is a real-time scrolling feed of notifications received via SSE fr
 - Receives an `init` snapshot on connect, then live `notification` events
 - The `init` snapshot is capped by `NOTIFYHUB_TUI_PAGE_SIZE` (default 30); older pages load on
   scroll or with `l`
-- Keyboard navigation: `j`/`k` or `↑`/`↓` to select individual cards
-- Delete selected notification: `Delete` or `Backspace`
+- **Select mode** (`v`): `j`/`k` or `↑`/`↓` to move the selection, `PgUp`/`PgDn` to move by five,
+  `Home`/`End` for first/last, `Delete`/`Backspace` to delete, `Esc` to deselect. The selected card
+  is kept on-screen with `scrollChildIntoView()` and the SELECT MODE banner is pinned above the
+  scrollbox.
+- With select mode off, `↑`/`↓`/`←`/`→` scroll the feed directly.
 - Viewport culling for performance with large lists
 
 ### 2. Notification Cards
@@ -46,10 +51,17 @@ Each notification is rendered as a bordered card (rounded corners) with:
 
 - **Colored avatar initial** — derived from a hash of the pwd path (15-color palette matching the web UI)
 - **App name** — last segment of the pwd path, bold white
-- **Timestamp** — formatted as `HH:MM AM/PM`, sits on its own row beneath the host pill (or on the title row if no host_model)
-- **Full pwd path** — dimmed gray
+- **Timestamp** — relative via `formatRelativeTime`: `now`, `5m ago`, `3h ago`, `Yesterday`,
+  or `MM/DD/YY`; sits on its own row beneath the host pill (or on the title row if no host_model)
+- **pwd path** — dimmed gray, truncated to 80 characters, omitted when missing
 - **Host-model tag** — `@Mac153` pill at the top-right corner of the card, colored via FNV-1a hash of host_model string into 15-color palette, then **dimmed** to 40% strength against the card background (`mixHex(bright, cardBg, 0.4)`) so it's visually secondary to the avatar. Text uses `theme.text` for contrast in both light and dark modes.
 - **Tag highlighting** — `[#tag:...]` rendered in gray, `[#truncated:...]` in dark gray
+- **Truncation markers** — adjacent markers from the plugins (`+24 LINES`, `+517 CHARS`) collapse
+  into one bracketed note: `[+24 lines, +517 chars] `. The note owns its surrounding whitespace, so
+  it never glues to the message or double-spaces the following text.
+- **Content-measured height** — cards have no fixed height. Yoga measures the wrapped message, the
+  optional `pwd` row and the host-model row; `flexShrink={0}` keeps the scrollbox from squashing
+  them. Trailing blank lines are removed, and single-line fields use `wrapMode="none"`.
 - **Selection** — highlighted border and background on the focused card
 
 ### 3. Live Agent Status Dock
@@ -87,7 +99,18 @@ Press `s` to toggle a centered overlay showing:
 - E2E status: server state + `kid`, whether a local key is set, and the locked-row count
 - Dismisses on any key press
 
-### 5. End-to-End Decryption
+The popup is sized to its content: 38 columns was too narrow for a funnel host
+(`nuc.tail0ec64c.ts.net:443`), so the width is now
+`min(terminal - 2, max(46, address.length + 22))`. The height is 17 rows
+(7 content rows + 6 gaps + padding + border); a smaller fixed height makes Yoga overlap rows
+instead of clipping them.
+
+### 5. Help Popup
+Press `h` or `?` to toggle a centered key-binding reference. It is 60 columns wide (or
+`terminal - 2` on a narrower terminal) and 18 rows tall (14 content rows + padding + border). The
+body lists select mode, navigation, delete/deselect, feed scrolling, status, help and quit.
+
+### 6. End-to-End Decryption
 When the backend has [e2e encryption](e2e-encryption.md) enabled, payloads arrive
 as AES-256-GCM envelopes and the TUI decrypts them locally (`utils/crypto.ts`,
 WebCrypto). Cards that cannot be decrypted render as a `LOCKED` card showing the
@@ -95,55 +118,92 @@ envelope `kid`, so a wrong/missing key is obvious.
 
 ## Theme
 
-High-contrast dark theme:
+High-contrast dark theme (`DARK_THEME` in `src/theme.tsx`; a light variant follows the terminal
+theme mode):
 
 | Role | Color |
 |------|-------|
-| Page background | `#0a0a0a` |
-| Card background | `#141414` |
-| Card background (selected) | `#1e1e1e` |
-| Card border | `#2a2a2a` |
-| Card border (selected) | `#555555` |
-| Title text | `#ffffff` bold |
-| Body text | `#d4d4d4` |
-| Dimmed text | `#888888` |
-| Timestamp | `#999999` |
-| Footer background | `#0d0d0d` |
-| Popup background | `#111111` |
+| Page / renderer background | `#0a0a0a` |
+| Card / popup background | `#000000` |
+| Card background (selected) | `#2a2a2a` |
+| Card border | `#ffffff` |
+| Card border (selected) / accent | `#6fc3df` |
+| Title text (bold) / body text | `#ffffff` |
+| Dimmed text | `#969696` |
+| pwd path | `#a0a0a0` |
+| Truncation marker | `#505050` |
+| Footer background | `#2a2a2a` |
+| Select-mode banner | `#1a3a5c` |
+| Success / warning / danger | `#15ff15` / `#ffcc00` / `#ff5555` |
 
 ## Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
-| `j` / `k` or `↑` / `↓` | Navigate notification list |
-| `Delete` / `Backspace` | Delete selected notification |
+| `v` | Toggle select mode |
+| `j` / `k` or `↑` / `↓` | Move the selected card (select mode) |
+| `PgUp` / `PgDn` | Move the selection by five cards (select mode) |
+| `Home` / `End` | Jump to first/last card (select mode) |
+| `Delete` / `Backspace` | Delete the selected card (select mode) |
+| `Esc` | Deselect the card |
+| `↑` / `↓` / `←` / `→` | Scroll the feed (select mode off) |
+| `l` | Load the next older page |
 | `s` | Toggle status popup |
-| `q` | Quit the TUI |
-| `Ctrl+C` | Quit (handled by renderer) |
+| `h` / `?` | Toggle help popup |
+| `q` | Quit the TUI (exits with code 0) |
+| `Ctrl+C` | Quit (renderer `onDestroy`) |
+| `Ctrl+Z` | Suspend; `SIGCONT` resumes |
 
 ## Project Structure
 
 ```
 src/notifyhub/tui/
-├── package.json              # Bun deps: @opentui/core, @opentui/react, react 19
-├── tsconfig.json             # TypeScript + JSX config
+├── README.md                  # Module overview, commands, rendering invariants
+├── package.json               # Bun deps: @opentui/core, @opentui/react, react 19
+├── tsconfig.json              # TypeScript + JSX config
 ├── src/
-│   ├── index.tsx             # Entry point — creates CliRenderer, mounts App
-│   ├── App.tsx               # Main layout, keyboard nav, popup management
-│   ├── types.ts              # NotificationItem, NotificationData, ServerInfo, E2EInfo, AgentStatusEntry types
+│   ├── index.tsx              # Entry point — creates CliRenderer, onDestroy exit, mounts App
+│   ├── App.tsx                # Main layout, keyboard nav, popup management, quit
+│   ├── theme.tsx              # Dark/light palettes + ThemeProvider
+│   ├── types.ts               # NotificationItem, NotificationData, ServerInfo, E2EInfo, AgentStatusEntry
 │   ├── utils/
-│   │   ├── api.ts            # REST API client + SSE connection (manual parser)
-│   │   └── crypto.ts         # AES-256-GCM envelope decryption (WebCrypto)
+│   │   ├── api.ts             # REST API client + SSE connection (manual parser)
+│   │   └── crypto.ts          # AES-256-GCM envelope decryption (WebCrypto)
 │   ├── hooks/
-│   │   └── useNotifications.ts  # SSE subscription + notification/agent-status state mgmt
-│   └── components/
-│       ├── NotificationStream.tsx   # Live auto-scrolling feed with nav
-│       ├── NotificationRow.tsx      # Notification card renderer (+ LOCKED cards)
-│       ├── AgentStatusDock.tsx      # Live running/blocked/stalled agent rows (spinner)
-│       └── StatusPopup.tsx          # Centered status overlay
-│
-├── src/__tests__/            # bun test suites (utils, components, crypto)
+│   │   ├── useNotifications.ts  # SSE subscription + notification/agent-status state mgmt
+│   │   ├── useNow.ts            # Ticking clock for relative timestamps
+│   │   └── useAudio.ts          # Notification sound
+│   ├── components/
+│   │   ├── README.md                  # Component-level invariants
+│   │   ├── NotificationStream.tsx     # Live feed, select mode, scroll-to-selection
+│   │   ├── NotificationRow.tsx        # Card renderer (+ LOCKED cards, marker formatting)
+│   │   ├── AgentStatusDock.tsx        # Live running/blocked/stalled agent rows (spinner)
+│   │   ├── StatusPopup.tsx            # Centered status overlay (content-sized)
+│   │   ├── HelpPopup.tsx              # Centered key-binding reference (content-sized)
+│   │   └── ErrorBoundary.tsx          # "Rendering error: …" fallback
+│   └── __tests__/             # bun test suites (utils, components, crypto)
+└── exp/                       # Scratch captures from debugging sessions
 ```
+
+## Rendering and lifecycle rules
+
+These are the invariants that broke in the 2026-11-11 session; check them before changing a
+component. Full rationale: [`tui-rendering-rules.md`](tui-rendering-rules.md).
+
+- **No hooks after an early return.** Branch by rendering a separate component; `NotificationRow`
+  is a hook-free dispatcher.
+- **Let Yoga measure cards.** No fixed card height; use `flexShrink={0}` inside the scrollbox and
+  `wrapMode="none"` for single-line fields.
+- **Popup height = content rows + gaps + padding + border.** Too small a height overlaps rows
+  instead of clipping them. Width must fit the longest line (`host:port`).
+- **Escape sequences belong in expressions.** `<text>{"NotifyHub \u2014 Help"}</text>`, not
+  `<text>NotifyHub \u2014 Help</text>`.
+- **Chrome rows are siblings of the scrollbox.** The SELECT MODE banner is `flexShrink={0}` above
+  the scrollbox.
+- **Scroll by id.** Give cards a stable renderable id and call `scrollChildIntoView()` after
+  layout (`setTimeout(0)`).
+- **Quit means exit.** `renderer.destroy()` alone leaves the SSE stream and timers alive; call
+  `process.exit(0)`, with `onDestroy` as the Ctrl+C safety net.
 
 ## API Integration
 
@@ -157,7 +217,8 @@ The TUI connects to the SSE stream using the Fetch API + ReadableStream reader:
    `agent_status` (live agent session states → the dock)
 
 ### REST Endpoints
-- `GET /api/notifications` — Fetch all notifications (used on connect and periodic refresh)
+- `GET /api/notifications?limit=&before=` — Latest page on connect; older pages for lazy loading
+- `GET /api/notifications/count` — Notification count for the 15-second status poll
 - `DELETE /api/notifications?id=xxx` — Delete a single notification
 - `GET /api/e2e` — Server e2e state `{enabled, alg, kid}` (shown in the status popup)
 - `GET /api/status` — Live agent statuses (dock resync on SSE reconnect)

@@ -1,5 +1,4 @@
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/react"
 import { useTheme, type Theme } from "../theme"
 import type { NotificationItem } from "../types"
 import { isEnvelope, type EncryptedEnvelope } from "../utils/crypto"
@@ -133,41 +132,63 @@ interface Props {
   item: NotificationItem
   selected?: boolean
   now?: Date
+  /** Renderable id, so the stream can scroll the selected card into view. */
+  id?: string
+}
+
+/** Human label for a truncation marker: "+24 LINES" -> "+24 lines". */
+function truncatedLabel(text: string): string {
+  return text.trim().toLowerCase()
 }
 
 function renderSegments(segments: TagSegment[], lineKey: string, theme: Theme) {
-  return segments.map((seg, i) => {
-    const key = `${lineKey}-${seg.type}-${i}-${seg.text.slice(0, 8)}`
+  const out = []
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i]
+    const key = `${lineKey}-${seg.type}-${i}`
     if (seg.type === "tag") {
-      return <span key={key} fg={theme.accent}>{seg.text}</span>
+      out.push(<span key={key} fg={theme.accent}>{seg.text}</span>)
+    } else if (seg.type === "truncated") {
+      // Adjacent markers ("+24 LINES" "+517 CHARS") collapse into one
+      // bracketed note, padded so it never glues onto the message text.
+      const prev = segments[i - 1]
+      const labels = [truncatedLabel(seg.text)]
+      while (segments[i + 1]?.type === "truncated") {
+        i++
+        labels.push(truncatedLabel(segments[i].text))
+      }
+      const lead = prev && !/\s$/.test(prev.text) ? " " : ""
+      out.push(<span key={key} fg={theme.truncatedText}>{`${lead}[${labels.join(", ")}] `}</span>)
+    } else {
+      // Avoid a double space after a marker that already pads itself.
+      const prev = segments[i - 1]
+      const text = prev?.type === "truncated" ? seg.text.replace(/^ /, "") : seg.text
+      out.push(<span key={key}>{text}</span>)
     }
-    if (seg.type === "truncated") {
-      return <span key={key} fg={theme.truncatedText}>{seg.text}</span>
-    }
-    return <span key={key}>{seg.text}</span>
-  })
+  }
+  return out
 }
 
-function LockedNotificationRow({ item, selected }: Props) {
+function LockedNotificationRow({ item, selected, now, id }: Props) {
   const theme = useTheme()
   const kid = envelopeKid(item)
   const borderColor = selected ? theme.borderSelected : theme.border
   const cardBg = selected ? theme.surfaceSelected : theme.background
   return (
     <box
+      id={id}
       width="100%"
-      height={4}
+      flexShrink={0}
       borderStyle="rounded"
       borderColor={borderColor}
       backgroundColor={cardBg}
       paddingX={1}
-      marginBottom={0}
     >
       <box flexDirection="column" width="100%">
         <box flexDirection="row" width="100%">
           <text fg={theme.warning} attributes={TextAttributes.BOLD}> LOCKED</text>
           <box flexGrow={1} />
-          <text fg={theme.dim}>{formatRelativeTime(item.timestamp)}</text>
+          <text fg={theme.dim}>{formatRelativeTime(item.timestamp, now)}</text>
         </box>
         <text fg={theme.dim}>encrypted notification (kid {kid})</text>
         <text fg={theme.dim}>set NOTIFYHUB_E2E_KEY to decrypt</text>
@@ -176,10 +197,16 @@ function LockedNotificationRow({ item, selected }: Props) {
   )
 }
 
-export function NotificationRow({ item, selected, now: propNow }: Props) {
-  if (item.locked) return <LockedNotificationRow item={item} selected={selected} />
+/**
+ * Dispatcher only: no hooks here. Each branch is its own component, so a
+ * row switching between locked and plain never changes the hook order.
+ */
+export function NotificationRow(props: Props) {
+  return props.item.locked ? <LockedNotificationRow {...props} /> : <PlainNotificationRow {...props} />
+}
+
+function PlainNotificationRow({ item, selected, now: propNow, id }: Props) {
   const now = propNow ?? new Date()
-  const { width: termWidth } = useTerminalDimensions()
   const theme = useTheme()
   const data = (item.data ?? {}) as Record<string, unknown>
   const msg = typeof data.message === "string" ? data.message : ""
@@ -194,30 +221,27 @@ export function NotificationRow({ item, selected, now: propNow }: Props) {
   const borderColor = selected ? theme.borderSelected : theme.border
   const time = formatRelativeTime(item.timestamp, now)
   const hostModelColor = hostModel ? getHostModelTagColor(hostModel, cardBg) : ""
-  const messageLines = msg.split("\n")
-  const contentWidth = Math.max(40, termWidth - 4)
-  const wrappedEstimate = messageLines.reduce(
-    (sum, line) => sum + Math.max(1, Math.ceil(line.length / contentWidth)),
-    0,
-  )
-  const cardHeight = 4 + wrappedEstimate + (hostModel ? 1 : 0)
+  // Drop trailing blank lines so cards don't end with empty padding.
+  const messageLines = msg.replace(/\s+$/, "").split("\n")
 
+  // No fixed height: Yoga measures the wrapped text, and flexShrink={0}
+  // keeps the scrollbox from squashing cards to fit the viewport.
   return (
     <box
+      id={id}
       width="100%"
-      height={cardHeight}
+      flexShrink={0}
       borderStyle="rounded"
       borderColor={borderColor}
       backgroundColor={cardBg}
       paddingX={1}
-      marginBottom={0}
     >
       <box flexDirection="column" gap={0} width="100%">
-        <box flexDirection="row" width="100%" flexShrink={1} overflow="hidden">
+        <box flexDirection="row" width="100%" overflow="hidden">
           <box backgroundColor={avatarColor} flexShrink={0}>
             <text fg="#ffffff"> {avatarInitial} </text>
           </box>
-          <text fg={theme.text} attributes={TextAttributes.BOLD} flexShrink={1} overflow="hidden"> {title}</text>
+          <text fg={theme.text} attributes={TextAttributes.BOLD} flexShrink={1} wrapMode="none"> {title}</text>
           <box flexGrow={1} />
           {hostModel ? (
             <box backgroundColor={hostModelColor} flexShrink={0}>
@@ -228,19 +252,19 @@ export function NotificationRow({ item, selected, now: propNow }: Props) {
           )}
         </box>
         {hostModel && (
-          <box flexDirection="row" width="100%" flexShrink={0}>
+          <box flexDirection="row" width="100%">
             <box flexGrow={1} />
             <text fg={theme.dim} flexShrink={0}>{time}</text>
           </box>
         )}
-        <text fg={theme.pwdText}>{truncate(pwd, 80)}</text>
+        {pwd && <text fg={theme.pwdText} wrapMode="none">{truncate(pwd, 80)}</text>}
         {messageLines.map((line, lineIdx) => {
           const segments = parseMessage(line)
           return (
             <text key={`msg-ln-${lineIdx}`} fg={theme.text} selectable>
               {segments.length > 0
                 ? renderSegments(segments, `ln${lineIdx}`, theme)
-                : (line || "\u00a0")}
+                : "\u00a0"}
             </text>
           )
         })}

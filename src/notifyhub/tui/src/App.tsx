@@ -44,6 +44,9 @@ export function App() {
       dismissPopups()
     } else if (key.name === "q") {
       renderer.destroy()
+      // The SSE stream and poll timers keep the event loop alive; without an
+      // explicit exit the screen goes blank but the process never returns.
+      process.exit(0)
     }
   })
 

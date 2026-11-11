@@ -6,6 +6,9 @@ import { ThemeProvider, DARK_THEME, LIGHT_THEME } from "./theme"
 async function main() {
   const renderer = await createCliRenderer({
     exitOnCtrlC: true,
+    // The SSE stream and poll timers keep the event loop alive, so tearing
+    // down the screen alone ("q") would leave a hung process behind.
+    onDestroy: () => process.exit(0),
   })
 
   const mode = (await renderer.waitForThemeMode(1_000)) ?? "dark"

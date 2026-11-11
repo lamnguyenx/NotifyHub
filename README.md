@@ -783,6 +783,24 @@ make tui-test     # bun test
 make tui-typecheck
 ```
 
+Module guide: [`src/notifyhub/tui/README.md`](src/notifyhub/tui/README.md). Rendering invariants
+(why cards/popups are sized the way they are): [`docs/important/tui-rendering-rules.md`](docs/important/tui-rendering-rules.md).
+
+### Keys
+
+| Key | Action |
+| --- | --- |
+| `v` | Toggle select mode |
+| `j`/`k` or `↑`/`↓` | Move selection (select mode); `PgUp`/`PgDn` by five, `Home`/`End` to the ends |
+| `Delete`/`Backspace` | Delete selected card (select mode) |
+| `Esc` | Deselect |
+| `↑`/`↓`/`←`/`→` | Scroll the feed (select mode off) |
+| `l` | Load older notifications |
+| `s` | Status popup (`h`/`?` for help) |
+| `q` | Quit (exit code 0) |
+
+Cards measure their content, so there is no blank padding after a resize. Popups are sized to
+their content: Help is 18 rows, Status 17 rows and wide enough for a funnel `host:port`.
 With e2e encryption enabled, the TUI prints the key source on startup
 (`make tui` → `e2e key: config e2e.key (kid …)`) and decrypts automatically using
 the key from `~/.config/notifyhub/config.jsonl` (or `NOTIFYHUB_E2E_KEY` / a key

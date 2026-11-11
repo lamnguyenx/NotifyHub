@@ -13,8 +13,12 @@ interface Props {
 export function StatusPopup({ serverInfo, notificationsCount, lockedCount = 0 }: Props) {
   const { width, height } = useTerminalDimensions()
   const theme = useTheme()
-  const popupW = 38
-  const popupH = 13
+  const address = `${serverInfo.host}:${serverInfo.port}`
+  // Wide enough for "● Disconnected  <host:port>" and the e2e line.
+  const popupW = Math.min(width - 2, Math.max(46, address.length + 22))
+  // 7 rows + 6 gaps + padding (2) + border (2). Too small a height makes Yoga
+  // shrink rows onto each other.
+  const popupH = 17
   const left = Math.floor((width - popupW) / 2)
   const top = Math.floor((height - popupH) / 2)
 
@@ -33,6 +37,7 @@ export function StatusPopup({ serverInfo, notificationsCount, lockedCount = 0 }:
       top={top}
       width={popupW}
       height={popupH}
+      zIndex={100}
       borderStyle="rounded"
       borderColor={theme.border}
       backgroundColor={theme.background}
@@ -40,12 +45,10 @@ export function StatusPopup({ serverInfo, notificationsCount, lockedCount = 0 }:
       flexDirection="column"
       gap={1}
     >
-      <text fg={theme.accent} attributes={TextAttributes.BOLD}>
-        NotifyHub \u2014 Status
-      </text>
+      <text fg={theme.accent} attributes={TextAttributes.BOLD}>{"NotifyHub \u2014 Status"}</text>
       <text fg={serverInfo.connected ? theme.success : theme.danger}>
         <span>{serverInfo.connected ? "\u25cf Connected" : "\u25cb Disconnected"}</span>
-        <span fg={theme.dim}>  {serverInfo.host}:{serverInfo.port}</span>
+        <span fg={theme.dim}>{`  ${address}`}</span>
       </text>
       <text fg={theme.text}>
         Notifications: {notificationsCount}

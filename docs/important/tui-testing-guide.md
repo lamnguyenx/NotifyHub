@@ -14,6 +14,8 @@
 
 OpenTUI's test renderer creates a virtual terminal **in memory** — no real terminal needed, no alternate screen, no TTY.
 
+Rendering invariants these tests exercise: [`tui-rendering-rules.md`](tui-rendering-rules.md).
+
 ## Infrastructure
 
 ### Dependencies
@@ -227,16 +229,53 @@ expect(frame).toContain("Press any key to close")
 
 ### Unicode caveat
 
-Unicode characters like `\u2014` (em dash) and arrows (`↑↓←→`) may render as literal escape sequences in `captureCharFrame()` rather than as the rendered glyph. Avoid asserting on text that contains these characters — use simpler substrings:
+A JSX **text child** does not process escape sequences:
 
 ```tsx
-// DON'T: expect(frame).toContain("NotifyHub — Status")
-// DO:
-expect(frame).toContain("NotifyHub")
-expect(frame).toContain("Status")
+// BROKEN: renders the six characters \u2014
+<text>NotifyHub \u2014 Status</text>
+
+// CORRECT: renders an em dash
+<text>{"NotifyHub \u2014 Status"}</text>
 ```
 
-Unicode arrows in `text` elements can also cause adjacent text lines to bleed into each other in the test renderer (width measurement issue). Avoid dense Unicode in assertion strings.
+If `captureCharFrame()` shows `\u2014`, `\u2191` or `\u2026`, the source has the escape in JSX
+text — fix the source, then assert the real glyph. This was the actual cause of the 2026-11-11
+popup-title bug, not a renderer limitation.
+
+Dense Unicode in a single `text` element can still hit width-measurement issues in the test
+renderer, so keep assertions focused on one short line where possible.
+
+### Testing popup sizing and row completeness
+
+An absolute popup with a fixed height that is smaller than its content does **not** clip cleanly:
+Yoga squeezes the rows and draws them over each other. In a frame assertion this looks like
+missing lines or words running together (`Helpu(thisupopup)`), and `toContain` on one row can
+still pass.
+
+When a popup height is a constant, assert the **first and last content rows** (or every row):
+
+```tsx
+// Help: 14 content rows, 18 total
+expect(frame).toContain("Toggle select mode")
+expect(frame).toContain("Press any key to close")
+
+// Status: 7 content rows, 17 total
+expect(frame).toContain("Notifications:")
+expect(frame).toContain("Locked rows:")
+```
+
+For the mutual-exclusion test, assert on the full titles, not a word that also appears in the
+body:
+
+```tsx
+expect(frame).toContain("NotifyHub — Help")
+expect(frame).not.toContain("NotifyHub — Status")
+```
+
+`toContain("Status")` passed for months only because the help line `s  Status popup` was hidden
+by the overlap bug. A test that encodes a rendering bug will fail when the bug is fixed — treat
+that failure as a signal to inspect the assertion, not to revert the fix.
 
 ## Testing mouse interaction
 
@@ -476,9 +515,16 @@ The mixing helper (`mixHex`, `getHostModelTagColor`) is a pure function — test
 - `renderer.destroy()` to clean up between tests
 - Mock `globalThis.fetch` for tests that render the full `App` (including `/api/e2e`)
 - E2E crypto is pure/async — test it with the shared cross-language fixture + `setE2EKeyForTests`/`resetE2EKeyForTests`, no renderer needed
-- Avoid asserting on text with Unicode em dashes or arrows — use simpler substrings
-- Popups, borders, absolute positioning — all flattened into one grid
+- Assert on unique strings (full popup titles, first/last rows), not words that can appear in
+  nearby content; a passing `toContain` can hide an overlap bug
+- Escape sequences must live in `{"…"}` expressions, not JSX text children; after fixing the
+  source, assert the real glyph (`NotifyHub — Help`)
+- Popup height must include content rows + gaps + padding + border; assert the last content row
 - In column layouts, prefer `flexGrow` + `minHeight={0}` over `height="100%"`, and
   `flexShrink={0}` for headers/docks; assert layout at specific row indices
+- Cards should let Yoga measure their height (`flexShrink={0}`); a hand-computed height drifts
+  with wrapping and resizes
 - `@opentui/react/test-utils`'s `testRender()` wraps `createTestRenderer` + `createRoot` with `act()` for React
 - Pure functions must be `export`ed from source files to be testable
+- Quit/exit behavior (`process.exit(0)`, `onDestroy`) cannot be asserted in-process; check it in a
+  subprocess or a real tmux pane
