@@ -96,7 +96,8 @@ Besides notifications, the hooks report live session state to `POST /api/status/
   exits right after the turn and cancels unfinished async hooks — the same failure mode the Codex port
   documented first. Interactive sessions are unaffected.
 - Completion pushes stamp `NOTIFYHUB_SESSION_ID` (spawned push script forwards it as
-  `data.session_id`) so the TUI dock can resolve the running row when the notification lands.
+  `data.session_id`) so the TUI waiting card can resolve when the notification lands
+  ([waiting cards plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)).
 - That this machine's funnel setup exports `NOTIFYHUB_CLI_SCHEME=https` is expected and supported.
 
 ## Configuration

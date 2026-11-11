@@ -2,7 +2,7 @@
 
 Terminal client for NotifyHub, built with React + [OpenTUI](https://opentui.dev) and run with Bun.
 It connects to the NotifyHub backend over SSE, decrypts e2e payloads locally, and renders a live
-notification feed with a dock for in-flight coding-agent sessions.
+notification feed with waiting notification cards for in-flight coding-agent sessions.
 
 Operator guide: [`docs/important/the-tui.md`](../../../docs/important/the-tui.md) ·
 Rendering invariants: [`docs/important/tui-rendering-rules.md`](../../../docs/important/tui-rendering-rules.md) ·
@@ -31,8 +31,9 @@ The backend can be reached through a Tailscale funnel: set `NOTIFYHUB_CLI_SCHEME
 - **Cards** — colored avatar from the pwd hash, title, full pwd, message with tag/truncation
   highlighting, host-model pill, relative timestamp. Cards measure their content; there is no
   fixed height.
-- **Agent status dock** — running/blocked/stalled sessions from `agent_status` events, with a
-  braille spinner and a client-side stale mirror (5 min).
+- **Waiting cards** — running/blocked/stalled sessions from `agent_status` events render as
+  notification cards above the feed: the running prompt as `@USER`, a live `@ASSISTANT loading`
+  line (braille spinner), the coding-agent pill, and a client-side stale mirror (5 min).
 - **Status popup** (`s`) and **help popup** (`h`/`?`) — content-sized overlays; see
   `components/`.
 - **E2E decryption** — AES-256-GCM envelopes are decrypted locally (`utils/crypto.ts`). A row that
@@ -50,7 +51,7 @@ src/notifyhub/tui/
 │   ├── types.ts
 │   ├── hooks/             # useNotifications, useNow, useAudio
 │   ├── utils/             # api.ts (REST + SSE), crypto.ts (WebCrypto)
-│   ├── components/        # stream, card, dock, popups, error boundary
+│   ├── components/        # stream, cards, waiting cards, popups, error boundary
 │   └── __tests__/         # bun test suites
 └── exp/                   # scratch captures from debugging sessions
 ```
@@ -92,7 +93,7 @@ Full explanations: [`docs/important/tui-rendering-rules.md`](../../../docs/impor
 ## Testing
 
 ```bash
-make tui-test   # 139 pass, 10 files
+make tui-test   # 141 pass, 10 files
 ```
 
 Use `testRender()` + `captureCharFrame()`; press keys twice through `renderOnce()` inside `act()`.
@@ -125,6 +126,12 @@ Compare against `HEAD` before treating a type error as a regression.
 
 ## History
 
+- [2026-11-11 waiting notification cards](../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
+  — parent: App wiring, dock removal, behavior
+- [2026-11-11 waiting card component](../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
+  — `components/WaitingCards.tsx`
+- [2026-11-11 waiting card tests](../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
+  — `WaitingCards.test.tsx`, `layout.test.tsx`
 - [2026-11-11 render, popup and lifecycle fixes](../../../docs/plans/2026/11/11/2026-11-11-tui-render-popup-lifecycle.md)
 - [2026-11-11 component changes](../../../docs/plans/2026/11/11/2026-11-11-tui-components-cards-popups.md)
 - [2026-11-11 test assertions](../../../docs/plans/2026/11/11/2026-11-11-tui-tests-popup-assertions.md)

@@ -80,35 +80,35 @@ expect(lines[0]).toContain("Build passed")
 
 ## Testing layout and flex sizing
 
-Layout regressions (a dock/header losing a row, a scrollbox covering a sibling, text bleeding
-into a header) are visible in the character frame. Render the **real composition** at a fixed
-size and assert on specific rows:
+Layout regressions (a waiting card/header losing a row, a scrollbox covering a sibling, text
+bleeding into a header) are visible in the character frame. Render the **real composition** at a
+fixed size and assert on specific rows:
 
 ```tsx
 const r = await testRender(
   <box flexDirection="column" width="100%" height="100%">
     <box width="100%" flexGrow={1} flexDirection="column" minHeight={0}>
-      <AgentStatusDock entries={entries} now={now} />
+      <WaitingCards entries={entries} now={now} />
       <NotificationStream notifications={items} onDelete={() => {}} />
     </box>
     <box width="100%" height={1}><text>FOOTER</text></box>
   </box>,
-  { width: 60, height: 16 },
+  { width: 60, height: 20 },
 )
 await act(async () => { await r.renderOnce() })
 
 const lines = r.captureCharFrame().split("\n")
 expect(lines[1]).toContain("proj1")
-expect(lines[2]).toContain("proj2")
-expect(lines[3]).toContain("proj3")
-expect(lines[15]).toContain("FOOTER")
+expect(lines[4]).toContain("@USER")
+expect(lines[5]).toContain("@ASSISTANT")
+expect(lines[19]).toContain("FOOTER")
 ```
 
 Rules learned from the 2026-11-10 dock/stream bug:
 
 - In a column, a child with `height="100%"` claims the **whole** area and overflows past its
   siblings; Yoga then shrinks the other children. Use `flexGrow={1}` + `minHeight={0}` for the
-  scrollable child and `flexShrink={0}` for headers/docks.
+  scrollable child and `flexShrink={0}` for headers/waiting cards.
 - `expect(frame).toContain("proj1")` can pass even when another row was overwritten. Assert
   specific row indices and assert the **absence** of stream text in the header rows.
 - Empty states hide layout bugs. Test with enough content to fill the viewport.
@@ -521,10 +521,23 @@ The mixing helper (`mixHex`, `getHostModelTagColor`) is a pure function — test
   source, assert the real glyph (`NotifyHub — Help`)
 - Popup height must include content rows + gaps + padding + border; assert the last content row
 - In column layouts, prefer `flexGrow` + `minHeight={0}` over `height="100%"`, and
-  `flexShrink={0}` for headers/docks; assert layout at specific row indices
+  `flexShrink={0}` for headers/waiting cards; assert layout at specific row indices
+- A waiting card is **7 rows** (border, header, time, pwd, `@USER`, `@ASSISTANT`, border) plus a
+  one-row gap. The committed layout test uses one card at 60×20 and asserts rows 1/3/4/5; a
+  3-card composition needs at least 25 rows including the footer.
 - Cards should let Yoga measure their height (`flexShrink={0}`); a hand-computed height drifts
   with wrapping and resizes
+- Spinner intervals (`useSpinner`, 120 ms) cause React `act(...)` warnings in the in-memory
+  renderer. They are the same pattern the old dock tests had; assertions still pass. Use fake
+  timers if the noise becomes a problem.
 - `@opentui/react/test-utils`'s `testRender()` wraps `createTestRenderer` + `createRoot` with `act()` for React
 - Pure functions must be `export`ed from source files to be testable
 - Quit/exit behavior (`process.exit(0)`, `onDestroy`) cannot be asserted in-process; check it in a
   subprocess or a real tmux pane
+
+## Related plans
+
+- [Waiting cards — tests plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md) —
+  139 → 141 tests, layout row indices, act-warning caveat.
+- [Waiting cards — component plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
+- [Waiting cards — parent plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)

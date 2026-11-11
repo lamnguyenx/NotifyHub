@@ -8,7 +8,7 @@ make tui-test                  # from the repo root
 cd src/notifyhub/tui && bun test  # equivalent
 ```
 
-Current: **139 pass, 0 fail, 10 files**.
+Current: **141 pass, 0 fail, 10 files**.
 
 ## Suites
 
@@ -17,10 +17,10 @@ Current: **139 pass, 0 fail, 10 files**.
 | `App.test.tsx` | Layout, footer hints, popup toggles/mutual exclusion, dismissal |
 | `NotificationRow.test.tsx` | Card text, avatar, title, pwd, timestamp, host-model color, LOCKED rows |
 | `NotificationStream.test.tsx` | Empty state, rendering, select mode, navigation, delete |
-| `AgentStatusDock.test.tsx` | Running/blocked/stalled rows, idle hiding, spinner |
+| `WaitingCards.test.tsx` | Waiting card chrome, `@USER` task, agent pill, blocked/stalled lines, idle hiding |
 | `StatusPopup.test.tsx` | Connection/SSE/e2e rows, host:port, locked count |
 | `HelpPopup.test.tsx` | Heading, key bindings, dismiss instruction |
-| `layout.test.tsx` | Real column composition: dock, stream, footer at 60×16 |
+| `layout.test.tsx` | Real column composition: waiting card, stream, footer at 60×20 |
 | `crypto.test.ts` | Envelope decryption, key resolution, locked rows |
 | `utils.test.ts` | Time formatting, tags, truncation, colors, API base URL, SSE parser |
 | `ErrorBoundary.test.tsx` | Fallback rendering (the thrown error is logged by the runner) |
@@ -49,6 +49,13 @@ await act(async () => { await renderOnce() }) // render the state change
 - Escape sequences in JSX text are literal. If a frame shows `\u2014`, fix the source with
   `<text>{"\u2014"}</text>`, then assert the real glyph.
 - Call `renderer.destroy()` at the end of every test.
+- Waiting cards are **seven rows** (border, header, time, pwd, `@USER`, `@ASSISTANT`, border)
+  plus a one-row gap. A layout test with one card needs at least 9 rows above the stream; the
+  committed composition uses 60×20. Assert the card's row indices (1, 3, 4, 5), not just
+  `toContain`, so an overlapping stream is visible.
+- Spinner intervals (`useSpinner`, 120 ms) cause React `act(...)` warnings in the in-memory
+  renderer. They are the same pattern the old dock tests had; the assertions still pass. If the
+  noise becomes a problem, use fake timers rather than removing the spinner.
 
 ## What the tests cannot catch
 
@@ -69,10 +76,13 @@ process exits with code 0.
 3. For rendering, assert a specific row index or a unique line; dump
    `index + JSON.stringify(line)` when debugging a frame.
 4. For popups, assert both the first and last content rows.
-5. Run `make tui-test` and keep the suite at 139+ passing.
+5. Run `make tui-test` and keep the suite at 141+ passing.
 
 ## Related
 
+- [Waiting cards — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
+- [Waiting cards — component plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
+- [Waiting cards — tests plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
 - [Testing guide](../../../../../docs/important/tui-testing-guide.md)
 - [Rendering rules](../../../../../docs/important/tui-rendering-rules.md)
 - [Test-assertion plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-tests-popup-assertions.md)

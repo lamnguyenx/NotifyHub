@@ -64,30 +64,48 @@ Each notification is rendered as a bordered card (rounded corners) with:
   them. Trailing blank lines are removed, and single-line fields use `wrapMode="none"`.
 - **Selection** — highlighted border and background on the focused card
 
-### 3. Live Agent Status Dock
-Above the notification stream, a bordered dock shows **sessions in motion** — the "loading
-animation while a chat is on" (fed by the [agent-status](agent-status.md) reporters):
+### 3. Waiting Notification Cards
+Above the notification stream, sessions in motion render as **notification cards in waiting** —
+the same chrome as a completed notification, with the running prompt and a live assistant line
+(fed by the [agent-status](agent-status.md) reporters):
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│⠙ ◇ opencode · NotifyHub · 2m ago                               │  ← spinner while running
-│⚠ ✳ claude · hanoi-testing-platform · 40s · waiting for you    │  ← blocked on a permission
-│◼ ◐ codex · VoiceAI_ASR · 31m · stalled?                       │  ← no refresh for 5+ min
-└────────────────────────────────────────────────────────────────┘
+╭────────────────────────────────────────────────────────────────╮
+│  N  NotifyHub                                      ◇ opencode  │  ← project avatar + agent pill
+│                                                         2m ago │  ← session age (`since`)
+│ /home/lamnt45/git/NotifyHub                                    │
+│ @USER add a waiting card to the TUI                            │  ← running prompt excerpt
+│ @ASSISTANT loading ⠙                                           │  ← live spinner while running
+╰────────────────────────────────────────────────────────────────╯
+╭────────────────────────────────────────────────────────────────╮
+│  H  hanoi-testing-platform                          ✳ claude   │
+│                                                        40s ago │
+│ /home/lamnt45/git/hanoi-testing-platform                       │
+│ @USER why does the parser drop the last chunk?                 │
+│ @ASSISTANT waiting for you ⚠                                   │  ← blocked on a permission
+╰────────────────────────────────────────────────────────────────╯
 ```
 
 - Entries arrive via the `agent_status` SSE event (e2e-decrypted like notifications) and resync
   from `GET /api/status` on reconnect
-- **running** rows animate a braille spinner and carry the directory-color hash and elapsed
-  `since` time (status only — the task excerpt is not shown; it remains in the API payload for
-  other consumers)
-- The dock keeps its full height; the stream below uses the remaining space (`flexGrow`), so
-  live rows are never squeezed by a long notification list
+- The header mirrors a real card: project avatar initial (pwd hash), bold project title, full pwd,
+  relative session age (`since`), and a pill naming the coding agent (`◇ opencode`, `✳ claude`,
+  `◐ codex`)
+- `@USER` shows the ≤160-char task excerpt reported with the running state; if the reporter had
+  no prompt it renders a dim `(no task excerpt)`. The task excerpt is already in the
+  `agent_status` payload — the old dock simply chose not to render it.
+- `@ASSISTANT` is the live line: `loading <spinner>` while running, `waiting for you ⚠` when
+  blocked on a permission, `stalled? ◼` when a `running` entry has not refreshed for 5 minutes
+- Running cards use the accent border; blocked/stalled cards use the warning border. Cards are
+  content-measured (`flexShrink={0}`) and the stream below uses the remaining space
+  (`flexGrow`), so live cards are never squeezed by a long notification list
 - **idle** entries are hidden (their completion already rendered as a notification card); the
-  row also disappears the moment its completion notification lands — matched by
+  card also disappears the moment its completion notification lands — matched by
   `data.session_id` stamped on every completion push
 - **stale** is mirrored client-side (running + `updated` older than 5 min) so the marker appears
   even between SSE events
+- The timestamp is `since` — **session age, not turn age**. The status API has no `turn_since`;
+  a true per-turn clock would need a backend field.
 - An entry that cannot be decrypted (wrong/missing key) is dropped rather than locked — status
   is ephemeral, recomputed on every event
 
@@ -177,7 +195,7 @@ src/notifyhub/tui/
 │   │   ├── README.md                  # Component-level invariants
 │   │   ├── NotificationStream.tsx     # Live feed, select mode, scroll-to-selection
 │   │   ├── NotificationRow.tsx        # Card renderer (+ LOCKED cards, marker formatting)
-│   │   ├── AgentStatusDock.tsx        # Live running/blocked/stalled agent rows (spinner)
+│   │   ├── WaitingCards.tsx           # Waiting notification cards (task + loading + agent)
 │   │   ├── StatusPopup.tsx            # Centered status overlay (content-sized)
 │   │   ├── HelpPopup.tsx              # Centered key-binding reference (content-sized)
 │   │   └── ErrorBoundary.tsx          # "Rendering error: …" fallback
@@ -214,14 +232,14 @@ The TUI connects to the SSE stream using the Fetch API + ReadableStream reader:
    that span multiple network chunks (the parser keeps the whole incomplete block, so an event
    name is never lost when a large payload is split)
 3. Handles events: `init`, `notification`, `delete`, `clear`, `heartbeat`, `shutdown`,
-   `agent_status` (live agent session states → the dock)
+   `agent_status` (live agent session states → waiting cards)
 
 ### REST Endpoints
 - `GET /api/notifications?limit=&before=` — Latest page on connect; older pages for lazy loading
 - `GET /api/notifications/count` — Notification count for the 15-second status poll
 - `DELETE /api/notifications?id=xxx` — Delete a single notification
 - `GET /api/e2e` — Server e2e state `{enabled, alg, kid}` (shown in the status popup)
-- `GET /api/status` — Live agent statuses (dock resync on SSE reconnect)
+- `GET /api/status` — Live agent statuses (waiting-card resync on SSE reconnect)
 
 ## Commands
 
@@ -256,3 +274,14 @@ key file:
 | `NOTIFYHUB_E2E_KEY` | _(unset)_ | AES-256-GCM key (base64/hex); overrides the config/key file |
 | `NOTIFYHUB_CONFIG` | `~/.config/notifyhub/config.jsonl` | Config file to read `e2e.key` from (JSON5) |
 | `NOTIFYHUB_E2E_KEY_FILE` | `~/.config/notifyhub/e2e.key` | Key file used when the other sources are unset |
+
+## History
+
+- [2026-11-11 waiting notification cards](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
+  — parent: dock replaced, App wiring, behavior, trials/lessons.
+- [2026-11-11 waiting card component](../plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
+  — `WaitingCards.tsx` chrome, agent pill, `@USER`/`@ASSISTANT` lines.
+- [2026-11-11 waiting card tests](../plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
+  — `WaitingCards.test.tsx`, `layout.test.tsx`, 139 → 141 tests.
+- [2026-11-11 render, popup and lifecycle fixes](../plans/2026/11/11/2026-11-11-tui-render-popup-lifecycle.md)
+- [2026-11-10 agent status live broadcast](../plans/2026/11/10/2026-11-10-agent-status-live-broadcast.md)

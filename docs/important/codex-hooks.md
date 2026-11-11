@@ -114,7 +114,8 @@ The hooks also report live session state to `POST /api/status/codex/<state>` (se
 | `Stop` / `Interrupt` | `idle` | posted by `notifyhub-codex.py` |
 
 Completion pushes stamp `NOTIFYHUB_SESSION_ID` (→ `data.session_id` on the notification) so the
-TUI dock resolves the running row when the notification lands.
+TUI waiting card resolves when the notification lands
+([waiting cards plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)).
 
 ## Configuration
 

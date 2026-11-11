@@ -66,10 +66,10 @@ stream) and reports live state to `POST /api/status/opencode/<state>` in-process
 
 Identical consecutive states are deduped locally; a backend that is down is silently ignored.
 Completion pushes now also stamp `NOTIFYHUB_SESSION_ID` (see
-[`agent-status.md`](agent-status.md)), so the TUI dock resolves the running row when the
-notification lands. One plugin instance loads per OpenCode location and each receives every
-event — only the instance whose location owns the session reports, others stay silent
-(`ownedSessionDirectory` guard).
+[`agent-status.md`](agent-status.md)), so the TUI waiting card resolves when the
+notification lands ([waiting cards plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)).
+One plugin instance loads per OpenCode location and each receives every event — only the instance
+whose location owns the session reports, others stay silent (`ownedSessionDirectory` guard).
 
 > **Restart caveat**: OpenCode hot-reloads *watched plugin files* for new processes, but a
 > long-lived shared server (`opencode serve`) or running TUI keeps the previously-loaded plugin

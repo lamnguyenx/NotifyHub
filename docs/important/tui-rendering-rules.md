@@ -114,6 +114,20 @@ useEffect(() => {
 - Never put a side effect such as `onDelete()` inside a `setState` updater; updaters run more than
   once under StrictMode/concurrent rendering. Read the current index in the key handler.
 
+### 6.1 Waiting cards: chrome above the scrollbox
+
+`WaitingCards` is pinned above the stream, not inside the scrollbox:
+
+- `WaitingCards` uses `flexShrink={0}`; the scrollbox keeps `flexGrow={1}` + `minHeight={0}`.
+- The container is borderless with `gap={1}` + `marginBottom={1}`; each `WaitingCard` owns its
+  rounded border. Do not wrap the list in a second border.
+- No fixed card height: the `@USER` task excerpt can wrap at narrow widths. Let Yoga measure it.
+- Cards are display-only; they are not selectable and have no delete handling. If you move them
+  inside the scrollbox, add selection indexing and a delete story first.
+- The agent pill reuses `getHostModelTagColor`; the border is accent while running and warning
+  while blocked/stalled.
+- The timestamp is `since` (session age), not turn age; the status API has no `turn_since`.
+
 ## 7. Quit: destroy the renderer **and** exit
 
 `renderer.destroy()` only tears down the screen. The SSE stream and poll timers keep Bun's event
@@ -130,5 +144,11 @@ loop alive, so the process hangs on a blank terminal.
 2. For the real check, run the TUI in a detached tmux pane, drive keys, and capture the pane.
 3. If the screen says `Rendering error: …`, render the suspected component directly — the
    ErrorBoundary only shows the message, not the stack.
-4. `make tui-test` must stay at 139+ passing; `make tui-typecheck` has pre-existing noise (missing
+4. `make tui-test` must stay at 141+ passing; `make tui-typecheck` has pre-existing noise (missing
    `bun:test`/Node types and `CliRenderer.on/off` in `theme.tsx`) — compare against `HEAD`.
+
+## Related plans
+
+- [Waiting cards — parent plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
+- [Waiting cards — component plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
+- [Waiting cards — tests plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)

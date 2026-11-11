@@ -4,7 +4,8 @@
 > — and how to read it. Ported from herdr's agent-state model (`_refs/herdr`), 2026-11-10.
 
 Design + session history: `docs/plans/2026/11/10/2026-11-10-agent-status-live-broadcast.md`
-(and the per-module docs beside it).
+(and the per-module docs beside it). The TUI waiting-card view is documented in
+[`2026-11-11-tui-waiting-cards.md`](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md).
 
 ## What it is
 
@@ -20,7 +21,7 @@ SSE  agent_status                    → one entry per meaningful change (new se
   next event of each live session).
 - **Task excerpt**: entries carry a ≤160-char one-line excerpt of the running prompt (extracted
   server-side from `UserPromptSubmit` payloads, or posted by the opencode plugin). It stays in
-  `GET /api/status` / `agent_status`; the TUI dock renders status only and does not display it.
+  `GET /api/status` / `agent_status` and is rendered on the TUI waiting card's `@USER` line.
 - **Staleness**: a `running` entry whose last refresh is older than
   `backend.agent_status_stale_seconds` (default **300**) is served as `stale` — the stored state
   isn't changed, so a late refresh revives it. Reporters refresh actively during long turns
@@ -59,9 +60,12 @@ restarts**. Codex may ask to re-trust the changed `hooks.json` (via `/hooks` in 
 
 ## Reading it
 
-- **TUI** (`make tui`): the AgentStatusDock above the stream shows live sessions — spinner +
-  agent/dir while running, `⚠ waiting for you` when blocked, `◼ stalled?` when past the
-  stale window. Rows vanish when idle or when their completion notification arrives.
+- **TUI** (`make tui`): sessions in motion render as waiting notification cards above the
+  stream — project/agent header, the task excerpt on the `@USER` line, and `@ASSISTANT loading
+  <spinner>` while running, `waiting for you ⚠` when blocked, `stalled? ◼` when past the stale
+  window. Cards vanish when idle or when their completion notification arrives. The card's time
+  is `since` (session age), not turn age. Design/lessons:
+  [`2026-11-11-tui-waiting-cards.md`](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md).
 - **curl** (entries are e2e envelopes when a key is configured):
 
 ```bash

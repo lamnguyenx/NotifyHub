@@ -218,7 +218,7 @@ to `POST /api/status/<agent>/<state>`, and every meaningful change is broadcast 
 `agent_status` event. Entries carry the directory, host, a one-line excerpt of the running task,
 and turn `stale` after `backend.agent_status_stale_seconds` (default 300) without a refresh.
 Completion notifications carry `data.session_id`, so clients can resolve a running row exactly
-when its turn's notification lands. The TUI renders this as a live dock (§16); operator guide:
+when its turn's notification lands. The TUI renders these as waiting notification cards (§16); operator guide:
 [`docs/important/agent-status.md`](docs/important/agent-status.md).
 
 - **Vite proxy** (`vite.config.js`):
@@ -806,16 +806,18 @@ With e2e encryption enabled, the TUI prints the key source on startup
 the key from `~/.config/notifyhub/config.jsonl` (or `NOTIFYHUB_E2E_KEY` / a key
 file). Rows it cannot decrypt render as `LOCKED`.
 
-### Live agent status dock
+### Live agent waiting cards
 
-Above the stream, a dock shows **sessions in motion**: `⠙ ◇ opencode · MyProject ·
-2m ago` while running (animated spinner; status only, no task text),
-`⚠ ✳ claude · … · waiting for you` when blocked on a permission, `◼ ◐ codex · … ·
-stalled?` when a `running` entry hasn't refreshed in 5 minutes. Rows vanish when
-the turn finishes — resolved by `session_id` against the completion notification —
-and resync from `GET /api/status` on reconnect. Details:
+Above the stream, **sessions in motion** render as notification cards in waiting: the
+project header and coding-agent pill (`◇ opencode`, `✳ claude`, `◐ codex`), the running
+prompt on the `@USER` line, and `@ASSISTANT loading ⠙` while running. When blocked on a
+permission the assistant line becomes `waiting for you ⚠`; after 5 minutes without a
+refresh it becomes `stalled? ◼`. Cards vanish when the turn finishes — resolved by
+`session_id` against the completion notification — and resync from `GET /api/status`
+on reconnect. Details:
 [`docs/important/the-tui.md`](docs/important/the-tui.md) and
-[`docs/important/agent-status.md`](docs/important/agent-status.md).
+[`docs/important/agent-status.md`](docs/important/agent-status.md). Design, trials and
+lessons: [`docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md`](docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md).
 
 ### Paginated loading
 

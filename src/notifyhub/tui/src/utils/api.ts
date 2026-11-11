@@ -77,8 +77,8 @@ export async function fetchE2EStatus(): Promise<E2EInfo> {
 /**
  * Live agent statuses, decrypted. Entries arrive either plaintext or as one
  * e2e envelope per entry (same wrapping as notifications); undecryptable
- * entries are dropped — the live dock is best-effort display state, not data
- * the user must recover.
+ * entries are dropped — the live waiting cards are best-effort display state,
+ * not data the user must recover.
  */
 export async function fetchAgentStatus(): Promise<AgentStatusEntry[]> {
   const res = await fetch(`${getApiBase()}/api/status`)

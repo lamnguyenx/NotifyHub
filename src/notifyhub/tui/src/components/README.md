@@ -10,7 +10,7 @@ the module overview is [`../../README.md`](../../README.md).
 |---|---|---|
 | `NotificationStream.tsx` | Scrollable feed, select mode, lazy-load trigger | Owns `selectedIdx` and `selectMode`; banner is outside the scrollbox |
 | `NotificationRow.tsx` | One notification card, plain or `LOCKED` | Hook-free dispatcher; card height is measured by Yoga |
-| `AgentStatusDock.tsx` | Live running/blocked/stalled agent rows | `flexShrink={0}`; spinner + stale mirror |
+| `WaitingCards.tsx` | Waiting notification cards for running/blocked/stalled sessions | `flexShrink={0}`; `@USER` task + `@ASSISTANT loading`, agent pill, spinner + stale mirror |
 | `StatusPopup.tsx` | Centered connection/e2e status | 17 rows; width adapts to `host:port` |
 | `HelpPopup.tsx` | Centered key-binding reference | 18 rows; 60 columns max |
 | `ErrorBoundary.tsx` | Fallback when a child render throws | Shows `Rendering error: <message>` only |
@@ -26,6 +26,30 @@ the module overview is [`../../README.md`](../../README.md).
 - Do not render an optional row (`pwd`) when the value is empty.
 - Truncation markers from the plugins (`[#truncated:+N LINES]`, `[#truncated:+N CHARS]`) collapse
   into `[+N lines, +N chars] ` and own the whitespace on both sides.
+
+### Waiting cards
+
+- Waiting cards are **pinned above the scrollbox** (`flexShrink={0}`), not scroll children. The
+  stream keeps `flexGrow={1}` + `minHeight={0}`. Moving the cards inside the feed would make them
+  scroll away and force select-mode/delete semantics onto display-only state.
+- The `WaitingCards` container is borderless with `gap={1}` + `marginBottom={1}`; each
+  `WaitingCard` owns its rounded border. The border color is accent while running, warning while
+  blocked/stalled.
+- No fixed height. The `@USER` task excerpt is one line from the API but can wrap at narrow
+  widths; let Yoga measure the card.
+- Card chrome reuses `NotificationRow` helpers (`getTitle`, `getAvatarColor`,
+  `formatRelativeTime`, `getHostModelTagColor`, `truncate`) so the waiting card and the eventual
+  completion card match.
+- The agent pill uses the dimmed tag color from `getHostModelTagColor(agent, background)`.
+  Unknown agents fall back to `●`.
+- `@ASSISTANT` is a total state switch: `loading <spinner>` (running), `waiting for you ⚠`
+  (blocked), `stalled? ◼` (stale), `idle` (unreachable through the container, kept for direct
+  renders). The spinner interval runs only while running.
+- The 5-minute stale window is mirrored client-side; SSE entries can remain `running` between
+  events.
+- The timestamp is `since` — session age, not turn age. The status API has no `turn_since`.
+- Idle entries are filtered by the container; a running card disappears when its completion
+  notification (`data.session_id`) or an `idle` status arrives.
 
 ### Popups
 
@@ -66,5 +90,8 @@ width  = min(terminal - 2, longest line + 2 (padding) + 2 (border))
 
 ## Related
 
+- [Waiting cards — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md)
+- [Waiting cards — component plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-component.md)
+- [Waiting cards — tests plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-waiting-cards-tests.md)
 - [Component/lifecycle plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-components-cards-popups.md)
 - [Testing guide](../../../../../docs/important/tui-testing-guide.md)
