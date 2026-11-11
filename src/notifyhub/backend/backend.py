@@ -147,13 +147,16 @@ def load_and_transform_template():
         # Replace dev script with production script
         html = html.replace("/src/main.tsx", "/static/app.js")
 
-        # Ensure main.css is linked (add after Bootstrap if not present)
+        # Ensure main.css is linked. The dev server injects it through the
+        # module graph; production serves the built file directly. Inject
+        # before </head> so the template does not need a Bootstrap (or any
+        # other) placeholder link.
         if "/static/main.css" not in html:
-            bootstrap_link = 'bootstrap.min.css" rel="stylesheet">'
-            css_link = (
-                f'{bootstrap_link}\n    <link href="/static/main.css" rel="stylesheet">'
-            )
-            html = html.replace(bootstrap_link, css_link)
+            css_link = '<link href="/static/main.css" rel="stylesheet">'
+            if "</head>" in html:
+                html = html.replace("</head>", f"    {css_link}\n  </head>", 1)
+            else:
+                html = f"{css_link}\n{html}"
 
         return html
     except FileNotFoundError:

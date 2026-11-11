@@ -1,63 +1,55 @@
-import { formatTimestamp } from './timestampUtils';
+import { describe, expect, it } from 'bun:test';
 
-describe('formatTimestamp', () => {
-  const mockNow = new Date('2025-12-30T12:00:00Z');
+import { formatRelativeTime } from './timestampUtils';
 
-  beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(mockNow);
-  });
+const now = new Date(2025, 11, 30, 12, 0, 0);
 
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
+describe('formatRelativeTime', () => {
   it('returns "now" for timestamps less than 60 seconds ago', () => {
-    const thirtySecondsAgo = new Date(mockNow.getTime() - 30000).toISOString();
-    expect(formatTimestamp(thirtySecondsAgo)).toBe('now');
+    const thirtySecondsAgo = new Date(now.getTime() - 30_000);
+    expect(formatRelativeTime(thirtySecondsAgo.toISOString(), now)).toBe('now');
   });
 
   it('returns "Xm ago" for timestamps 1-59 minutes ago', () => {
-    const fiveMinutesAgo = new Date(mockNow.getTime() - 5 * 60 * 1000).toISOString();
-    expect(formatTimestamp(fiveMinutesAgo)).toBe('5m ago');
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    expect(formatRelativeTime(fiveMinutesAgo.toISOString(), now)).toBe('5m ago');
 
-    const fiftyNineMinutesAgo = new Date(mockNow.getTime() - 59 * 60 * 1000).toISOString();
-    expect(formatTimestamp(fiftyNineMinutesAgo)).toBe('59m ago');
+    const fiftyNineMinutesAgo = new Date(now.getTime() - 59 * 60 * 1000);
+    expect(formatRelativeTime(fiftyNineMinutesAgo.toISOString(), now)).toBe('59m ago');
   });
 
-  it('returns "Xh ago" for timestamps 1-23 hours ago', () => {
-    const twoHoursAgo = new Date(mockNow.getTime() - 2 * 60 * 60 * 1000).toISOString();
-    expect(formatTimestamp(twoHoursAgo)).toBe('2h ago');
+  it('returns "Xh ago" for timestamps earlier the same day', () => {
+    const late = new Date(2025, 11, 30, 23, 0, 0);
+    const twoHoursAgo = new Date(late.getTime() - 2 * 60 * 60 * 1000);
+    expect(formatRelativeTime(twoHoursAgo.toISOString(), late)).toBe('2h ago');
 
-    const twentyThreeHoursAgo = new Date(mockNow.getTime() - 23 * 60 * 60 * 1000).toISOString();
-    expect(formatTimestamp(twentyThreeHoursAgo)).toBe('23h ago');
+    const twentyThreeHoursAgo = new Date(late.getTime() - 23 * 60 * 60 * 1000);
+    expect(formatRelativeTime(twentyThreeHoursAgo.toISOString(), late)).toBe('23h ago');
   });
 
-  it('returns "Yesterday" for timestamps from the previous calendar day', () => {
-    const yesterday = new Date(mockNow);
-    yesterday.setDate(mockNow.getDate() - 1);
-    yesterday.setHours(15, 0, 0, 0); // 3 PM yesterday
-    expect(formatTimestamp(yesterday.toISOString())).toBe('Yesterday');
+  it('returns "Yesterday" for a previous-day timestamp even under 24 hours', () => {
+    const yesterdayEvening = new Date(2025, 11, 29, 23, 0, 0);
+    expect(formatRelativeTime(yesterdayEvening.toISOString(), now)).toBe('Yesterday');
   });
 
   it('returns date format for timestamps older than 2 days', () => {
-    const threeDaysAgo = new Date(mockNow);
-    threeDaysAgo.setDate(mockNow.getDate() - 3);
-    expect(formatTimestamp(threeDaysAgo.toISOString())).toBe('12/27/25');
+    const threeDaysAgo = new Date(2025, 11, 27, 12, 0, 0);
+    expect(formatRelativeTime(threeDaysAgo.toISOString(), now)).toBe('12/27/25');
   });
 
-  it('handles edge case of exactly 60 seconds', () => {
-    const sixtySecondsAgo = new Date(mockNow.getTime() - 60000).toISOString();
-    expect(formatTimestamp(sixtySecondsAgo)).toBe('1m ago');
+  it('handles exactly 60 seconds', () => {
+    const sixtySecondsAgo = new Date(now.getTime() - 60_000);
+    expect(formatRelativeTime(sixtySecondsAgo.toISOString(), now)).toBe('1m ago');
   });
 
-  it('handles midnight transition correctly', () => {
-    // Set mock time to just after midnight
-    const afterMidnight = new Date('2025-12-30T00:30:00Z');
-    jest.setSystemTime(afterMidnight);
+  it('handles midnight transitions', () => {
+    const afterMidnight = new Date(2025, 11, 30, 0, 30, 0);
+    const beforeMidnight = new Date(2025, 11, 29, 23, 30, 0);
+    expect(formatRelativeTime(beforeMidnight.toISOString(), afterMidnight)).toBe('Yesterday');
+  });
 
-    // Notification from just before midnight yesterday
-    const beforeMidnight = new Date('2025-12-29T23:30:00Z');
-    expect(formatTimestamp(beforeMidnight.toISOString())).toBe('Yesterday');
+  it('treats future timestamps as "now"', () => {
+    const future = new Date(now.getTime() + 60_000);
+    expect(formatRelativeTime(future.toISOString(), now)).toBe('now');
   });
 });

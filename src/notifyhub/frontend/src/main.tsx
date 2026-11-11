@@ -6,7 +6,7 @@ import './notification.css'
 import { MantineProvider, ColorSchemeScript } from '@mantine/core';
 import { theme } from './theme';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <>
       <ColorSchemeScript defaultColorScheme="dark" />

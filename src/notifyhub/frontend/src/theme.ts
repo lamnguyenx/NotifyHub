@@ -1,19 +1,25 @@
 import { createTheme } from '@mantine/core';
 
+/**
+ * Mantine supplies the provider and popups; the notification feed itself is
+ * styled with the TUI's CSS tokens in `index.css` / `notification.css`.
+ */
 export const theme = createTheme({
   fontFamily: 'Inter, sans-serif',
   colors: {
-    blue: ['#eff6ff', '#dbeafe', '#bfdbfe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8', '#1e40af', '#1e3a8a', '#172554'],
+    accent: [
+      '#eaf7fb',
+      '#d3eef7',
+      '#b9e4f1',
+      '#9cd9ea',
+      '#82cfe3',
+      '#6fc3df',
+      '#4aa8c8',
+      '#2f8aa8',
+      '#1f6c85',
+      '#14505f',
+    ],
   },
-  primaryColor: 'blue',
-  scale: 0.9,
-  components: {
-    Card: {
-      styles: {
-        root: {
-          border: '1px solid var(--mantine-color-gray-6)',
-        },
-      },
-    },
-  },
+  primaryColor: 'accent',
+  defaultRadius: 'md',
 });

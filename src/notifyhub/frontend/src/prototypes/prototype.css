@@ -1,0 +1,50 @@
+/* Harness-only chrome. Never imported by the app. */
+
+.nh-proto-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 12px;
+  background-color: var(--nh-accent-bg);
+  border-bottom: 1px solid var(--nh-accent);
+  color: var(--nh-accent);
+  font-size: 12px;
+}
+
+.nh-proto-bar strong {
+  color: var(--nh-accent);
+  letter-spacing: 0.04em;
+}
+
+.nh-proto-title {
+  color: var(--nh-text);
+  font-weight: 600;
+}
+
+.nh-proto-blurb {
+  color: var(--nh-dim);
+}
+
+.nh-proto-key {
+  border: 1px solid var(--nh-accent);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.nh-proto-mock {
+  color: var(--nh-dim);
+  font-style: italic;
+}
+
+@media (max-width: 1100px) {
+  .nh-proto-blurb {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .nh-proto-mock {
+    display: none;
+  }
+}

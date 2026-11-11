@@ -1,14 +1,66 @@
-@import "@mantine/core/styles/global.css";
-@import "@mantine/core/styles/baseline.css";
-@import "@mantine/core/styles/default-css-variables.css";
+@import "@mantine/core/styles.css";
+
+/*
+ * The web UI mirrors the TUI palette. Tokens live on :root so cards, waiting
+ * cards and popups all read the same values; the light block follows the
+ * terminal's light theme equivalent.
+ */
+:root {
+  --nh-page: #0a0a0a;
+  --nh-card-bg: #000000;
+  --nh-selected: #2a2a2a;
+  --nh-border: #808080;
+  --nh-border-strong: #ffffff;
+  --nh-accent: #6fc3df;
+  --nh-accent-bg: #1a3a5c;
+  --nh-text: #ffffff;
+  --nh-dim: #969696;
+  --nh-pwd: #a0a0a0;
+  --nh-truncated: #505050;
+  --nh-warning: #ffcc00;
+  --nh-danger: #ff5555;
+  --nh-success: #15ff15;
+  --nh-footer: #2a2a2a;
+  --nh-hover: #141414;
+}
+
+:root[data-mantine-color-scheme="light"] {
+  --nh-page: #f5f5f5;
+  --nh-card-bg: #ffffff;
+  --nh-selected: #dceaf5;
+  --nh-border: #c0c0c0;
+  --nh-border-strong: #4a4a4a;
+  --nh-accent: #0f6fae;
+  --nh-accent-bg: #cde3f3;
+  --nh-text: #1a1a1a;
+  --nh-dim: #6b6b6b;
+  --nh-pwd: #555555;
+  --nh-truncated: #9c9c9c;
+  --nh-warning: #a06a00;
+  --nh-danger: #c22f2f;
+  --nh-success: #157f3b;
+  --nh-footer: #e4e4e4;
+  --nh-hover: #f0f0f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
 
 body {
-  background-color: var(--mantine-color-body);
-  color: var(--mantine-color-text);
+  margin: 0;
+  background-color: var(--nh-page);
+  color: var(--nh-text);
+  font-family: Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-.app-main {
-  display: flex;
-  justify-content: center;
+button {
+  font-family: inherit;
 }
-

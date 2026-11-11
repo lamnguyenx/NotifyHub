@@ -1,207 +1,137 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Avatar, Text } from '@mantine/core';
-import { motion } from 'framer-motion';
-import MD5 from 'crypto-js/md5';
+import type { CSSProperties } from 'react';
+import { IconX } from '@tabler/icons-react';
 
-import Notification from '../models/NotificationData';
-import { formatTimestamp } from '../utils/timestampUtils';
+import type { NotificationItem } from '../types';
+import {
+  getAvatarColor,
+  getHostModelColor,
+  getTitle,
+  isEnvelope,
+  parseMessage,
+  truncate,
+} from '../utils/cardUtils';
+import { formatRelativeTime } from '../utils/timestampUtils';
 
 interface NotificationCardProps {
-  notification: Notification;
-  index: number;
-  total: number;
+  item: NotificationItem;
+  now?: Date;
+  onDelete?: (id: string) => void;
 }
 
-function NotificationCard({ notification, index, total }: NotificationCardProps) {
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [compressionFactor, setCompressionFactor] = useState(0);
-  const cardRef = useRef<HTMLDivElement>(null);
+function envelopeKid(item: NotificationItem): string {
+  return isEnvelope(item.data) ? String(item.data.kid ?? '?') : '?';
+}
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000); // Update every minute
+function DeleteButton({ id, onDelete }: { id: string; onDelete?: (id: string) => void }) {
+  if (!onDelete) return null;
+  return (
+    <button
+      type="button"
+      className="nh-delete"
+      aria-label="Delete notification"
+      title="Delete notification"
+      onClick={() => onDelete(id)}
+    >
+      <IconX size={14} stroke={2} />
+    </button>
+  );
+}
 
-    return () => clearInterval(interval);
-  }, []);
+function LockedCard({ item, now, onDelete }: NotificationCardProps) {
+  return (
+    <article className="nh-card nh-card-locked" data-id={item.id}>
+      <div className="nh-card-header">
+        <span className="nh-locked-label">LOCKED</span>
+        <span className="nh-spacer" />
+        <time className="nh-time">{formatRelativeTime(item.timestamp, now)}</time>
+        <DeleteButton id={item.id} onDelete={onDelete} />
+      </div>
+      <div className="nh-locked-body">encrypted notification (kid {envelopeKid(item)})</div>
+      <div className="nh-locked-hint">
+        the web UI does not decrypt e2e payloads — use the TUI to read it
+      </div>
+    </article>
+  );
+}
 
-  useEffect(() => {
-    const updateCompression = () => {
-      if (!cardRef.current) return;
-
-      const rect = cardRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-
-      // Check if card is in bottom 15% of viewport
-      const bottomThreshold = viewportHeight * 0.85; // 85% from top = bottom 15%
-      const cardBottom = rect.bottom;
-
-      if (cardBottom > bottomThreshold) {
-        // Calculate how far into the bottom 15% it is
-        const distanceIntoBottom = cardBottom - bottomThreshold;
-        const bottomRegionHeight = viewportHeight * 0.15;
-        const factor = Math.min(1, distanceIntoBottom / bottomRegionHeight);
-        setCompressionFactor(factor);
-      } else {
-        setCompressionFactor(0);
-      }
-    };
-
-    // Initial calculation
-    updateCompression();
-
-    // Update on scroll and resize
-    window.addEventListener('scroll', updateCompression, { passive: true });
-    window.addEventListener('resize', updateCompression, { passive: true });
-
-    return () => {
-      window.removeEventListener('scroll', updateCompression);
-      window.removeEventListener('resize', updateCompression);
-    };
-  }, [index, total]); // Recalculate when notification position changes
-
-  const getInitials = (name: string): string => {
-    const words = name.trim().split(/\s+/);
-    if (words.length > 1) {
-      return words.map(word => word[0]).join('').toUpperCase().slice(0, 3);
-    } else {
-      return name[0]?.toUpperCase() || '';
-    }
-  };
-
-  /**
-   * Maps a pwd string to a consistent background color for avatar.
-   * Uses MD5 hash to ensure same pwd always gets same color.
-   * @param pwd - The pwd string from notification payload
-   * @returns Hex color string from Google's Letter Tile palette
-   */
-  const getColorFromName = (pwd: string): string => {
-    const shortHash = MD5(pwd).toString().slice(0, 10);
-    const colors = [
-      '#7B1FA2', // Royal Purple
-      '#77919D', // Slate Gray
-      '#455A65', // Charcoal Blue
-      '#EC417A', // Neon Pink
-      '#C1175C', // Crimson Rose
-      '#5D6AC0', // Indigo Blue
-      '#0388D2', // Sky Blue
-      '#00579B', // Navy
-      '#0098A7', // Teal Blue
-      '#00897B', // Deep Teal
-      '#004D40', // Forest Green
-      '#68A039', // Leaf Green
-      '#EF6C00', // Vivid Orange
-      '#F6511E', // Fiery Coral
-      '#BE360B', // Brick Red
-    ];
-    const hash = shortHash.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    return colors[Math.abs(hash) % colors.length];
-  };
-
-  const notiTitle = notification.pwd ? notification.pwd.split('/').pop() || '' : '';
-  const initials = getInitials(notiTitle);
-  const bgColor = getColorFromName(notification.pwd || '');
-
-  const parseMessageWithTags = (message: string) => {
-    const lines = message.split('\n');
-    const result: React.ReactNode[] = [];
-    let keyCounter = 0;
-
-    lines.forEach((line, lineIndex) => {
-      const combinedRegex = /\[#(?:tag|truncated):(.*?)\]/g;
-      let lastIndex = 0;
-      let match;
-      while ((match = combinedRegex.exec(line)) !== null) {
-        // Add text before match
-        if (match.index > lastIndex) {
-          result.push(line.slice(lastIndex, match.index));
-        }
-        // Add the span
-        if (match[0].startsWith('[#tag:')) {
-          result.push(<span key={keyCounter++} className="notification-tag">{match[1]}</span>);
-        } else if (match[0].startsWith('[#truncated:')) {
-          result.push(<span key={keyCounter++} className="notification-truncated">{match[1]}</span>);
-        }
-        lastIndex = combinedRegex.lastIndex;
-      }
-      // Add remaining text
-      if (lastIndex < line.length) {
-        result.push(line.slice(lastIndex));
-      }
-
-      if (lineIndex < lines.length - 1) {
-        result.push(<br key={keyCounter++} />);
-      }
-    });
-
-    return result;
-  };
-
-  // Age-based depth (newer = less depth) - only applied during compression
-  const ageFactor = Math.min(index / Math.max(total - 1, 1), 1);
-  const ageOpacity = 1 - (ageFactor * 0.2);
-  const ageScale = 1 - (ageFactor * 0.05);
-
-  // Viewport-based compression for bottom 15%
-  // compressionFactor is calculated in useEffect based on scroll position
-
-  const baseOpacity = compressionFactor > 0 ? ageOpacity : 1;
-  const baseScale = compressionFactor > 0 ? ageScale : 1;
-
-  const finalOpacity = Math.max(0.3, baseOpacity * (1 - compressionFactor * 0.7));
-  const finalScale = Math.max(0.85, baseScale * (1 - compressionFactor * 0.15));
+function PlainCard({ item, now, onDelete }: NotificationCardProps) {
+  const data = (item.data ?? {}) as Record<string, unknown>;
+  const msg = typeof data.message === 'string' ? data.message : '';
+  const pwd = typeof data.pwd === 'string' ? data.pwd : '';
+  const hostModel = typeof data.host_model === 'string' ? data.host_model : '';
+  const title = getTitle(pwd);
+  const avatarColor = getAvatarColor(pwd || item.id);
+  const avatarInitial = title[0]?.toUpperCase() || 'N';
+  const hostModelColor = hostModel ? getHostModelColor(hostModel) : '';
+  const time = formatRelativeTime(item.timestamp, now);
+  // Drop trailing blank lines so cards don't end with empty padding.
+  const messageLines = msg.replace(/\s+$/, '').split('\n');
 
   return (
-    <motion.div
-      ref={cardRef}
-      data-id={notification.id}
-      layout
-      initial={{ opacity: 0, y: 20, scale: 0.95 }} // Roll-in from bottom
-      animate={{
-        opacity: finalOpacity,
-        y: 0,
-        scale: finalScale,
-        filter: `drop-shadow(0 ${ageFactor * 2}px ${ageFactor * 4}px rgba(0,0,0,${ageFactor * 0.1}))`
-      }}
-      exit={{ opacity: 0, y: -20, scale: 0.95 }}
-      transition={{
-        type: "spring",
-        stiffness: 350, // Slightly snappier
-        damping: 35,    // Smoother damping
-        layout: { type: "spring", stiffness: 450, damping: 40 }
-      }}
-      style={{ zIndex: total - index }} // Newer on top
-    >
-      <div className="notification">
-        <div className="notification-row">
-          <div className="notification-bg">
-            <div className="notification-notification"></div>
-          </div>
-
-          <Avatar
-            className="notification-app-icon"
-            style={{ backgroundColor: bgColor }}
+    <article className="nh-card" data-id={item.id}>
+      <div className="nh-card-header">
+        <span className="nh-avatar" style={{ backgroundColor: avatarColor }}>
+          {avatarInitial}
+        </span>
+        <span className="nh-title" title={title}>
+          {title}
+        </span>
+        <span className="nh-spacer" />
+        {hostModel ? (
+          <span
+            className="nh-pill"
+            style={{ '--nh-pill-color': hostModelColor } as CSSProperties}
+            title={`host: ${hostModel}`}
           >
-            {initials}
-          </Avatar>
-
-          <div className="notification-title-time">
-            <div className="notification-title-and">
-              <Text className="notification-text1 subheadline-emphasized">{notiTitle}</Text>
-              <Text className="notification-text-time">{formatTimestamp(notification.timestamp)}</Text>
-            </div>
-
-            <Text className="notification-text2 subheadline-regular">{notification.pwd || "Notification details"}</Text>
-            {notification.host_model && <Text className="notification-text2 subheadline-regular">{notification.host_model}</Text>}
-             <Text className="notification-text2 message">{parseMessageWithTags(notification.message || "Message")}</Text>
-          </div>
-        </div>
+            {hostModel}
+          </span>
+        ) : (
+          <>
+            <time className="nh-time">{time}</time>
+            <DeleteButton id={item.id} onDelete={onDelete} />
+          </>
+        )}
       </div>
-    </motion.div>
+
+      {hostModel ? (
+        <div className="nh-time-row">
+          <time className="nh-time">{time}</time>
+          <DeleteButton id={item.id} onDelete={onDelete} />
+        </div>
+      ) : null}
+
+      {pwd ? (
+        <div className="nh-pwd" title={pwd}>
+          {truncate(pwd, 80)}
+        </div>
+      ) : null}
+
+      <div className="nh-message">
+        {messageLines.map((line, lineIdx) => {
+          const segments = parseMessage(line);
+          return (
+            <div className="nh-message-line" key={`msg-ln-${lineIdx}`}>
+              {segments.length > 0
+                ? segments.map((seg, i) => (
+                    <span key={`${lineIdx}-${seg.type}-${i}`} className={`nh-${seg.type}`}>
+                      {seg.text}
+                    </span>
+                  ))
+                : '\u00a0'}
+            </div>
+          );
+        })}
+      </div>
+    </article>
   );
+}
+
+/**
+ * Dispatcher only: locked and plain cards are separate components so the
+ * hook order never changes when a row switches between them.
+ */
+export function NotificationCard(props: NotificationCardProps) {
+  return props.item.locked ? <LockedCard {...props} /> : <PlainCard {...props} />;
 }
 
 export default NotificationCard;
