@@ -155,5 +155,4 @@ Python-encrypt ⟷ JS-decrypt compatibility.
 - Server holds the key → not zero-knowledge; not a substitute for auth.
 - No forward secrecy; rotate by replacing the key (old ciphertext becomes
   undecryptable unless the old key is retained).
-- The **web frontend does not decrypt** (out of scope) — with e2e on, read via
-  the TUI.
+- Only the TUI decrypts — read notifications with e2e on via `make tui`.

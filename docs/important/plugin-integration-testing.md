@@ -10,9 +10,8 @@ npm run typecheck --prefix src/notifyhub/plugins/opencode
 make -n install-plugin
 ```
 
-These checks do not need a live backend/frontend, an OpenCode server, or a model request. When doing
-web-service development or live integration testing, follow AGENTS.md's server startup and user
-confirmation workflow separately.
+These checks do not need a live backend, an OpenCode server, or a model request. When doing
+live integration testing, follow AGENTS.md's server startup and user confirmation workflow separately.
 
 ## What is covered
 

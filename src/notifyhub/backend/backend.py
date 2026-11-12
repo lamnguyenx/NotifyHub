@@ -1,7 +1,5 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 from contextlib import asynccontextmanager
@@ -11,7 +9,6 @@ import typing as tp
 import logging
 import json
 import os
-import textwrap
 import traceback
 from datetime import datetime, timezone
 
@@ -117,66 +114,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Static files and templates setup
-frontend_dir = os.path.join(os.path.dirname(__file__), "../frontend")
-app.mount(
-    "/static",
-    StaticFiles(directory=os.path.join(frontend_dir, "static")),
-    name="static",
-)
-app.mount(
-    "/icons",
-    StaticFiles(directory=os.path.join(frontend_dir, "static/icons")),
-    name="icons",
-)
-app.mount(
-    "/audio",
-    StaticFiles(directory=os.path.join(frontend_dir, "static/audio")),
-    name="audio",
-)
-
-
-def load_and_transform_template():
-    """Load index.html and transform it for production use."""
-    template_path = os.path.join(frontend_dir, "index.html")
-    try:
-        with open(template_path, "r", encoding="utf-8") as f:
-            html = f.read()
-
-        # Replace dev script with production script
-        html = html.replace("/src/main.tsx", "/static/app.js")
-
-        # Ensure main.css is linked. The dev server injects it through the
-        # module graph; production serves the built file directly. Inject
-        # before </head> so the template does not need a Bootstrap (or any
-        # other) placeholder link.
-        if "/static/main.css" not in html:
-            css_link = '<link href="/static/main.css" rel="stylesheet">'
-            if "</head>" in html:
-                html = html.replace("</head>", f"    {css_link}\n  </head>", 1)
-            else:
-                html = f"{css_link}\n{html}"
-
-        return html
-    except FileNotFoundError:
-        # Fallback if index.html doesn't exist
-        return textwrap.dedent(
-            """
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <title>NotifyHub - Error</title>
-            </head>
-            <body>
-                <h1>Error: Frontend template not found</h1>
-                <p>Please ensure the frontend is properly set up.</p>
-            </body>
-            </html>
-            """
-        ).strip()
-
 
 @app.post("/api/notify")
 async def notify(request: NotifyRequest):
@@ -482,12 +419,6 @@ async def events(limit: tp.Optional[int] = None):
             raise
 
     return EventSourceResponse(event_generator())
-
-
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    html_content = load_and_transform_template()
-    return HTMLResponse(html_content)
 
 
 def _load_runtime(config: NotifyHubConfig) -> None:

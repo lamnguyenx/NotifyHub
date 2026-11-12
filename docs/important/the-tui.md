@@ -49,7 +49,7 @@ Each notification is rendered as a bordered card (rounded corners) with:
 ╰──────────────────────────────────────────────╯
 ```
 
-- **Colored avatar initial** — derived from a hash of the pwd path (15-color palette matching the web UI)
+- **Colored avatar initial** — derived from a hash of the pwd path (15-color palette)
 - **App name** — last segment of the pwd path, bold white
 - **Timestamp** — relative via `formatRelativeTime`: `now`, `5m ago`, `3h ago`, `Yesterday`,
   or `MM/DD/YY`; sits on its own row beneath the host pill (or on the title row if no host_model)

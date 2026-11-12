@@ -1,30 +1,22 @@
 # NotifyHub
 
-> **Summary**: NotifyHub is a single-page notification application designed for developers. It provides a real-time notification center where external processes, CLI tools, and CI/CD pipelines can push notifications. It was built primarily for integration with the **OpenCode** AI coding assistant, and also ships integrations for **Claude Code** and **OpenAI Codex**, but serves as a general-purpose notification hub.
+> **Summary**: NotifyHub is a notification hub designed for developers. It provides a real-time notification center where external processes, CLI tools, and CI/CD pipelines can push notifications. It was built primarily for integration with the **OpenCode** AI coding assistant, and also ships integrations for **Claude Code** and **OpenAI Codex**, but serves as a general-purpose notification hub.
 
 - [NotifyHub](#notifyhub)
   - [1. What Is This Project?](#1-what-is-this-project)
   - [2. Tech Stack](#2-tech-stack)
   - [3. Directory Structure](#3-directory-structure)
-  - [4. Frontend Architecture](#4-frontend-architecture)
-  - [5. State Management](#5-state-management)
-  - [6. Real-time Communication](#6-real-time-communication)
-  - [7. Audio Handling](#7-audio-handling)
-  - [8. Testing Setup](#8-testing-setup)
-  - [9. Build Tooling](#9-build-tooling)
-  - [10. Installation & Setup](#10-installation--setup)
-  - [11. Backend Configuration](#11-backend-configuration)
-  - [12. Frontend Loading Modes](#12-frontend-loading-modes)
-  - [13. Production Usage](#13-production-usage)
-  - [14. Testing Strategy](#14-testing-strategy)
-  - [15. CLI Usage](#15-cli-usage)
-  - [16. Terminal UI (TUI)](#16-terminal-ui-tui)
+  - [4. Real-time Communication](#4-real-time-communication)
+  - [5. Installation & Setup](#5-installation--setup)
+  - [6. Backend Configuration](#6-backend-configuration)
+  - [7. Testing Strategy](#7-testing-strategy)
+  - [8. CLI Usage](#8-cli-usage)
+  - [9. Terminal UI (TUI)](#9-terminal-ui-tui)
 
 ## 1. What Is This Project?
 
-**NotifyHub** is a single-page notification app for developers, combining Python FastAPI backend with React frontend. Uses Server-Sent Events for real-time alerts and includes audio notifications with autoplay. Features CLI integration, Mantine UI, and Playwright testing. Supports hot-reload development and production static serving. The repo contains:
+**NotifyHub** is a notification hub for developers: a Python FastAPI backend serving REST + SSE, with a terminal UI for viewing notifications. The repo contains:
 
-- A **web UI** (React) for viewing/managing notifications
 - A **Python backend** (FastAPI) serving REST + SSE
 - A **CLI** for pushing notifications from scripts/terminals
 - A **TUI** (terminal UI) for viewing notifications in the terminal
@@ -36,17 +28,12 @@
 ```mermaid
 graph LR
     subgraph Client
-        Browser[Web Browser]
+        TUI[Terminal UI]
         Terminal[Terminal / Script]
         OpenCode[OpenCode v2 Plugin]
         Claude[Claude Code Hooks]
         Codex[OpenAI Codex Hooks]
         CLI[NotifyHub CLI]
-    end
-
-    subgraph "Frontend (Port 9070 Dev / 9080 Prod)"
-        React[React App]
-        Mantine[Mantine]
     end
 
     subgraph "Backend (Port 9080)"
@@ -55,9 +42,7 @@ graph LR
         SSE[SSE Stream]
     end
 
-    Browser --> React
-    React -- HTTP Proxy --> API
-    React -- EventSource --> SSE
+    TUI -- EventSource --> SSE
     Terminal --> CLI
     OpenCode -- spawns --> CLI
     Claude -- spawns --> CLI
@@ -73,16 +58,12 @@ graph LR
 |---|---|
 | **Backend** | Python 3 + FastAPI + Uvicorn + Pydantic |
 | **Crypto** | `cryptography` (AES-256-GCM) on the server; WebCrypto in the TUI |
-| **Frontend** | React 18, TypeScript |
-| **Styling** | Mantine v8 (provider + modals), custom CSS with TUI palette tokens, PostCSS + Autoprefixer |
-| **Build / Package Manager** | **Bun** (package manager and runtime for `bun run dev`), **Vite 5** (bundler) |
+| **TUI** | React + `@opentui` terminal rendering, run with **Bun** |
 | **Real-time** | Server-Sent Events (SSE) via `sse-starlette` |
-| **Animation** | CSS shimmer + braille spinner for waiting cards |
-| **Hashing** | 32-bit string hash for avatar and host/agent pill colors |
 | **Backend Testing** | pytest + pytest-asyncio + HTTPX (FastAPI TestClient) |
-| **Frontend Testing** | Playwright (E2E, CDP) + `bun test` (unit) |
+| **TUI Testing** | `bun test` |
 | **Config Stack** | Custom `confstack` library for layered config (defaults -> config file -> CLI args) |
-| **Containerization** | Docker (multi-stage: Node 18 Alpine for frontend build, Python 3.11 slim for backend) |
+| **Containerization** | Docker (Python 3.11 slim for the backend) |
 | **Language Server** | Pyright |
 
 ---
@@ -97,7 +78,7 @@ NotifyHub/
 ├── requirements.txt
 ├── pytest.ini
 ├── pyrightconfig.json
-├── Dockerfile                        # Multi-stage: frontend build + backend
+├── Dockerfile                        # Python 3.11 slim backend
 ├── docker-compose.yml
 ├── docs/                             # Plans, issues, code reviews
 │   ├── plans/
@@ -132,85 +113,18 @@ NotifyHub/
         │       ├── components/
         │       ├── hooks/
         │       └── utils/                # api.ts, crypto.ts (e2e decrypt)
-        ├── plugins/
-        │   ├── opencode/             # OpenCode v2 integration plugin
-        │   │   ├── notifyhub-plugin.ts
-        │   │   ├── package.json
-        │   │   └── tsconfig.json
-        │   ├── claude/               # Claude Code hooks integration
-        │   └── codex/                # OpenAI Codex hooks integration
-        └── frontend/
-            ├── package.json          # Bun-managed deps
-            ├── tsconfig.json         # TypeScript config (tsc --noEmit)
-            ├── vite.config.js        # Vite config with proxy
-            ├── postcss.config.js     # PostCSS with autoprefixer
-            ├── tailwind.config.js    # Vestigial (unused)
-            ├── playwright.config.ts  # Playwright test config
-            ├── index.html            # App entry HTML (Inter font)
-            ├── prototype.html        # Prototype harness entry (mock data)
-            ├── static/               # Build output (Vite outputs here as "outDir")
-            ├── public/
-            │   └── audio/            # Audio files (Submarine.mp3)
-            └── src/
-                ├── main.tsx          # React entry: MantineProvider + StrictMode
-                ├── App.tsx           # Live SSE wiring -> AppView
-                ├── AppView.tsx       # Presentation shell (header/feed/popups/footer)
-                ├── prototype.tsx     # Prototype harness entry
-                ├── theme.ts          # Mantine theme
-                ├── types.ts          # NotificationItem, AgentStatusEntry, ServerInfo
-                ├── index.css         # Global CSS + TUI palette tokens
-                ├── notification.css  # Card/waiting-card/popup styles
-                ├── prototypes/       # Harness shell, scenarios, prototype-only CSS
-                ├── hooks/            # useNotifications, useNow, useAudio
-                ├── components/       # cards, stream, waiting cards, popups
-                └── utils/            # timestampUtils, cardUtils (+ tests)
+        └── plugins/
+            ├── opencode/             # OpenCode v2 integration plugin
+            │   ├── notifyhub-plugin.ts
+            │   ├── package.json
+            │   └── tsconfig.json
+            ├── claude/               # Claude Code hooks integration
+            └── codex/                # OpenAI Codex hooks integration
 ```
 
 ---
 
-## 4. Frontend Architecture
-
-- **Framework**: React 18, with `createRoot` rendering into `#root`
-- **UI Library**: **Mantine v8** — supplies the provider, `Modal` popups, buttons and the `ColorSchemeScript`. The feed and cards are custom CSS so the web UI can share the TUI's design language.
-- **Design**: The web UI mirrors the TUI prototype: bordered notification cards, a colored project avatar, bold title, `host_model` pill, relative timestamp, dimmed pwd path, tag/truncation rendering, and live **waiting cards** for agent sessions. There is no fan-in compression; cards are dense and content-measured.
-- **CSS Approach**:
-  1. **Mantine's stylesheet** — `@mantine/core/styles.css` (global tokens + component styles, including the modals)
-  2. **Custom CSS** — `index.css` defines the TUI palette as `--nh-*` tokens (dark + light); `notification.css` styles the shell, cards, waiting cards and popups
-  3. **PostCSS** — only `autoprefixer` plugin active
-- **Cards**: `NotificationCard` renders the TUI card. `[#tag:...]` markers use the accent color; adjacent `[#truncated:...]` markers collapse into `[+24 lines, +517 chars]`. A locked e2e envelope renders as a `LOCKED` card with the envelope `kid` (the web UI does not decrypt).
-- **Waiting cards**: `WaitingCards` renders `running` / `blocked` / `stale` agent sessions above the feed. Running cards show a shimmering per-turn gerund plus a braille spinner; blocked cards turn amber (`waiting for you ⚠`); stalls turn red (`stalled? ◼`). Idle entries are hidden, and a completion notification with `data.session_id` resolves the matching card.
-- **Pagination**: the SSE `init` event is capped at 30 items. `NotificationStream` lazy-loads older pages with `GET /api/notifications?limit=30&before=<oldest id>` when its sentinel enters view, and the footer shows the loading state.
-- **Popups**: `StatusPopup` shows connection/streaming state, server address, notification count, e2e state and locked count. `HelpPopup` lists the keyboard shortcuts. Both are Mantine modals styled with the TUI tokens.
-- **Prototype**: `make frontend-prototype` mounts the real `AppView` and components against fixtures in `src/prototypes/` — no backend, SSE or e2e key. Rules: [`docs/_meta/how-to-prototype.md`](docs/_meta/how-to-prototype.md).
-- **Component Tree**:
-  - `<MantineProvider>` wraps `<App>`
-  - `<App>` owns the live data hooks (`useNotifications`, `useAudio`) and passes props to `<AppView>`
-  - `<AppView>` renders the header, status/audio alerts, `<WaitingCards>`, `<NotificationStream>`, the popups and the footer
-  - `<NotificationCard>` renders one card (plain or `LOCKED`)
-  - `PrototypeApp` renders the same `<AppView>` with fixture data and a harness-only bar
-
----
-
-## 5. State Management
-
-There is **no external state management library** (no Redux, Zustand, MobX, etc.). State is handled purely via React hooks:
-
-- **`useNotifications`** owns:
-  - `notifications: NotificationItem[]` — the loaded page(s), newest first
-  - `agentStatus: AgentStatusEntry[]` — live sessions for the waiting cards
-  - `serverInfo: ServerInfo` — connection, streaming, count, host/port and e2e state
-  - `hasMore` / `loadingMore` — pagination state
-  - `liveEventSeq` — increments only for live SSE arrivals, so audio does not fire for the initial snapshot or an older page
-  - `handleDelete`, `handleClearAll`, `loadMore` — REST mutations and lazy loading
-- **`useNow`** — one ticking clock shared by the cards (10 s), so relative timestamps stay fresh without a timer per card
-- **`useAudio`** — creates the `Audio` element, exposes `play()`, and tracks the browser-autoplay `blocked` state
-- **`AppView`** local state — status/help popup visibility; everything else is props
-- State is **derived directly from SSE events** — the backend pushes `init` (newest page), `notification` (new), `clear` (delete all), `delete` (single delete), `heartbeat`, `shutdown`, and `agent_status`; the frontend updates its local arrays accordingly. A completion notification with `data.session_id` also removes the matching waiting card.
-- The web client **does not decrypt e2e envelopes**; `locked: true` items render as `LOCKED` cards and the status popup shows the server `kid` and locked count.
-
----
-
-## 6. Real-time Communication
+## 4. Real-time Communication
 
 The project uses **Server-Sent Events (SSE)**, not WebSockets:
 
@@ -229,118 +143,47 @@ to `POST /api/status/<agent>/<state>`, and every meaningful change is broadcast 
 `agent_status` event. Entries carry the directory, host, a one-line excerpt of the running task,
 and turn `stale` after `backend.agent_status_stale_seconds` (default 300) without a refresh.
 Completion notifications carry `data.session_id`, so clients can resolve a running row exactly
-when its turn's notification lands. Both the TUI (§16) and the web UI (§4) render these as waiting
-notification cards; operator guide:
-[`docs/important/agent-status.md`](docs/important/agent-status.md).
+when its turn's notification lands. The TUI (§9) renders these as waiting notification cards;
+operator guide: [`docs/important/agent-status.md`](docs/important/agent-status.md).
 
-- **Vite proxy** (`vite.config.js`):
-  - `/events` is proxied to `http://localhost:9080` with `ws: true` (WebSocket support in proxy config, though the app uses SSE not WS)
-
-- **Frontend** (`hooks/useNotifications.ts`):
-  - Single `EventSource` connects to `/events?limit=30` on mount
+- **TUI** (`hooks/`, `utils/api.ts`):
+  - Single `EventSource` connects to `/events?limit=30` on startup
   - Listens for named events: `init`, `notification`, `agent_status`, `clear`, `delete`, `heartbeat`, `shutdown`
-  - `onerror` marks `streaming = false`; `onopen` marks it true and resyncs `GET /api/status` + `GET /api/e2e`
-  - A 15-second poll calls `GET /api/notifications/count` (and `GET /api/e2e`), never re-downloading the full list
-  - REST API calls (`fetch`) handle mutations and pagination: `DELETE /api/notifications?id=…`, `DELETE /api/notifications`, and `GET /api/notifications?limit=30&before=…` for older pages. The server broadcasts the matching SSE event after a mutation.
+  - A 15-second poll calls `GET /api/notifications/count`, never re-downloading the full list
+  - REST calls handle mutations and pagination (see [Paginated loading](#paginated-loading))
 
 ---
 
-## 7. Audio Handling
-
-- **Audio file**: `public/audio/Submarine.mp3` (referenced as `/audio/Submarine.mp3`, served by FastAPI at the `/audio` mount point)
-- **Setup**: `useAudio` creates an `Audio` element programmatically, with `volume = 0.5`
-- **Autoplay handling**: Browsers block autoplay by default. On each live notification:
-  1. `audio.currentTime = 0` (reset to start)
-  2. `audio.play()` is called
-  3. If it fails (catches error), `blocked` is set to `true`
-  4. When `blocked` is true, a click listener is added to the `document`, and the page title changes to "Notification Center | Muted. Please click to enable audio notifications"
-  5. On first user click, audio is played, `blocked` resets, and the click listener is removed
-- Audio is keyed off `liveEventSeq`, so the initial `init` snapshot and lazy-loaded older pages stay silent.
-
----
-
-## 8. Testing Setup
-
-**Backend Tests** (pytest):
-- Located at `tests/notifyhub/` (`backend/`, `cli/`, `test_config.py`)
-- Uses `pytest`, `pytest-asyncio`, `httpx`, and FastAPI's `TestClient`
-- `backend/test_models.py`: `NotificationStore` initialization, add, order, max limit, delete by ID, opaque `data`
-- `backend/test_server.py`: REST endpoints plus `TestE2EEncryption` (plaintext→envelope storage, wrong-key rejection, `/api/e2e`)
-- `backend/test_template.py`: production HTML transformation injects `/static/app.js` and `/static/main.css`
-- `backend/test_crypto.py`: envelope round-trip, tamper/wrong-key rejection, key resolution, `--status`
-- Run with: `make test-backend` → `python -m pytest tests/notifyhub -v`
-
-**Frontend E2E Tests** (Playwright):
-- Located at `src/notifyhub/frontend/__tests__/`
-- **Page Object Model** pattern: `BasePage` → `AppPage` + `NotificationPage`
-- `notification.spec.ts`: Uses Playwright's `extend` to connect over Chrome DevTools Protocol (CDP) to an already-running browser instance
-- Testing strategy: Backup-and-restore approach — backs up existing notifications before tests, adds 8 mock notifications, runs tests, then restores original state
-- Run with: `make test-frontend` (production mode, port 9080) or `make test-frontend-hotload` (dev mode, port 9070)
-- Playwright config: 30s timeout, video retention on failure, `baseURL: http://localhost:9080`
-
-**Unit Tests**:
-- `timestampUtils.test.ts` — relative time (`now`, `5m ago`, `Yesterday`, `MM/DD/YY`)
-- `cardUtils.test.ts` — pwd title, truncation, tag/truncation parsing, envelope detection, stale mirror, stable gerund
-- Run with: `make frontend-test-unit` (`cd src/notifyhub/frontend && bun test`)
-
-**Web Prototype Harness**:
-- `make frontend-prototype` (`make fp`) → `http://localhost:9070/prototype.html`
-- Runs the real `AppView` and components against fake scenarios; no backend, SSE or e2e key
-- Keys: `1`–`7` scenarios, `n`/`p` cycle, `t` freeze time, `r` restart; `s`/`h`/`l` work as in the app
-- Rules: [`docs/_meta/how-to-prototype.md`](docs/_meta/how-to-prototype.md)
-
----
-
-## 9. Build Tooling
-
-- **Package Manager**: **Bun** (`bun install`, `bun run dev`, `bun run build`, `bun run prototype`, `bun test`)
-- **Bundler**: **Vite 5** with `@vitejs/plugin-react`
-- **Vite config highlights**:
-  - Dev server on port 9070
-  - Proxy: `/api` → `localhost:9080`, `/events` → `localhost:9080` (with `ws: true`)
-  - Build output: `static/` directory, single entry `src/main.tsx`
-  - `prototype.html` is served by the dev server at `/prototype.html` and is not part of the production build
-  - Deterministic asset naming (`app.js` for entry, `[name].js` for chunks, `[name].[ext]` for assets)
-- **Python**: Built with `setuptools` (editable install via `pip install -e .`), scripts registered via `project.scripts` in `pyproject.toml`
-- **Task Runner**: `Makefile` with shorthand aliases (`be`, `fe`, `fehl`, `fp`, `tbe`, `tfe`, `tfehl`, `ta`) for quick development
-- **Type checking**: `pyrightconfig.json` for Python, `tsconfig.json` for TypeScript; the frontend and TUI use `tsc --noEmit`, and the OpenCode plugin has `npm run typecheck` (strict)
-- **Linting**: `ruff` for Python (with `.ruff_cache/`), `.ripgreprc` for search config
-
-### Key Architectural Patterns
-
-1. **Layered config**: `confstackify()` merges defaults → JSON config file → env vars → programmatic overrides
-2. **SSE-only real-time**: No WebSockets; the app uses `asyncio.Queue` per client for server-side SSE multiplexing
-3. **TUI-mirrored web UI**: Notification cards, waiting cards, relative timestamps, host/agent pills, tag/truncation rendering and the dark palette all follow the TUI prototype; the web UI adds a mouse-friendly delete affordance and lazy pagination
-4. **Dual-serving modes**: Hot-reload (Vite on 9070 + FastAPI on 9080 with proxy) vs. production (FastAPI serves built static files from `static/` on port 9080)
-5. **CDP-based testing**: Playwright tests connect to an already-open Chrome instance rather than launching a new browser, for testing against a manually-observed session
-6. **Coding-agent integrations**: `plugins/opencode/` subscribes to OpenCode v2 events directly, while `plugins/claude/` and `plugins/codex/` are hook scripts spawned per lifecycle event (see `docs/important/opencode-plugin.md`, `claude-code-hooks.md`, `codex-hooks.md`)
-7. **Terminal UI**: A separate React-based TUI (`src/notifyhub/tui/`) using `@opentui` for terminal rendering
-8. **Prototype harnesses**: Both clients run their real view shell against fixture scenarios — `make tui-prototype` for the terminal, `make frontend-prototype` for the browser
-
----
-
-## 10. Installation & Setup
+## 5. Installation & Setup
 
 ### Prerequisites
 
 - Python 3.x
-- Bun (JavaScript runtime/package manager)
-- VSCode Extensions:
-  - [CSS Navigation](https://marketplace.visualstudio.com/items?itemName=pucelle.vscode-css-navigation) - Enables Ctrl+click navigation for CSS imports and variable definitions
+- Bun (JavaScript runtime/package manager, for the TUI)
 
 ### Initial Install
 
-Run the following to set up both backend and frontend dependencies:
+Run the following to set up backend and TUI dependencies:
 
 ```bash
 # Install backend dependencies (editable mode)
 pip install -e .
 
-# Install frontend dependencies (includes testing tools)
-make frontend-deps
+# Install TUI dependencies
+make tui-deps
+```
 
-# (Optional) Build web assets immediately
-make frontend
+### Start the backend
+
+```bash
+make backend
+# Serves the API + SSE stream on http://localhost:9080
+```
+
+### Send a test notification
+
+```bash
+make noti
 ```
 
 ### E2E Encryption (Optional)
@@ -360,7 +203,7 @@ Then add the key next to your other settings in `~/.config/notifyhub/config.json
 ```
 
 Both the server and the TUI read it from there (`NOTIFYHUB_E2E_KEY` env
-overrides). See [Backend Configuration](#11-backend-configuration) for details.
+overrides). See [Backend Configuration](#6-backend-configuration) for details.
 
 ### Coding-agent integration maintenance
 
@@ -480,7 +323,7 @@ Port history: [`docs/plans/2026/11/09/2026-11-09-codex-hooks-port.md`](docs/plan
 
 ---
 
-## 11. Backend Configuration
+## 6. Backend Configuration
 
 NotifyHub backend supports configuration via command-line arguments and a JSON config file for flexible deployment options.
 
@@ -579,211 +422,42 @@ only. Consumers (the TUI) decrypt locally with the same pre-shared key.
   and the status popup (`s`) shows server e2e state, local key state, and locked count.
 - If `e2e.enabled` is true but no key resolves, the server logs a warning
   and falls back to plaintext (fails safe for availability).
-- Note: the **web frontend does not decrypt** (out of scope) — with e2e on,
-  use the TUI to read notifications.
-
-## 12. Frontend Loading Modes
-
-For hot-reloading, run the backend and frontend in separate terminals.
-
-### Hot-reload Diagram
-
-```mermaid
-sequenceDiagram
-    participant Dev as Developer
-    participant Term1 as Terminal 1 (Backend)
-    participant Term2 as Terminal 2 (Frontend)
-    participant Browser
-
-     Dev->>Term1: make backend
-     Note right of Term1: Runs FastAPI on :9080
-     Dev->>Term2: make frontend-hotload
-     Note right of Term2: Runs Vite on :9070<br/>Proxies API calls to :9080
-
-    Browser->>Term2: Access http://localhost:9070
-    Term2->>Term1: Proxy API/SSE requests
-    Term1-->>Browser: Response
-
-```
-
-### Why the Proxy is Needed
-
-In hot-reload mode, frontend runs on port 9070 and backend on port 9080. Since browsers block requests between different ports (CORS), the Vite dev server acts as a proxy—intercepting API calls from the browser, forwarding them to the backend on port 9080, and returning the response. The browser only sees port 9070, avoiding CORS issues.
-
-**Setup:**
-
-| Mode       | Frontend | Backend | Proxy Needed?        |
-| ---------- | -------- | ------- | -------------------- |
-| Hot-reload | `:9070`  | `:9080` | Yes                  |
-| Static     | `:9080`  | `:9080` | No (served together) |
-
-**Hot-reload flow:**
-
-```
-Browser → Frontend (:9070) → Proxy → Backend (:9080)
-```
-
-**Benefits:**
-
-- No CORS configuration needed on backend
-- Frontend hot-reloading enabled
-- Clean separation of concerns
-
-### Commands
-
-**Terminal 1: Start Backend**
-
-```bash
-make backend
-# Serves on http://localhost:9080
-```
-
-**Terminal 2: Start Frontend (Hot-Reload)**
-
-```bash
-make frontend-hotload
-# Serves on http://localhost:9070 (Proxies to backend)
-```
-
-> **Note:** Access the UI at **`http://localhost:9070`** for hot-reloading.
+- Only the TUI decrypts — with e2e on, use the TUI to read notifications.
 
 ---
 
-## 13. Production Usage
+## 7. Testing Strategy
 
-To run the application as it would appear in production (serving built static assets via FastAPI):
-
-1. **Build Assets:**
-
-```bash
-make frontend
-# Builds React app to src/notifyhub/frontend/static/
-```
-
-2. **Start Server:**
-
-```bash
-make backend
-# FastAPI serves static files from static/ at:
-# - /static/* (general assets like JS/CSS)
-# - /icons/* (icon files)
-# - /audio/* (audio files)
-# Note: When adding new asset folders to static/, update backend.py mounts accordingly.
-```
-
-3. **Access:**
-   Open **`http://localhost:9080`**. (Default: Dark Theme).
-4. **Send Test Notification (CLI):**
-
-```bash
-make noti
-```
-
----
-
-## 14. Testing Strategy
-
-NotifyHub uses a combination of `pytest` for the backend and `Playwright` for frontend UI testing.
-
-### Test Architecture (Page Object Model)
-
-```mermaid
-classDiagram
-    class BasePage {
-        +page: Page
-        +goto()
-        +wait()
-    }
-    class AppPage {
-        +navigate_global()
-        +check_status()
-    }
-    class NotificationPage {
-        +send_notification()
-        +verify_alert()
-    }
-    class SpecFile {
-        +test_send_notification()
-    }
-
-    BasePage <|-- AppPage
-    BasePage <|-- NotificationPage
-    SpecFile --> NotificationPage : Uses
+NotifyHub uses **pytest** for the backend.
 
 ```
-
-### 14.1 UI Test Setup
-
-Before running UI tests, ensure Playwright browsers are installed:
-
-```bash
-# Install dependencies
-cd src/notifyhub/frontend && bun install
-
-# Install Playwright browsers
-npx playwright install
-```
-
-### 14.2 Running Tests
-
-You can run tests via standard NPM commands or the provided Makefile shortcuts.
-
-| Scope            | Command                      | Description                                     |
-| ---------------- | ---------------------------- | ----------------------------------------------- |
-| **Backend**      | `make test-backend`          | Run pytest (backend only)                       |
-| **UI (Prod)**    | `make test-frontend`         | Run Playwright tests against port 9080 (headed) |
-| **UI (Hotload)** | `make test-frontend-hotload` | Run Playwright tests against port 9070 (headed) |
-| **Connection**   | `make test-chrome`           | Test Chrome CDP connection utility              |
-| **All**          | `make test-all`              | Run entire test suite                           |
-
-### 14.3 Test Organization
-
-The project follows the Page Object Model (POM) design pattern:
-
-```text
-src/notifyhub/frontend/__tests__/
-├── pages/                  # Page Object Model classes
-│   ├── AppPage.ts          # App-wide interactions
-│   ├── BasePage.ts         # Base class with common methods
-│   └── NotificationPage.ts # Notification-specific actions
-├── specs/                  # Test specifications
-│   └── notification.spec.ts
-├── utils/                  # Helper utilities
-│   └── test_chrome_connection.ts
-└── tsconfig.json           # TypeScript configuration
-
 tests/notifyhub/backend/
 ├── test_models.py          # Model tests
-├── test_server.py         # Server/API tests (+ TestE2EEncryption)
-└── test_crypto.py         # Envelope crypto + key resolution
+├── test_server.py          # Server/API tests (+ TestE2EEncryption)
+├── test_status.py          # Live agent status store/API tests
+└── test_crypto.py          # Envelope crypto + key resolution
 
 tests/notifyhub/cli/
 └── test_cli.py             # CLI tests
+
+tests/notifyhub/plugins/    # Plugin/hook integration checks (no live servers)
 ```
 
-#### Notification Test Strategy
+- Uses `pytest`, `pytest-asyncio`, `httpx`, and FastAPI's `TestClient`
+- `backend/test_models.py`: `NotificationStore` initialization, add, order, max limit, delete by ID, opaque `data`
+- `backend/test_server.py`: REST endpoints plus `TestE2EEncryption` (plaintext→envelope storage, wrong-key rejection, `/api/e2e`)
+- `backend/test_crypto.py`: envelope round-trip, tamper/wrong-key rejection, key resolution, `--status`
+- Run with: `make test-backend` → `python -m pytest tests/notifyhub -v`
+- TUI: `make tui-test` (`bun test`) and `make tui-typecheck` (`tsc --noEmit`)
 
-The `notification.spec.ts` test suite implements a backup-and-restore approach for testing. See the detailed documentation in the test file itself (`src/notifyhub/frontend/__tests__/specs/notification.spec.ts`) for the complete strategy.
-
-### 14.4 Chrome Remote Debugging (CDP)
-
-Tests can connect to an existing Chrome instance via the Chrome DevTools Protocol (CDP). This requires launching Chrome with specific flags.
-
-**macOS:**
-
-```bash
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --user-data-dir=/tmp/chrome-debug
-```
-
-**Linux:**
-
-```bash
-google-chrome --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --user-data-dir=/tmp/chrome-debug
-```
+Isolated plugin-integration checks (no backend or model requests needed):
+[`docs/important/plugin-integration-testing.md`](docs/important/plugin-integration-testing.md).
+Organization guide: [`docs/_meta/test-organization.md`](docs/_meta/test-organization.md).
+TUI testing guide: [`docs/important/tui-testing-guide.md`](docs/important/tui-testing-guide.md).
 
 ---
 
-## 15. CLI Usage
+## 8. CLI Usage
 
 NotifyHub provides a CLI for sending notifications:
 
@@ -824,24 +498,20 @@ NOTIFYHUB_URL=https://other.example.com ./push-funnel-noti.sh "hello"
 
 ---
 
-## 16. Terminal UI (TUI)
+## 9. Terminal UI (TUI)
 
 A terminal front-end built with React + `@opentui` lives in `src/notifyhub/tui/`.
-The web UI (§4) mirrors the same card and waiting-card design; the TUI remains the reference
-implementation.
 
 ```bash
 make tui           # run against the backend
 make tui-prototype # run with mock data (no backend; auto-restarts on save)
 make tui-test      # bun test
 make tui-typecheck
-make frontend-prototype # web UI with mock data (no backend)
 ```
 
 Module guide: [`src/notifyhub/tui/README.md`](src/notifyhub/tui/README.md). Rendering invariants
 (why cards/popups are sized the way they are): [`docs/important/tui-rendering-rules.md`](docs/important/tui-rendering-rules.md).
-Prototype rules: [`docs/_meta/how-to-prototype.md`](docs/_meta/how-to-prototype.md).
-Design history:
+Prototype rules: [`docs/_meta/how-to-prototype.md`](docs/_meta/how-to-prototype.md). Design history:
 [`2026-11-11-tui-prototype-polish.md`](docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md),
 [`2026-11-11-tui-prototype-mode.md`](docs/plans/2026/11/11/2026-11-11-tui-prototype-mode.md)
 and

@@ -2,7 +2,6 @@
 
 How to try a TUI change on mock data without forking the app. `make tui-prototype` is the worked
 example: it runs the real `AppView` and components against scenario fixtures in the terminal.
-The same loop now runs for the web UI; see [Web UI prototype](#web-ui-prototype-same-loop).
 
 > Adapted from `hanoi-testing-platform/docs/_meta/how-to-prototype.md`, which applies the same
 > copy-on-write loop to a web app. This version replaces pages and CSS with terminal scenarios,
@@ -136,7 +135,6 @@ Afterwards, a diff of `src/notifyhub/tui/src/prototypes/` should show mostly del
 ## Checklist
 
 - [ ] The prototype renders the app's `AppView` and components.
-- [ ] The web prototype renders the app's `AppView` too (`make frontend-prototype`).
 - [ ] Fake data enters through `AppViewProps`; no backend, SSE or e2e key is needed.
 - [ ] Every case has a scenario; `n`/`p` and the number keys reach it.
 - [ ] Time can be frozen with `t`.
@@ -162,31 +160,6 @@ Afterwards, a diff of `src/notifyhub/tui/src/prototypes/` should show mostly del
   base before working on it; if the base was rebuilt, drop the seam rather than rebase it.
 - **A prototype that needs the backend.** Once it fetches SSE, it tests the server, not the design.
   Fix: keep fixtures at the `AppView` boundary.
-
-## Web UI prototype (same loop)
-
-The web front-end follows the same copy-on-write loop. The harness is
-`src/notifyhub/frontend/prototype.html` + `src/prototype.tsx`; it mounts the real `AppView` and the
-real cards, waiting cards and popups with fake data.
-
-- Run: `make frontend-prototype` (alias `make fp`) → `http://localhost:9070/prototype.html`.
-  It uses the same Vite server and proxies as `make frontend-hotload`; the prototype itself does
-  no fetch, SSE or e2e work.
-- Harness shell: `src/notifyhub/frontend/src/prototypes/PrototypeApp.tsx` — scenario switcher,
-  frozen clock, prototype bar and `r` restart. Styles are `prototypes/prototype.css`; never import
-  that file from the app.
-- Scenarios: `src/notifyhub/frontend/src/prototypes/scenarios.ts` — the same seven cases as the
-  TUI: overview, waiting states, waiting edge cases, cards, e2e/locked, empty/offline, pagination.
-- Data boundary: `AppViewProps` — `notifications`, `agentStatus`, `serverInfo`, `hasMore`,
-  `loadingMore`, handlers, `now`, `header`, `footerExtra`.
-- Keys: `1`–`7` jump, `n`/`p` cycle, `t` freezes time, `r` restarts; the app keys `s`/`h`/`l`
-  still work inside the harness.
-- Viewport: resize the browser to 360px for the narrow check and shorten the window to see
-  whether waiting cards squeeze the feed.
-- Write-back: `PrototypeApp` imports `../AppView` and the app's components directly. There is no
-  seam and no copied component. A structural experiment copies **one** file to
-  `prototypes/seams/`, marks every change with `// prototype: …`, and deletes the seam after the
-  transfer.
 
 ## In this repository
 

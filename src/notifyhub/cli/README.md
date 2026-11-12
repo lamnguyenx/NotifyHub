@@ -32,13 +32,20 @@ Re-run the aggregate target after upgrading; the per-agent hook installers do no
 ## Related
 
 - [CLI plan](../../../docs/plans/2026/11/11/2026-11-11-agent-status-host-header-cli.md)
-- [CLI usage](../../../README.md#15-cli-usage)
+- [CLI usage](../../../README.md#8-cli-usage)
 - [Funnel push guide](../../../docs/important/funnel-remote-push.md)
 
-## 2026-11-12 session record
+## 2026-11-12 session records
+
+### Plugin labels and installation (earlier session)
 
 - [Module changes, trials, errors, and lessons](../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-cli.md)
 - [Full session and module map](../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions.md)
 - [Installation and rollout](../../../docs/important/plugin-installation.md)
 - [Shared machine label contract](../../../docs/important/notification-machine-labels.md)
 - [Focused regression checks](../../../docs/important/plugin-integration-testing.md)
+
+### Web UI removal (this session — README link fix only)
+
+- [CLI module record](../../../docs/plans/2026/11/12/2026-11-12-drop-web-ui-cli.md)
+- [Full session and module map](../../../docs/plans/2026/11/12/2026-11-12-drop-web-ui.md)

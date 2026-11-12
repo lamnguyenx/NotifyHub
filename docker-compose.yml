@@ -2,7 +2,6 @@ x-backend-build: &backend-build
   target: backend
   context: .
   args:
-    NPM_EXTRA_ARGS: --no-ssl-check
     PIP_EXTRA_ARGS: --trusted-host pypi.org --trusted-host files.pythonhosted.org
 
 services:
@@ -36,25 +35,3 @@ services:
     environment:
       - HOME=${HOME}
     command: "python -m notifyhub.backend.backend --backend.port 9081 --backend.dev_reload"
-
-  fe-dev:
-    image: lamnguyenx/notifyhub-frontend:2025.01.09rev01
-    build:
-      target: frontend
-      context: .
-      args:
-        NPM_EXTRA_ARGS: --no-ssl-check
-        PIP_EXTRA_ARGS: --trusted-host pypi.org --trusted-host files.pythonhosted.org
-    ports:
-      - "0.0.0.0:9070:9070"
-    volumes:
-      - ${PWD}/src/notifyhub/frontend:/app
-      - /app/node_modules
-    environment:
-      - BACKEND_ORIGIN=http://notifyhub:9080
-    command: |
-      /bin/sh -c "
-        cd /app
-        set -Eeuo pipefail
-        bun run dev --host
-      "

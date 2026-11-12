@@ -1,11 +1,8 @@
-.PHONY: backend frontend frontend-hotload frontend-prototype fp frontend-test-unit ftu frontend-deps plugin-deps noti send-simple-bark send-backend-bark chrome test-all test-chrome test-backend test-frontend test-frontend-hotload install-plugin install-plugin-copy remove-plugin install-plugin-claude remove-plugin-claude install-plugin-codex remove-plugin-codex test-bg clean fe fh beh t tb tf tfh tc mapping m tui-deps tui tui-prototype tui-typecheck td tp ttc ssb sbb e2e-key e2ekey e2e-status e2es
+.PHONY: backend config-md cm e2e-key e2ekey e2e-status e2es plugin-deps test-all ta test-backend tbe install-plugin install-plugin-copy remove-plugin install-plugin-claude remove-plugin-claude install-plugin-codex remove-plugin-codex noti send-simple-bark ssb send-backend-bark sbb tui-deps td tui tui-prototype tp tui-typecheck ttc tui-test tt
 
 # -----------------------------------
 #            Dependencies
 # -----------------------------------
-frontend-deps fed:
-	cd src/notifyhub/frontend && bun install
-
 plugin-deps:
 	cd src/notifyhub/plugins/opencode && npm install
 
@@ -30,21 +27,6 @@ e2e-status e2es:
 backend be:
 	@lsof -ti:$$(python -c "from confstack import confstackify; from notifyhub.config import NotifyHubConfig; print(confstackify(NotifyHubConfig, 'notifyhub').backend.port)") | xargs -r kill 2>/dev/null; true
 	python -m notifyhub.backend.backend
-
-frontend fe:
-	cd src/notifyhub/frontend && bun run build
-
-# -----------------------------------
-#        Hotloadable Services
-# -----------------------------------
-frontend-hotload fehl:
-	cd src/notifyhub/frontend && bun run dev
-
-frontend-prototype fp:
-	cd src/notifyhub/frontend && bun run prototype
-
-frontend-test-unit ftu:
-	cd src/notifyhub/frontend && bun test
 
 # -----------------------------------
 #              TUI
@@ -76,41 +58,11 @@ send-backend-bark sbb: ARGS?=Test from make send-backend-bark [\#opencode.questi
 send-backend-bark sbb:
 	@./local/send-backend-noti.py '$(ARGS)'
 
-chrome:
-	mkdir -p exp/chrome-dev-profile && \
-	open -a "Google Chrome" --args \
-	--remote-debugging-port=9111 \
-	--force-device-scale-factor=1.5 \
-	--user-data-dir=${PWD}/exp/chrome-dev-profile
-
-vivaldi:
-	mkdir -p exp/vivaldi-dev-profile && \
-	open -a "Vivaldi" --args \
-	--remote-debugging-port=9222 \
-	--user-data-dir=${PWD}/exp/vivaldi-dev-profile
-
-vivaldi-beta:
-	mkdir -p ${PWD}/exp/vivaldi-beta-dev-profile && \
-	open -a "Vivaldi Snapshot" --args \
-	--remote-debugging-port=9221 \
-	--user-data-dir=${PWD}/exp/vivaldi-beta-dev-profile
-
 # -----------------------------------
 #             Testing
 # -----------------------------------
-test-all ta: test-chrome test-backend test-frontend test-frontend-hotload
-
-test-chrome tc:
-	cd src/notifyhub/frontend && npx tsx __tests__/ui/utils/test_chrome_connection.ts
-
-test-backend tbe:
+test-all ta test-backend tbe:
 	python -m pytest tests/notifyhub -v
-
-test-frontend tfe:
-	cd src/notifyhub/frontend && ./__tests__/run.py prod
-
-test-frontend-hotload tfehl:
-	cd src/notifyhub/frontend && ./__tests__/run.py dev
 
 # -----------------------------------
 #        Plugin Management

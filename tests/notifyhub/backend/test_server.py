@@ -195,23 +195,6 @@ class TestDeleteNotificationsAPI:
         assert "Third" in remaining_messages
 
 
-class TestRootEndpoint:
-
-    def test_root_get_returns_html(self, client):
-        response = client.get("/")
-
-        assert response.status_code == 200
-        assert "text/html" in response.headers["content-type"]
-        assert "NotifyHub" in response.text
-
-    def test_root_serves_react_app(self, client):
-        response = client.get("/")
-
-        # Should contain the React app mounting point
-        assert '<div id="root"></div>' in response.text
-        assert '<script type="module" src="/static/app.js"></script>' in response.text
-
-
 class TestE2EEncryption:
     """e2e enabled: storage + API responses carry only envelopes."""
 

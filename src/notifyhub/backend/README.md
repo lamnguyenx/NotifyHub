@@ -1,8 +1,8 @@
 # NotifyHub Backend
 
 FastAPI app serving the notification REST API, the SSE stream and the live agent-status store.
-Run it with `make backend` (port `9080` by default) or
-`python -m notifyhub.backend.backend`.
+It serves **no HTML or static files** — the TUI is the interactive client. Run it with
+`make backend` (port `9080` by default) or `python -m notifyhub.backend.backend`.
 
 ## Files
 
@@ -27,4 +27,9 @@ Operator guide: [`docs/important/agent-status.md`](../../../docs/important/agent
 - [Host-precedence plan](../../../docs/plans/2026/11/11/2026-11-11-agent-status-host-header-backend.md)
 - [CLI plan](../../../docs/plans/2026/11/11/2026-11-11-agent-status-host-header-cli.md)
 - [Plugin plan](../../../docs/plans/2026/11/11/2026-11-11-agent-status-host-header-plugins.md)
-- [Backend configuration](../../../README.md#11-backend-configuration)
+- [Backend configuration](../../../README.md#6-backend-configuration)
+
+## 2026-11-12 session record
+
+- [Module changes, trials, errors, and lessons](../../../docs/plans/2026/11/12/2026-11-12-drop-web-ui-backend.md)
+- [Full session and module map](../../../docs/plans/2026/11/12/2026-11-12-drop-web-ui.md)
