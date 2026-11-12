@@ -39,7 +39,9 @@ payload on stdin goes straight to the server (which extracts `session_id`/`cwd`/
 so the per-tool-call path pays no python startup. They resolve the backend via
 `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` like the push CLI, and `${VAR-default}`
 expansion keeps the documented empty-host mute working. They also send
-`X-NotifyHub-Host: $(hostname)`: the raw hook payload has no machine field, and without the
+`X-NotifyHub-Host` using the same label as the push CLI: trimmed `HOST_MODEL` (except empty or
+`Unknown`), then exported `HOSTNAME`, then the OS hostname. This keeps live and completed cards
+consistent (for example, `HOST_MODEL=MS-7E70`). The raw hook payload has no machine field; without the
 header the backend stamps the request's client IP (often a Docker bridge address). Re-run
 `make install-plugin-claude` after upgrading so the installed settings carry the header.
 
@@ -69,11 +71,10 @@ Notes on fidelity to the OpenCode plugin:
 ## Installation
 
 ```bash
-# 1. The push script is shared with the OpenCode plugin target
-make install-plugin                  # copies notifyhub-push.py to ~/.config/opencode/plugin/
+make install-plugin                  # installs OpenCode, Claude, and Codex together
 
-# 2. Wire the hooks into ~/.claude/settings.json
-make install-plugin-claude           # or: python3 src/notifyhub/plugins/claude/install.py
+# To update only this integration (shared push CLI already installed):
+make install-plugin-claude
 
 # restart Claude Code sessions, then verify: /hooks → user settings → Stop / StopFailure / Notification
 make remove-plugin-claude            # uninstall
@@ -132,3 +133,12 @@ Manual verification against a running server: `make backend`, then run a Claude 
   — raw status hook machine name, 2026-11-11
 - [OpenCode plugin](../opencode) — the v2 plugin this port mirrors
 - [Claude Code hooks reference](https://docs.claude.com/en/docs/claude-code/hooks)
+
+## 2026-11-12 session record
+
+- [Module changes, trials, errors, and lessons](../../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-claude.md)
+- [Full session and module map](../../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions.md)
+- [Installation and rollout](../../../../docs/important/plugin-installation.md)
+- [Shared machine label contract](../../../../docs/important/notification-machine-labels.md)
+- [Focused regression checks](../../../../docs/important/plugin-integration-testing.md)
+- [Hook-definition submodule](hooks/README.md) and its [session record](../../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-claude-hooks.md)

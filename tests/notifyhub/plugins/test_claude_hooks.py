@@ -70,7 +70,7 @@ class TestInstaller:
             # `${VAR-default}` (no colon) keeps the empty-string mute working.
             assert "${NOTIFYHUB_CLI_HOST-127.0.0.1}" in command
             # The raw hook payload has no machine name; send it in a header.
-            assert "x-notifyhub-host: $(hostname)" in command
+            assert "x-notifyhub-host: $m" in command
 
         stripped = install.strip_hooks(hooks)
         assert "UserPromptSubmit" not in stripped
@@ -90,4 +90,4 @@ class TestPluginLayout:
         for event in ("UserPromptSubmit", "PostToolUse"):
             command = data["hooks"][event][0]["hooks"][0]["command"]
             assert "/api/status/claude/running" in command
-            assert "x-notifyhub-host: $(hostname)" in command
+            assert "x-notifyhub-host: $m" in command

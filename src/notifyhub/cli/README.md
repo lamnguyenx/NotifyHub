@@ -14,16 +14,16 @@ it; an exported-empty host or port is the mute switch. `NOTIFYHUB_CLI_ENABLED=fa
 
 `data.host_model` is resolved as:
 
-1. `HOST_MODEL` — explicit label/model override.
-2. Exported `HOSTNAME`.
+1. Trimmed `HOST_MODEL` — explicit label/model override, except empty or exactly `Unknown`.
+2. Trimmed exported `HOSTNAME`.
 3. `socket.gethostname()` — OS fallback (bash does not export `HOSTNAME` by default).
 
-With no explicit `HOST_MODEL`, this is the machine name and matches the waiting card's `host` pill
-on the TUI. Setting `HOST_MODEL` intentionally overrides the completed notification's tag (for
-example with a model name).
+OpenCode, Claude, and Codex live-status reporters use the same precedence, so their waiting cards
+and completed notifications carry the same label.
 
-The OpenCode/Claude/Codex installers copy this file to
-`~/.config/opencode/plugin/notifyhub-push.py`. Re-run `make install-plugin` after changing it.
+`make install-plugin-copy` copies this file to `~/.config/opencode/plugin/notifyhub-push.py` alongside
+OpenCode. `make install-plugin` runs that copy step first, then registers Claude and Codex hooks.
+Re-run the aggregate target after upgrading; the per-agent hook installers do not copy the CLI.
 
 ## Tests
 
@@ -34,3 +34,11 @@ The OpenCode/Claude/Codex installers copy this file to
 - [CLI plan](../../../docs/plans/2026/11/11/2026-11-11-agent-status-host-header-cli.md)
 - [CLI usage](../../../README.md#15-cli-usage)
 - [Funnel push guide](../../../docs/important/funnel-remote-push.md)
+
+## 2026-11-12 session record
+
+- [Module changes, trials, errors, and lessons](../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-cli.md)
+- [Full session and module map](../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions.md)
+- [Installation and rollout](../../../docs/important/plugin-installation.md)
+- [Shared machine label contract](../../../docs/important/notification-machine-labels.md)
+- [Focused regression checks](../../../docs/important/plugin-integration-testing.md)

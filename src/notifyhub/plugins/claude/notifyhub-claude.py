@@ -221,6 +221,13 @@ def push(message: str, directory: tp.Optional[str], timeout: float = DEFAULT_PUS
 _DIRECT_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
+def machine_label() -> str:
+    label = os.environ.get("HOST_MODEL", "").strip()
+    if label in ("", "Unknown"):
+        label = os.environ.get("HOSTNAME", "").strip() or socket.gethostname().strip()
+    return label
+
+
 def post_status(payload: tp.Dict[str, tp.Any], state: str) -> None:
     """Best-effort lifecycle report to POST /api/status/claude/<state>.
 
@@ -240,7 +247,8 @@ def post_status(payload: tp.Dict[str, tp.Any], state: str) -> None:
         {
             "session_id": session,
             "cwd": payload.get("cwd"),
-            "host": socket.gethostname(),
+            # Match the shared push CLI so live and completed cards agree.
+            "host": machine_label(),
         }
     ).encode()
     request = urllib.request.Request(

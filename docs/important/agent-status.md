@@ -44,16 +44,17 @@ SSE  agent_status                    → one entry per meaningful change (new se
 
 | Agent | running | blocked | idle |
 |---|---|---|---|
-| **opencode** (resident plugin — lifecycle authority) | `session.execution.started`, `permission.replied` (+ task excerpt) | `permission.asked`, `form.created` | `session.idle`, `session.execution.succeeded/failed/interrupted` |
+| **opencode** (resident plugin — lifecycle authority) | `session.execution.started`, `permission.replied` (+ task excerpt) | `permission.asked` after the one-second grace period and pending check; `form.created` immediately | `session.idle`, `session.execution.succeeded/failed/interrupted` |
 | **claude** (hooks) | `UserPromptSubmit` / `PostToolUse` → curl one-liner | `Notification` (permission/elicitation/agent_needs_input) | `Stop` / `StopFailure` |
-| **codex** (hooks) | `UserPromptSubmit` → curl one-liner; `PostModelRequest` heartbeat | `PermissionRequest` (human-reviewer only), `request_user_input` | `Stop` / `Interrupt` |
+| **codex** (hooks) | `UserPromptSubmit` → Unix curl / Windows Python reporter; `PostModelRequest` heartbeat | `PermissionRequest` (human-reviewer only), `request_user_input` | `Stop` / `Interrupt` |
 
 Common properties:
 
 - **Thin curl hooks**: `UserPromptSubmit`/`PostToolUse` are inline
   `sh -c 'curl --data-binary @- "$s://$h:$p/api/status/<agent>/running"'` commands — the hook
   payload on stdin goes straight to the backend, which extracts `session_id`/`cwd`/the prompt
-  itself. No interpreter startup on the hot path.
+  itself. Unix running hooks avoid interpreter startup; Codex on Windows uses its Python reporter
+  and forwards the turn-start prompt.
 - **Backend address** comes from `NOTIFYHUB_CLI_HOST` / `_PORT` / `_SCHEME` (same as the push
   CLI), and `${VAR-default}` expansion keeps the documented empty-host **mute** working.
 - **Failures are silent by design** — status is best-effort and must never delay or fail a turn.
@@ -62,11 +63,17 @@ Common properties:
 
 ## Install / upgrade
 
-Nothing new to install: the status reporting ships inside the existing integrations — re-run the
-installer for claude/codex after upgrading (`make install-plugin-claude`, `make
-install-plugin-codex`) and `make install-plugin` for opencode. Claude Code needs a session
-restart; **a long-lived opencode server/TUI keeps the previously-loaded plugin instance until it
-restarts**. Codex may ask to re-trust the changed `hooks.json` (via `/hooks` in a session).
+Run `make install-plugin` to refresh OpenCode, the shared push CLI, and both hook integrations.
+Individual targets remain available; see [installation and rollout](plugin-installation.md).
+Restart Claude and long-lived OpenCode processes, and review changed Codex hooks through `/hooks`.
+
+All live reporters now match the CLI's display label precedence: trimmed `HOST_MODEL` (except
+empty or `Unknown`), exported `HOSTNAME`, then OS hostname. See [machine labels](notification-machine-labels.md).
+
+OpenCode permission alerts and `blocked` status wait one second, cancel on matching replies, and
+check the pending API before reporting. Autoaccept is implemented in the TUI after the ask event;
+a slow client can still leave a pending request long enough to alert. The plugin retains public
+session/context APIs and does not read the database directly. See [OpenCode behavior](opencode-plugin.md).
 
 ## Reading it
 
@@ -101,3 +108,10 @@ for e in json.load(sys.stdin)['agents']:
 | codex status missing | Hooks not trusted yet: `/hooks` in a codex session; or `~/.codex/config.toml` has inline `[hooks]` tables the installer defers to. |
 | Entry stuck `stale` | The agent died without an idle event (crash/kill) — expected after 5 min; a fresh prompt clears it. |
 | Status works, notifications don't (or vice versa) | They are independent channels (curl vs push script) — check `NOTIFYHUB_PUSH_SCRIPT` exists and the backend log. |
+
+## 2026-11-12 records
+
+- [Parent session and module map](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions.md)
+- [Plugin parent](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-plugins.md)
+- [CLI contract](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-cli.md)
+- [Focused tests](plugin-integration-testing.md)

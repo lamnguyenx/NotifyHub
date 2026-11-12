@@ -118,7 +118,9 @@ test-frontend-hotload tfehl:
 check-plugin:
 	ls -ltra ~/.config/opencode/plugin/
 
+# Install the shared push CLI before registering hooks that use it.
 install-plugin: install-plugin-copy
+	$(MAKE) install-plugin-claude install-plugin-codex
 
 install-plugin-symlink:
 	@echo "Installing NotifyHub plugin to OpenCode..."

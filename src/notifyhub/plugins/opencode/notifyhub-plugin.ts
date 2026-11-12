@@ -11,6 +11,8 @@ type SessionMessage = Awaited<ReturnType<PluginContext["session"]["context"]>>[n
 const MAX_LINES = 5
 const MAX_CHARS = 200
 const MAX_CHARS_TOLERANCE = 8
+// The TUI implements autoaccept by replying after permission.asked is published.
+const PERMISSION_NOTIFICATION_DELAY_MS = 1_000
 
 // Mirrors python booleanify (github.com/lamnguyenx/booleanify) — the same truth table
 // the NotifyHub CLI uses for NOTIFYHUB_CLI_ENABLED. `undefined` = unset, empty, or
@@ -297,6 +299,11 @@ type AgentState = "running" | "idle" | "blocked"
 /** Last state posted per session, so identical reports are not re-sent. */
 const lastPostedState = new Map<string, AgentState>()
 
+function machineLabel(): string {
+  const label = process.env.HOST_MODEL?.trim()
+  return label && label !== "Unknown" ? label : process.env.HOSTNAME?.trim() || hostname().trim()
+}
+
 function statusEndpoint(): string {
   const scheme = process.env.NOTIFYHUB_CLI_SCHEME || "http"
   const host = process.env.NOTIFYHUB_CLI_HOST || "0.0.0.0"
@@ -311,6 +318,7 @@ async function reportStatus(
   ctx: PluginContext,
   sessionID: string | undefined,
   state: AgentState,
+  isCurrent: () => boolean = () => true,
 ): Promise<void> {
   if (!sessionID || notificationsMuted()) return
   if (lastPostedState.get(sessionID) === state) return
@@ -332,6 +340,7 @@ async function reportStatus(
     }
   }
 
+  if (!isCurrent()) return
   lastPostedState.set(sessionID, state)
   try {
     // 3s deadline: status is best-effort and must never delay a turn.
@@ -342,7 +351,7 @@ async function reportStatus(
       body: JSON.stringify({
         session_id: sessionID,
         pwd: directory,
-        host: hostname(),
+        host: machineLabel(),
         ...(task ? { task } : {}),
       }),
       signal,
@@ -413,6 +422,52 @@ const plugin: Plugin.Plugin = {
   id: "notifyhub",
   setup: async (ctx) => {
     const controller = new AbortController()
+    const permissions = new Map<string, {
+      sessionID: string
+      timer: ReturnType<typeof setTimeout>
+      notified: boolean
+    }>()
+
+    function cancelPermission(requestID: string): void {
+      const pending = permissions.get(requestID)
+      if (pending) clearTimeout(pending.timer)
+      permissions.delete(requestID)
+    }
+
+    function cancelSessionPermissions(sessionID: string): void {
+      for (const [requestID, pending] of permissions) {
+        if (pending.sessionID === sessionID) cancelPermission(requestID)
+      }
+    }
+
+    function schedulePermission(sessionID: string, requestID: string): void {
+      if (notificationsMuted() || permissions.has(requestID)) return
+      const pending = {
+        sessionID,
+        notified: false,
+        timer: setTimeout(() => {
+          void (async () => {
+            const isCurrent = () => !controller.signal.aborted && permissions.get(requestID) === pending
+            const directory = await ownedSessionDirectory(ctx, sessionID)
+            if (!directory || !isCurrent()) return
+            // Query the public API as a second check in case a reply event was missed.
+            const requests = await ctx.permission.list({ sessionID })
+            if (!isCurrent() || !requests.some((request) => request.id === requestID)) {
+              cancelPermission(requestID)
+              return
+            }
+            await reportStatus(ctx, sessionID, "blocked", isCurrent)
+            if (!isCurrent()) return
+            pending.notified = true
+            notifyhubPush("[#opencode.permission] OpenCode needs your permission", directory, sessionID)
+          })().catch((error) => {
+            cancelPermission(requestID)
+            if (!controller.signal.aborted) console.error(`NotifyHub permission notification error: ${error}`)
+          })
+        }, PERMISSION_NOTIFICATION_DELAY_MS),
+      }
+      permissions.set(requestID, pending)
+    }
 
     const subscription = (async () => {
       for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
@@ -424,6 +479,7 @@ const plugin: Plugin.Plugin = {
             }
             case "session.execution.succeeded":
             case "session.execution.interrupted": {
+              cancelSessionPermissions(event.data.sessionID)
               await reportStatus(ctx, event.data.sessionID, "idle")
               const directory = await ownedSessionDirectory(ctx, event.data.sessionID)
               if (!directory) break
@@ -432,6 +488,7 @@ const plugin: Plugin.Plugin = {
               break
             }
             case "session.execution.failed": {
+              cancelSessionPermissions(event.data.sessionID)
               await reportStatus(ctx, event.data.sessionID, "idle")
               const directory = await ownedSessionDirectory(ctx, event.data.sessionID)
               if (!directory) break
@@ -439,19 +496,20 @@ const plugin: Plugin.Plugin = {
               break
             }
             case "session.idle": {
+              cancelSessionPermissions(event.data.sessionID)
               await reportStatus(ctx, event.data.sessionID, "idle")
               break
             }
             case "permission.asked": {
-              await reportStatus(ctx, event.data.sessionID, "blocked")
-              const directory = await ownedSessionDirectory(ctx, event.data.sessionID)
-              if (!directory) break
-              notifyhubPush("[#opencode.permission] OpenCode needs your permission", directory, event.data.sessionID)
+              // Keep consuming events so autoaccept's reply can cancel the alert.
+              schedulePermission(event.data.sessionID, event.data.id)
               break
             }
             case "permission.replied": {
-              // Once/always resume the turn; reject surfaces its own follow-up
-              // (session.idle / execution.*), which will settle the state.
+              cancelPermission(event.data.requestID)
+              if ([...permissions.values()].some((pending) =>
+                pending.sessionID === event.data.sessionID && pending.notified)) break
+              // Reject settles through the following idle/execution event.
               await reportStatus(ctx, event.data.sessionID, "running")
               break
             }
@@ -475,7 +533,10 @@ const plugin: Plugin.Plugin = {
       }
     })
 
-    return () => controller.abort()
+    return () => {
+      controller.abort()
+      for (const requestID of permissions.keys()) cancelPermission(requestID)
+    }
   },
 }
 

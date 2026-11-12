@@ -338,6 +338,9 @@ class TestStatusEvents:
             is None
         )
 
+    def test_prompt_submit_running(self):
+        assert hook.status_event({"hook_event_name": "UserPromptSubmit"}) == "running"
+
     def test_model_request_is_running_heartbeat(self):
         for status in ("failed", "completed", "cancelled"):
             assert (
@@ -403,8 +406,8 @@ class TestInstaller:
         handler = merged["UserPromptSubmit"][0]["hooks"][0]
         assert install.STATUS_HOOK_MARKER in handler["command"]
         # The raw hook payload has no machine name; send it in a header.
-        assert "x-notifyhub-host: $(hostname)" in handler["command"]
-        assert "x-notifyhub-host: %COMPUTERNAME%" in handler["commandWindows"]
+        assert "x-notifyhub-host: $m" in handler["command"]
+        assert "notifyhub-codex.py" in handler["commandWindows"]
 
         stripped = install.strip_hooks(merged)
         assert "UserPromptSubmit" not in stripped
@@ -513,8 +516,8 @@ class TestPluginLayout:
         # The status one-liner pipes stdin straight to the backend's status API.
         handler = data["hooks"]["UserPromptSubmit"][0]["hooks"][0]
         assert "/api/status/codex/running" in handler["command"]
-        assert "x-notifyhub-host: $(hostname)" in handler["command"]
-        assert "x-notifyhub-host: %COMPUTERNAME%" in handler["commandWindows"]
+        assert "x-notifyhub-host: $m" in handler["command"]
+        assert "notifyhub-codex.py" in handler["commandWindows"]
 
     def test_plugin_manifest_points_at_hooks(self):
         data = json.loads(

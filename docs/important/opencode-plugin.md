@@ -20,7 +20,7 @@ The Claude Code counterpart (hooks port) lives at `src/notifyhub/plugins/claude/
 
 ```bash
 # From the NotifyHub repo root
-make install-plugin        # copies notifyhub-plugin.ts + notifyhub-push.py
+make install-plugin        # installs OpenCode, shared push CLI, Claude, and Codex
 make backend               # start the server (if not already running)
 
 opencode plugin list       # verify: id "notifyhub", state "active"
@@ -31,8 +31,8 @@ opencode plugin list       # verify: id "notifyhub", state "active"
 - `make check-plugin` — show what is installed in `~/.config/opencode/plugin/`
 
 OpenCode v2 discovers plugins from `plugin` or `plugins` directories under the config dir (global), and
-`.opencode/plugins/` (project). It **watches the directory and hot-reloads changed plugin files** — no
-restart needed for edits.
+`.opencode/plugins/` (project). It watches plugin directories for changes. Restart long-lived server/TUI instances after upgrades
+to ensure they load the changed plugin; a watched-file update does not guarantee every running instance refreshed.
 
 ## Behavior
 
@@ -42,6 +42,19 @@ restart needed for edits.
 | `session.execution.failed` | `[#opencode.error] <error message>` |
 | `permission.asked` | `[#opencode.permission] OpenCode needs your permission` |
 | `form.created` | `[#opencode.question] OpenCode is asking you a question` |
+
+Permission alerts and `blocked` status wait one second after `permission.asked`. A matching
+`permission.replied` cancels the pending alert; the plugin also checks `ctx.permission.list`
+before notifying. This gives the TUI's autoaccept reply time to settle without producing a false
+permission notification. The event loop keeps consuming replies during the wait. Idle/completion
+and plugin disposal cancel pending alerts, and another outstanding permission keeps the session
+blocked when one request is answered.
+
+This is a notification grace period: if a client takes longer than one second to auto-reply, a
+still-pending request can notify. The server plugin cannot read the TUI's per-session autoaccept
+mode. A `ctx.permission.hook("evaluate")` callback runs before that client reply, so it cannot
+identify whether the TUI will answer automatically. NotifyHub observes permissions without
+changing their decisions.
 
 The message body is read through `ctx.session.context({ sessionID })` and truncated to the **last 5 lines
 and 200 characters**, snapping to the nearest space/newline in an 8-character window and prefixing
@@ -60,13 +73,14 @@ stream) and reports live state to `POST /api/status/opencode/<state>` in-process
 | OpenCode v2 event | Status |
 |---|---|
 | `session.execution.started` | `running` (attaches a ≤160-char task excerpt read from the session context) |
-| `permission.asked` / `form.created` | `blocked` |
+| `permission.asked` / `form.created` | `blocked` (permissions only after the grace period and pending check) |
 | `permission.replied` | `running` |
 | `session.idle` / `session.execution.succeeded` / `failed` / `interrupted` | `idle` |
 
 Identical consecutive states are deduped locally; a backend that is down is silently ignored.
-The status body already carries `host: hostname()`, so the TUI waiting card shows the machine name
-without the `X-NotifyHub-Host` header the raw Claude/Codex hooks need.
+The status body carries `host` using the shared CLI precedence: trimmed `HOST_MODEL` (except
+empty or `Unknown`), exported `HOSTNAME`, then OS hostname. Live and completed cards use the same
+label, such as `MS-7E70`, without requiring a host header.
 Completion pushes now also stamp `NOTIFYHUB_SESSION_ID` (see
 [`agent-status.md`](agent-status.md)), so the TUI waiting card resolves when the
 notification lands ([waiting cards plan](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md)).
@@ -198,3 +212,17 @@ Then drive it over the API (Basic auth `opencode:testpass`):
 - `permission.updated` no longer exists.
 - `opencode-trace.py` was retired: v2 replaced `session` / `message` / `part` with `session_v2` /
   `session_message`; the notification body now comes from the plugin session API.
+
+OpenCode plugin regression checks (no live server or model requests):
+
+```bash
+bun test ./tests/notifyhub/plugins/opencode_plugin.test.ts
+npm run typecheck --prefix src/notifyhub/plugins/opencode
+```
+
+## Current maintenance references
+
+- [Install all integrations](plugin-installation.md)
+- [Machine labels](notification-machine-labels.md)
+- [Isolated regression checks](plugin-integration-testing.md)
+- [2026-11-12 module record](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-opencode.md)

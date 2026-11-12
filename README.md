@@ -362,6 +362,18 @@ Then add the key next to your other settings in `~/.config/notifyhub/config.json
 Both the server and the TUI read it from there (`NOTIFYHUB_E2E_KEY` env
 overrides). See [Backend Configuration](#11-backend-configuration) for details.
 
+### Coding-agent integration maintenance
+
+`make install-plugin` refreshes OpenCode, the shared push CLI, Claude, and Codex together.
+Restart Claude and long-lived OpenCode processes; review changed Codex definitions via `/hooks`.
+See [installation and rollout](docs/important/plugin-installation.md),
+[machine label precedence](docs/important/notification-machine-labels.md), and
+[isolated regression checks](docs/important/plugin-integration-testing.md).
+
+The [2026-11-12 session record](docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions.md) links the parent and all affected submodules,
+including hook-definition distributions, CLI contract, and tests. It records the hostname/label
+mismatch, aggregate installation change, OpenCode autoaccept race, actual verification, and limits.
+
 ### OpenCode Plugin Installation (Optional)
 
 The repo ships a plugin for **OpenCode v2.0.18+** that pushes turn completions, errors, permission prompts,
@@ -376,11 +388,20 @@ for the full guide.
 | `form.created` (the `question` tool) | `[#opencode.question] OpenCode is asking you a question` |
 
 ```bash
-make install-plugin   # copies notifyhub-plugin.ts + notifyhub-push.py to ~/.config/opencode/plugin/
+make install-plugin   # installs OpenCode + shared push CLI + Claude and Codex hooks
 make backend          # start the NotifyHub server
 opencode plugin list  # verify: id "notifyhub", state "active"
 make remove-plugin    # uninstall
 ```
+
+`make install-plugin` installs all three integrations. For individual updates, use
+`make install-plugin-copy` (OpenCode and the shared CLI), `make install-plugin-claude`, or
+`make install-plugin-codex`. Restart Claude sessions and trust Codex hooks via `/hooks` after
+installation.
+
+Permission alerts wait one second for autoaccept replies and check the request is still pending
+before notifying. OpenCode status cards use the same `HOST_MODEL` → `HOSTNAME` → OS hostname
+label as completed notifications.
 
 The plugin is a **dependency-free single file** (type-only import of `@opencode/plugin`, so no
 `node_modules` is needed in `~/.config/opencode`), hot-reloads when the installed file changes, and reads
@@ -408,12 +429,15 @@ per event, plus a merge-preserving settings installer and a plugin-layout altern
 | `Notification` (elicitation / `agent_needs_input`) | `[#claude-code.question] <message>` |
 
 ```bash
-make install-plugin         # once, if not already done: installs the shared notifyhub-push.py
-make install-plugin-claude  # merges the hooks into ~/.claude/settings.json
+make install-plugin         # installs OpenCode, Claude, and Codex integrations together
 make backend                # start the NotifyHub server
 # restart Claude Code sessions, then verify with /hooks
 make remove-plugin-claude   # uninstall
 ```
+
+Claude live-status and completion cards use the same machine label: `HOST_MODEL` (ignoring empty
+or `Unknown`), then exported `HOSTNAME`, then the OS hostname. Re-run `make install-plugin-claude`
+and restart Claude sessions after upgrading the inline status hooks.
 
 Hooks run straight from `src/notifyhub/plugins/claude/notifyhub-claude.py` (live edits, no
 reinstall), share `notifyhub-push.py` and the mute env vars with the OpenCode plugin, and the
@@ -421,6 +445,10 @@ directory doubles as a Claude Code plugin (`claude --plugin-dir src/notifyhub/pl
 Port history: [`docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md`](docs/plans/2026/10/23/2026-10-23-claude-code-hooks-port.md).
 
 ### OpenAI Codex Hooks (Optional)
+
+Codex live-status cards use the same `HOST_MODEL` → `HOSTNAME` → OS hostname precedence as
+completion cards. Re-run `make install-plugin-codex` and re-trust changed entries via `/hooks`
+after upgrading.
 
 The same notifications are available for **OpenAI Codex** (hooks are enabled by default) — see
 [`docs/important/codex-hooks.md`](docs/important/codex-hooks.md) for the full guide. Codex also
@@ -435,8 +463,7 @@ spawns hook scripts per event, but requires non-managed hooks to be trusted once
 | `PreToolUse` (`request_user_input`) | `[#codex.question] <question>` |
 
 ```bash
-make install-plugin         # once, if not already done: installs the shared notifyhub-push.py
-make install-plugin-codex   # merges the hooks into ~/.codex/hooks.json
+make install-plugin         # installs OpenCode, Claude, and Codex integrations together
 make backend                # start the NotifyHub server
 # open /hooks in a Codex session and trust the NotifyHub entries
 make remove-plugin-codex    # uninstall

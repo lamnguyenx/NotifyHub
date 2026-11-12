@@ -16,15 +16,14 @@ The OpenAI Codex counterpart (also hook-based, but with a `/hooks` trust gate) l
 ## Requirements
 
 - Claude Code with the hooks system (`/hooks` works in a session)
-- `notifyhub-push.py` on disk — installed once via the OpenCode target: `make install-plugin`
+- `notifyhub-push.py` on disk — installed by `make install-plugin` (all integrations) or `make install-plugin-copy` (OpenCode and shared CLI)
   (it is shared by both integrations; Claude Code needs it but has no separate copy)
 - NotifyHub server reachable per your `~/.config/notifyhub` config
 
 ## Install & verify
 
 ```bash
-make install-plugin          # once, if not already done: installs the shared notifyhub-push.py
-make install-plugin-claude   # merges the NotifyHub hooks into ~/.claude/settings.json
+make install-plugin          # installs OpenCode, Claude, and Codex together
 make backend                 # start the local server, if yours runs locally
 ```
 
@@ -93,7 +92,8 @@ Besides notifications, the hooks report live session state to `POST /api/status/
 
 - The curl hooks resolve the backend via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` (like the push CLI),
   and `${VAR-default}` (no colon) expansion keeps the documented empty-host **mute** working.
-- The same one-liners send `X-NotifyHub-Host: $(hostname)`, because the raw hook payload has no
+- The same one-liners send `X-NotifyHub-Host` using the push CLI label precedence:
+  trimmed `HOST_MODEL` (except empty or `Unknown`), exported `HOSTNAME`, then OS hostname, because the raw hook payload has no
   machine field and the backend would otherwise record the request's client IP (often a Docker
   bridge address). Re-run `make install-plugin-claude` after upgrading to pick up the header.
 - **`Stop`/`StopFailure` run `async: false`** (10s handler timeout, 5s-capped push spawn): `claude -p`
@@ -183,3 +183,11 @@ a `SETTINGS_PATH` patch at it, or use `--dry-run`.
   because a global plugin there receives the shared event stream once per open location).
 - Muted agents (`plugins.opencode.muted_agents`) have no Claude Code counterpart and are not ported.
 - Notification prefixes are `[#claude-code.*]` (vs `[#opencode.*]`) so the dashboards can tell them apart.
+
+## Current maintenance references
+
+- [Install all integrations](plugin-installation.md)
+- [Machine labels](notification-machine-labels.md)
+- [Isolated regression checks](plugin-integration-testing.md)
+- [2026-11-12 module record](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-claude.md)
+- [Hook-definition record](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-claude-hooks.md)

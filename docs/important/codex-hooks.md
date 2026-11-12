@@ -14,15 +14,14 @@ Design notes and the payload-schema research:
 ## Requirements
 
 - Codex with lifecycle hooks (`/hooks` works in a session; hooks are stable and enabled by default)
-- `notifyhub-push.py` on disk — installed once via the OpenCode target: `make install-plugin`
+- `notifyhub-push.py` on disk — installed by `make install-plugin` (all integrations) or `make install-plugin-copy` (OpenCode and shared CLI)
   (shared by all three integrations; Codex needs it but has no separate copy)
 - NotifyHub server reachable per your `~/.config/notifyhub` config
 
 ## Install & verify
 
 ```bash
-make install-plugin          # once, if not already done: installs the shared notifyhub-push.py
-make install-plugin-codex    # merges the NotifyHub hooks into ~/.codex/hooks.json
+make install-plugin          # installs OpenCode, Claude, and Codex together
 make backend                 # start the local server, if yours runs locally
 ```
 
@@ -105,12 +104,14 @@ Details:
 
 The hooks also report live session state to `POST /api/status/codex/<state>` (see
 [`agent-status.md`](agent-status.md)). The raw curl one-liner sends
-`X-NotifyHub-Host: $(hostname)` (Windows: `%COMPUTERNAME%`) so the backend records the machine
+`X-NotifyHub-Host` using the push CLI label precedence: trimmed `HOST_MODEL` (except empty or
+`Unknown`), exported `HOSTNAME`, then OS hostname. Windows uses the Python reporter with the same
+precedence and forwards the turn-start prompt. This lets the backend record the machine
 name rather than the request's client IP, which can be a Docker bridge address:
 
 | Codex hook | Status | How |
 |---|---|---|
-| `UserPromptSubmit` | `running` | inline `sh -c 'curl --data-binary @- …'` hook (async, 3s) — the raw payload goes straight to the backend, which extracts `session_id`/`cwd`/the task excerpt |
+| `UserPromptSubmit` | `running` | Unix: inline `sh -c 'curl --data-binary @- …'`; Windows: Python reporter (async, 3s), forwarding the prompt for task extraction |
 | `PostModelRequest` (every attempt) | `running` | posted in-process by `notifyhub-codex.py` — a heartbeat that also revives entries the backend marked stale |
 | `PermissionRequest` | `blocked` when a human must decide, else `running` | posted by `notifyhub-codex.py`, reusing the `needs_human_permission()` check (`auto_review` approvals are not user-visible blockers) |
 | `PreToolUse` (`request_user_input`) | `blocked` | posted by `notifyhub-codex.py` |
@@ -211,3 +212,11 @@ A synthetic transcript line looks like:
   exposes question notifications directly.
 - Notification prefixes are `[#codex.*]` (vs `[#claude-code.*]`, `[#opencode.*]`) so the dashboards can
   tell them apart.
+
+## Current maintenance references
+
+- [Install all integrations](plugin-installation.md)
+- [Machine labels](notification-machine-labels.md)
+- [Isolated regression checks](plugin-integration-testing.md)
+- [2026-11-12 module record](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-codex.md)
+- [Hook-definition record](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-codex-hooks.md)

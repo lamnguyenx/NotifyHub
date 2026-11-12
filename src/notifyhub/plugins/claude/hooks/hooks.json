@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; p=\"${NOTIFYHUB_CLI_PORT-9080}\"; s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; [ -n \"$h\" ] && [ -n \"$p\" ] && curl -fsS -m 2 -X POST -H \"content-type: application/json\" -H \"x-notifyhub-host: $(hostname)\" --data-binary @- \"$s://$h:$p/api/status/claude/running\" >/dev/null 2>&1; exit 0'",
+            "command": "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; p=\"${NOTIFYHUB_CLI_PORT-9080}\"; s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; m=\"${HOST_MODEL-}\"; m=\"${m#\"${m%%[![:space:]]*}\"}\"; m=\"${m%\"${m##*[![:space:]]}\"}\"; case \"$m\" in \"\"|Unknown) m=\"${HOSTNAME-}\"; m=\"${m#\"${m%%[![:space:]]*}\"}\"; m=\"${m%\"${m##*[![:space:]]}\"}\"; m=\"${m:-$(hostname)}\";; esac; [ -n \"$h\" ] && [ -n \"$p\" ] && curl -fsS -m 2 -X POST -H \"content-type: application/json\" -H \"x-notifyhub-host: $m\" --data-binary @- \"$s://$h:$p/api/status/claude/running\" >/dev/null 2>&1; exit 0'",
             "async": true
           }
         ]
@@ -56,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; p=\"${NOTIFYHUB_CLI_PORT-9080}\"; s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; [ -n \"$h\" ] && [ -n \"$p\" ] && curl -fsS -m 2 -X POST -H \"content-type: application/json\" -H \"x-notifyhub-host: $(hostname)\" --data-binary @- \"$s://$h:$p/api/status/claude/running\" >/dev/null 2>&1; exit 0'",
+            "command": "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; p=\"${NOTIFYHUB_CLI_PORT-9080}\"; s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; m=\"${HOST_MODEL-}\"; m=\"${m#\"${m%%[![:space:]]*}\"}\"; m=\"${m%\"${m##*[![:space:]]}\"}\"; case \"$m\" in \"\"|Unknown) m=\"${HOSTNAME-}\"; m=\"${m#\"${m%%[![:space:]]*}\"}\"; m=\"${m%\"${m##*[![:space:]]}\"}\"; m=\"${m:-$(hostname)}\";; esac; [ -n \"$h\" ] && [ -n \"$p\" ] && curl -fsS -m 2 -X POST -H \"content-type: application/json\" -H \"x-notifyhub-host: $m\" --data-binary @- \"$s://$h:$p/api/status/claude/running\" >/dev/null 2>&1; exit 0'",
             "async": true
           }
         ]

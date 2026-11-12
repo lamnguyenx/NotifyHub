@@ -32,7 +32,7 @@ to `POST /api/status/opencode/<state>` in-process, no spawn — operator guide:
 | `session.execution.started` | `running` (attaches a truncated excerpt of the prompt as the task) |
 | `session.idle` | `idle` |
 | `session.execution.succeeded` / `failed` / `interrupted` | `idle` |
-| `permission.asked`, `form.created` | `blocked` |
+| `permission.asked`, `form.created` | `blocked` (permissions only after the grace period and pending check) |
 | `permission.replied` | `running` (reject settles via the following `session.idle` / execution event) |
 
 Identical consecutive reports are skipped locally; a backend that is down is
@@ -41,8 +41,24 @@ on the notification) so consumers can resolve the running row when the card land
 A long-lived opencode server/TUI keeps the previously-loaded plugin instance until
 it restarts.
 
+Permission alerts and `blocked` status wait one second after `permission.asked`. A matching
+`permission.replied` cancels the pending alert; the plugin also checks `ctx.permission.list`
+before notifying. This gives the TUI's autoaccept reply time to settle without producing a false
+permission notification. The event loop keeps consuming replies during the wait. Idle/completion
+and plugin disposal cancel pending alerts, and another outstanding permission keeps the session
+blocked when one request is answered.
+
+This is a notification grace period: if a client takes longer than one second to auto-reply, a
+still-pending request can notify. The server plugin cannot read the TUI's per-session autoaccept
+mode. A `ctx.permission.hook("evaluate")` callback runs before that client reply, so it cannot
+identify whether the TUI will answer automatically. NotifyHub observes permissions without
+changing their decisions.
+
 Turn-completion bodies are read through `ctx.session.context({ sessionID })` and truncated to the last
 5 lines / 200 characters (the same rules the retired `opencode-trace.py --notifyhub` preset used).
+
+Status `host` uses the shared CLI precedence: trimmed `HOST_MODEL` (except empty or `Unknown`),
+exported `HOSTNAME`, then OS hostname.
 
 The `pwd` sent to NotifyHub (shown as the notification's directory tag) is the **session's** directory,
 resolved through `ctx.session.get({ sessionID })`. `notifyhub-push.py` is spawned with that directory
@@ -68,7 +84,8 @@ make backend
 open http://localhost:9080
 ```
 
-`make install-plugin` copies two files into `~/.config/opencode/plugin/`:
+`make install-plugin` installs OpenCode, Claude, and Codex together. Its OpenCode step copies
+two files into `~/.config/opencode/plugin/`:
 
 - `notifyhub-plugin.ts` — the OpenCode v2 plugin
 - `notifyhub-push.py` — the NotifyHub CLI entrypoint the plugin spawns
@@ -83,7 +100,8 @@ opencode plugin list
 
 **Management:**
 
-- `make install-plugin` — copy the plugin and push script
+- `make install-plugin` — install all three integrations
+- `make install-plugin-copy` — copy only the OpenCode plugin and shared push script
 - `make install-plugin-symlink` — symlink instead of copy (live edits)
 - `make remove-plugin` — remove the plugin and push script
 - `make check-plugin` — list installed plugin files
@@ -184,3 +202,18 @@ export default plugin
 - [OpenCode v2 plugin guide](../../../../docs/important/opencode-plugin.md) — install, config, gotchas
 - [Migration plan](../../../../docs/plans/2026/09/28/2026-09-28-opencode-v2-plugin-migration.md) — v1 → v2 history
 - [OpenCode Plugin Docs](https://opencode.ai/docs/plugins)
+
+OpenCode plugin regression checks (no live server or model requests):
+
+```bash
+bun test ./tests/notifyhub/plugins/opencode_plugin.test.ts
+npm run typecheck --prefix src/notifyhub/plugins/opencode
+```
+
+## 2026-11-12 session record
+
+- [Module changes, trials, errors, and lessons](../../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-opencode.md)
+- [Full session and module map](../../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions.md)
+- [Installation and rollout](../../../../docs/important/plugin-installation.md)
+- [Shared machine label contract](../../../../docs/important/notification-machine-labels.md)
+- [Focused regression checks](../../../../docs/important/plugin-integration-testing.md)

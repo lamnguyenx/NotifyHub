@@ -38,8 +38,10 @@ The hooks also report live session state to `POST /api/status/codex/<state>`:
 hook payload straight to the server (which extracts `session_id`/`cwd` and the task
 excerpt from the prompt), resolved via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` like
 the push CLI; the other states are posted by `notifyhub-codex.py` in-process
-(`urllib`, proxy-free, 2s timeout). The raw hook also sends `X-NotifyHub-Host: $(hostname)`
-(Windows: `%COMPUTERNAME%`): the piped payload has no machine field, so without it the
+(`urllib`, proxy-free, 2s timeout). Both reporters use the push CLI label precedence:
+trimmed `HOST_MODEL` (except empty or `Unknown`), exported `HOSTNAME`, then the OS hostname.
+The raw Unix hook sends it in `X-NotifyHub-Host`; Windows uses the Python reporter, including
+the turn-start prompt. The piped payload has no machine field, so without the header the
 backend records the request's client IP, often a Docker bridge address. Re-run
 `make install-plugin-codex` after upgrading and re-trust the changed entries via `/hooks`.
 Completion pushes stamp `NOTIFYHUB_SESSION_ID` so notifications correlate with their status
@@ -75,13 +77,12 @@ Notes on fidelity to the OpenCode plugin:
 ## Installation
 
 ```bash
-# 1. The push script is shared with the OpenCode plugin target
-make install-plugin                  # copies notifyhub-push.py to ~/.config/opencode/plugin/
+make install-plugin                  # installs OpenCode, Claude, and Codex together
 
-# 2. Wire the hooks into ~/.codex/hooks.json
-make install-plugin-codex            # or: python3 src/notifyhub/plugins/codex/install.py
+# To update only this integration (shared push CLI already installed):
+make install-plugin-codex
 
-# 3. In a Codex session, open /hooks and trust the NotifyHub entries
+# In a Codex session, open /hooks and trust the NotifyHub entries
 make remove-plugin-codex             # uninstall
 ```
 
@@ -152,3 +153,12 @@ Manual verification against a running server: `make backend`, then run a Codex t
 - [OpenCode plugin](../opencode) — the v2 plugin this port mirrors
 - [Claude Code hooks](../claude) — the sibling hook-based port
 - [Codex hooks reference](https://learn.chatgpt.com/docs/hooks)
+
+## 2026-11-12 session record
+
+- [Module changes, trials, errors, and lessons](../../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-codex.md)
+- [Full session and module map](../../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions.md)
+- [Installation and rollout](../../../../docs/important/plugin-installation.md)
+- [Shared machine label contract](../../../../docs/important/notification-machine-labels.md)
+- [Focused regression checks](../../../../docs/important/plugin-integration-testing.md)
+- [Hook-definition submodule](hooks/README.md) and its [session record](../../../../docs/plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-codex-hooks.md)

@@ -312,6 +312,9 @@ def notification_body(payload: tp.Dict[str, tp.Any]) -> tp.Optional[str]:
         assistant_part = truncate_text(message) if message else fallback
         return f"[#tag:@USER] {user_part}\n[#tag:@ASSISTANT] {assistant_part}"
 
+    if event == "UserPromptSubmit":
+        return "running"
+
     if event == "PostModelRequest":
         # Fires for every model request attempt, including retries. Only a
         # failed attempt is interesting; completed/cancelled attempts are not.
@@ -415,6 +418,13 @@ def push(message: str, directory: tp.Optional[str], timeout: float = DEFAULT_PUS
 _DIRECT_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
+def machine_label() -> str:
+    label = os.environ.get("HOST_MODEL", "").strip()
+    if label in ("", "Unknown"):
+        label = os.environ.get("HOSTNAME", "").strip() or socket.gethostname().strip()
+    return label
+
+
 def post_status(payload: tp.Dict[str, tp.Any], state: str) -> None:
     """Best-effort lifecycle report to POST /api/status/codex/<state>.
 
@@ -434,7 +444,14 @@ def post_status(payload: tp.Dict[str, tp.Any], state: str) -> None:
         {
             "session_id": session,
             "cwd": payload.get("cwd"),
-            "host": socket.gethostname(),
+            "host": machine_label(),
+            # Windows turn-start hooks use this reporter instead of curl.
+            **(
+                {"prompt": payload["prompt"]}
+                if payload.get("hook_event_name") == "UserPromptSubmit"
+                and isinstance(payload.get("prompt"), str)
+                else {}
+            ),
         }
     ).encode()
     request = urllib.request.Request(
@@ -460,6 +477,9 @@ def status_event(payload: tp.Dict[str, tp.Any]) -> tp.Optional[str]:
         if event == "Stop" and payload.get("stop_hook_active"):
             return None
         return "idle"
+
+    if event == "UserPromptSubmit":
+        return "running"
 
     if event == "PostModelRequest":
         # Fires per model request attempt, retries included — a heartbeat

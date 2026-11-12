@@ -76,18 +76,20 @@ def status_curl_handler() -> tp.Dict[str, tp.Any]:
             "sh -c 'h=\"${NOTIFYHUB_CLI_HOST-127.0.0.1}\"; "
             "p=\"${NOTIFYHUB_CLI_PORT-9080}\"; "
             "s=\"${NOTIFYHUB_CLI_SCHEME-http}\"; "
+            "m=\"${HOST_MODEL-}\"; "
+            "m=\"${m#\"${m%%[![:space:]]*}\"}\"; m=\"${m%\"${m##*[![:space:]]}\"}\"; "
+            "case \"$m\" in \"\"|Unknown) "
+            "m=\"${HOSTNAME-}\"; "
+            "m=\"${m#\"${m%%[![:space:]]*}\"}\"; m=\"${m%\"${m##*[![:space:]]}\"}\"; "
+            "m=\"${m:-$(hostname)}\";; esac; "
             "[ -n \"$h\" ] && [ -n \"$p\" ] && "
             "curl -fsS -m 2 -X POST -H \"content-type: application/json\" "
-            "-H \"x-notifyhub-host: $(hostname)\" "
+            "-H \"x-notifyhub-host: $m\" "
             "--data-binary @- \"$s://$h:$p/api/status/codex/running\" "
             ">/dev/null 2>&1; exit 0'"
         ),
-        "commandWindows": (
-            "cmd /c curl -fsS -m 2 -X POST -H \"content-type: application/json\" "
-            "-H \"x-notifyhub-host: %COMPUTERNAME%\" "
-            "--data-binary @- \"%NOTIFYHUB_CLI_SCHEME%://%NOTIFYHUB_CLI_HOST%:"
-            "%NOTIFYHUB_CLI_PORT%/api/status/codex/running\" >nul 2>&1"
-        ),
+        # Use the Python reporter on Windows for the same label precedence.
+        "commandWindows": command_handler(3, async_=True)["commandWindows"],
         "async": True,
         "timeout": 3,
     }
