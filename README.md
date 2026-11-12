@@ -208,7 +208,9 @@ overrides). See [Backend Configuration](#6-backend-configuration) for details.
 ### Coding-agent integration maintenance
 
 `make install-plugin` refreshes OpenCode, the shared push CLI, Claude, and Codex together.
-Restart Claude and long-lived OpenCode processes; review changed Codex definitions via `/hooks`.
+`make install-plugin-ssh` rolls the same set out to SSH hosts picked interactively from
+`~/.ssh/config`. Restart Claude and long-lived OpenCode processes; review changed Codex
+definitions via `/hooks`.
 See [installation and rollout](docs/important/plugin-installation.md),
 [machine label precedence](docs/important/notification-machine-labels.md), and
 [isolated regression checks](docs/important/plugin-integration-testing.md).
@@ -241,6 +243,22 @@ make remove-plugin    # uninstall
 `make install-plugin-copy` (OpenCode and the shared CLI), `make install-plugin-claude`, or
 `make install-plugin-codex`. Restart Claude sessions and trust Codex hooks via `/hooks` after
 installation.
+
+`make install-plugin-ssh` installs the same set on remote machines: hosts are marked right
+in `~/.ssh/config` with a `# notifyhub` comment on the `Host` line (e.g. `Host nuc  # notifyhub`;
+a wildcard line like `Host wsk* # notifyhub` claims every alias it matches), and only those are
+offered in the multi-select. With no markers every host stays eligible. Selected hosts each get
+one tar-over-ssh stream (parallel, one color tag per host). Previous installs are archived
+`__archived__/`-style before being replaced, and the Claude/Codex hook merges run on the host
+itself, so their settings entries reference the persistent copy in
+`~/.config/notifyhub/plugin/`. It needs no prompts when driven by args:
+`make install-plugin-ssh ARGS="-t opencode -H nuc,pp"` (or `ARGS="--all --dry-run"` to print
+the plan; `--ssh-hosts "*"` escapes the marker limit for one run). Remote hosts push back to
+the server through `NOTIFYHUB_CLI_HOST`, which must point at this machine there.
+
+The [2026-11-12 session record](docs/plans/2026/11/12/2026-11-12-install-plugin-ssh.md) links the
+parent and per-area records, covering the installer script, the host-selection design (a config
+glob list that was reverted in favor of the ssh-config marker), and the `make config-md` repair.
 
 Permission alerts wait one second for autoaccept replies and check the request is still pending
 before notifying. OpenCode status cards use the same `HOST_MODEL` → `HOSTNAME` → OS hostname

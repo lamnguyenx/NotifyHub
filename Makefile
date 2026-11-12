@@ -1,4 +1,4 @@
-.PHONY: backend config-md cm e2e-key e2ekey e2e-status e2es plugin-deps test-all ta test-backend tbe install-plugin install-plugin-copy remove-plugin install-plugin-claude remove-plugin-claude install-plugin-codex remove-plugin-codex noti send-simple-bark ssb send-backend-bark sbb tui-deps td tui tui-prototype tp tui-typecheck ttc tui-test tt
+.PHONY: backend config-md cm e2e-key e2ekey e2e-status e2es plugin-deps test-all ta test-backend tbe install-plugin install-plugin-copy remove-plugin install-plugin-ssh install-plugin-claude remove-plugin-claude install-plugin-codex remove-plugin-codex noti send-simple-bark ssb send-backend-bark sbb tui-deps td tui tui-prototype tp tui-typecheck ttc tui-test tt
 
 # -----------------------------------
 #            Dependencies
@@ -10,7 +10,7 @@ plugin-deps:
 #              Config
 # -----------------------------------
 config-md cm:
-	python -c "from notifyhub.config import NotifyHubConfig; NotifyHubConfig.generate_markdown()"
+	python -c "from confstack import generate_config_markdown; from notifyhub.config import NotifyHubConfig; generate_config_markdown(NotifyHubConfig, 'notifyhub')"
 
 # -----------------------------------
 #            E2E encryption
@@ -95,6 +95,17 @@ install-plugin-copy:
 	cp src/notifyhub/cli/cli.py ~/.config/opencode/plugin/notifyhub-push.py
 	ls -ltra ~/.config/opencode/plugin/
 	@echo "Plugin installed! Start NotifyHub server with 'make backend'"
+
+# Interactive: pick integrations (multi-select) and SSH hosts (multi-select,
+# from ~/.ssh/config), then stream the plugin files + agent hook installs over
+# one tar-over-ssh connection per host (same layout as `make install-plugin`).
+# Only `Host` lines marked '# notifyhub' are offered (wildcards expand, e.g.
+# `Host wsk* # notifyhub`); with no markers every host stays eligible.
+#   make install-plugin-ssh
+#   make install-plugin-ssh ARGS="--all --dry-run"
+#   make install-plugin-ssh ARGS="-t opencode -H nuc,pp"
+install-plugin-ssh:
+	@bun local/install-plugin-ssh.ts $(ARGS)
 
 uninstall-plugin remove-plugin rm-plugin:
 	@echo "Removing NotifyHub plugin from OpenCode..."

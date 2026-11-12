@@ -83,6 +83,18 @@
       <td>NOTIFYHUB_BACKEND_DEV_RELOAD</td>
     </tr>
     <tr>
+      <td>e2e.enabled</td>
+      <td>False</td>
+      <td>notifyhub.e2e.enabled</td>
+      <td>NOTIFYHUB_E2E_ENABLED</td>
+    </tr>
+    <tr>
+      <td>e2e.key</td>
+      <td>&#34;&#34;</td>
+      <td>notifyhub.e2e.key</td>
+      <td>NOTIFYHUB_E2E_KEY</td>
+    </tr>
+    <tr>
       <td>cli.host</td>
       <td>&#34;0.0.0.0&#34;</td>
       <td>notifyhub.cli.host</td>
@@ -123,6 +135,12 @@
       <td>True</td>
       <td>notifyhub.cli.enabled</td>
       <td>NOTIFYHUB_CLI_ENABLED</td>
+    </tr>
+    <tr>
+      <td>plugins.opencode.muted_agents</td>
+      <td>[&#39;empty&#39;]</td>
+      <td>notifyhub.plugins.opencode.muted_agents</td>
+      <td>NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS</td>
     </tr>
   </tbody>
 </table>
