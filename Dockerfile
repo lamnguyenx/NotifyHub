@@ -3,14 +3,19 @@ FROM node:18-alpine AS frontend
 
 ARG NPM_EXTRA_ARGS
 ARG PIP_EXTRA_ARGS
+# bun has no npm-style --no-ssl-check flag; it honours
+# NODE_TLS_REJECT_UNAUTHORIZED instead. Set this to 0 when npm needs
+# NPM_EXTRA_ARGS=--no-ssl-check (e.g. behind a TLS-intercepting proxy).
+ARG BUN_TLS_REJECT_UNAUTHORIZED
 
 WORKDIR /app
 
     COPY src/notifyhub/frontend/package*.json ./
 
     RUN --mount=type=cache,target=/root/.npm \
+        --mount=type=cache,target=/root/.bun/install/cache \
         npm install -g bun ${NPM_EXTRA_ARGS} && \
-        bun install ${NPM_EXTRA_ARGS}
+        NODE_TLS_REJECT_UNAUTHORIZED=${BUN_TLS_REJECT_UNAUTHORIZED:-1} bun install
 
     COPY src/notifyhub/frontend/ .
 

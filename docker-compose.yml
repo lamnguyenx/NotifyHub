@@ -3,6 +3,7 @@ x-backend-build: &backend-build
   context: .
   args:
     NPM_EXTRA_ARGS: --no-ssl-check
+    BUN_TLS_REJECT_UNAUTHORIZED: "0"
     PIP_EXTRA_ARGS: --trusted-host pypi.org --trusted-host files.pythonhosted.org
 
 services:
@@ -44,6 +45,7 @@ services:
       context: .
       args:
         NPM_EXTRA_ARGS: --no-ssl-check
+        BUN_TLS_REJECT_UNAUTHORIZED: "0"
         PIP_EXTRA_ARGS: --trusted-host pypi.org --trusted-host files.pythonhosted.org
     ports:
       - "0.0.0.0:9070:9070"
