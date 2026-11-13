@@ -12,9 +12,11 @@ plugin distribution:
 
   Stop              -> turn completion ([#tag:@USER] + [#tag:@ASSISTANT])
   Interrupt         -> interrupted turn (same body, transcript-recovered)
-  PostModelRequest  -> model request failure ([#codex.error])
+  PostModelRequest  -> model request failure ([#codex.error]); every request
+                      also refreshes `running` and re-arms the heartbeat
   PermissionRequest -> [#codex.permission] ... (only when a human must decide)
   PreToolUse (request_user_input) -> [#codex.question] ...
+  UserPromptSubmit  -> `running` report + spawn of the --heartbeat watcher
 
 The script is side-effect only: it always exits 0 and never writes stdout.
 Codex parses stdout as JSON for Stop/Interrupt and treats plain text as
@@ -24,6 +26,8 @@ invalid, so writing nothing is the safe no-op. Push failures go to stderr.
 import hashlib
 import json
 import os
+import re
+import signal
 import socket
 import subprocess
 import sys
@@ -36,6 +40,8 @@ MAX_LINES = 5
 MAX_CHARS = 200
 MAX_CHARS_TOLERANCE = 8
 
+AGENT = "codex"
+
 # Mirrors python booleanify (github.com/lamnguyenx/booleanify) — the same truth
 # table the NotifyHub CLI uses for NOTIFYHUB_CLI_ENABLED. `None` = unset, empty,
 # or unparseable; the CLI remains the authority in those cases.
@@ -46,6 +52,19 @@ DEFAULT_PUSH_TIMEOUT = 20  # async hooks; the CLI itself times out its HTTP POST
 SYNC_PUSH_TIMEOUT = 5  # Stop/PostModelRequest block the turn; fail fast if the server is down
 INTERRUPT_PUSH_TIMEOUT = 2.5  # Codex caps Interrupt hooks at 3s
 STATE_TTL_SECONDS = 7 * 24 * 60 * 60  # keep dedupe claims for a week
+
+# Long turns can outlive every event that reports them alive (a single tool
+# execution longer than backend.agent_status_stale_seconds flips a live card
+# to "stalled?"). On turn start the hook spawns itself in --heartbeat mode: a
+# detached watcher that re-posts `running` every interval until the turn's
+# Stop/Interrupt hook removes the lease (or the watcher ages out — an orphan
+# guard so a dead agent's card still goes stale). Interval/max are
+# env-tunable; NOTIFYHUB_HEARTBEAT_MAX_MINUTES=0 disables the watcher.
+HEARTBEAT_INTERVAL_SECONDS = 60
+HEARTBEAT_MAX_MINUTES = 120
+HEARTBEAT_LEASE_TTL_SECONDS = 24 * 60 * 60
+# Session ids build lease file names; only tightly shaped ids may take part.
+SESSION_ID_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 # Codex annotates transcript message entries with the turn they belong to and
 # with content kinds. These kinds are harness context, not the user's prompt.
@@ -313,7 +332,10 @@ def notification_body(payload: tp.Dict[str, tp.Any]) -> tp.Optional[str]:
         return f"[#tag:@USER] {user_part}\n[#tag:@ASSISTANT] {assistant_part}"
 
     if event == "UserPromptSubmit":
-        return "running"
+        # Status-only on this path: the running report and the heartbeat
+        # watcher cover it (`running` once leaked here as a literal
+        # notification body on the Windows reporter).
+        return None
 
     if event == "PostModelRequest":
         # Fires for every model request attempt, including retries. Only a
@@ -425,12 +447,14 @@ def machine_label() -> str:
     return label
 
 
-def post_status(payload: tp.Dict[str, tp.Any], state: str) -> None:
+def post_status(payload: tp.Dict[str, tp.Any], state: str, heartbeat: bool = False) -> None:
     """Best-effort lifecycle report to POST /api/status/codex/<state>.
 
     Same NOTIFYHUB_CLI_HOST/PORT/SCHEME resolution as the push CLI, honoring
     the mute rules. Failures are silent; per-event timeout discipline matches
-    push() (Interrupt caps hooks at 3s, other sync hooks at 5-10s).
+    push() (Interrupt caps hooks at 3s, other sync hooks at 5-10s). Heartbeat
+    refreshes carry `"heartbeat": true` so the backend refreshes liveness
+    without ever changing the stored state.
     """
     if notifications_muted():
         return
@@ -445,6 +469,7 @@ def post_status(payload: tp.Dict[str, tp.Any], state: str) -> None:
             "session_id": session,
             "cwd": payload.get("cwd"),
             "host": machine_label(),
+            **({"heartbeat": True} if heartbeat else {}),
             # Windows turn-start hooks use this reporter instead of curl.
             **(
                 {"prompt": payload["prompt"]}
@@ -465,6 +490,207 @@ def post_status(payload: tp.Dict[str, tp.Any], state: str) -> None:
             pass
     except Exception:
         pass
+
+
+# --- Turn heartbeat watcher -------------------------------------------------
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def heartbeat_settings() -> tp.Tuple[int, int]:
+    """(interval_seconds, max_age_seconds), both env-tunable."""
+    interval = max(5, _env_int("NOTIFYHUB_HEARTBEAT_INTERVAL_SECONDS", HEARTBEAT_INTERVAL_SECONDS))
+    return interval, max(0, _env_int("NOTIFYHUB_HEARTBEAT_MAX_MINUTES", HEARTBEAT_MAX_MINUTES)) * 60
+
+
+def heartbeat_dir() -> str:
+    return os.environ.get("NOTIFYHUB_HEARTBEAT_DIR") or os.path.join(
+        tempfile.gettempdir(), f"notifyhub-{AGENT}-heartbeat"
+    )
+
+
+def lease_path(session: str) -> tp.Optional[str]:
+    if not SESSION_ID_RE.match(session):
+        return None
+    digest = hashlib.sha256(session.encode()).hexdigest()[:24]
+    return os.path.join(heartbeat_dir(), digest + ".json")
+
+
+def _unlink(path: str) -> None:
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
+def _watcher_alive(lease: tp.Dict[str, tp.Any], path: str) -> bool:
+    """True when the pid recorded in the lease is a live watcher process.
+
+    Where /proc exists (Linux) the cmdline must actually reference this
+    script's --heartbeat mode, so a recycled pid is never mistaken for the
+    watcher (and never killed later). Elsewhere the signal probe is all we
+    have; the lease mtime still bounds the mistake.
+    """
+    pid = lease.get("pid")
+    if not isinstance(pid, int) or pid <= 0 or pid == os.getpid():
+        return False
+    try:
+        os.kill(pid, 0)
+    except (OSError, AttributeError):
+        return False
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as fh:
+            cmdline = fh.read().replace(b"\0", b" ").decode("utf-8", "replace")
+    except OSError:
+        return True
+    return "--heartbeat" in cmdline and path in cmdline
+
+
+def _lease_fresh(path: str, interval: int) -> bool:
+    try:
+        age = time.time() - os.stat(path).st_mtime
+    except OSError:
+        return False
+    # The watcher rewrites the lease every cycle; ~2.5 cycles of silence
+    # means nobody is refreshing it.
+    return age <= interval * 2.5
+
+
+def _prune_leases() -> None:
+    cutoff = time.time() - HEARTBEAT_LEASE_TTL_SECONDS
+    try:
+        with os.scandir(heartbeat_dir()) as entries:
+            for entry in entries:
+                try:
+                    if entry.is_file(follow_symlinks=False) and entry.stat().st_mtime < cutoff:
+                        os.unlink(entry.path)
+                except OSError:
+                    continue
+    except OSError:
+        pass
+
+
+def _spawn_watcher(path: str) -> None:
+    # Detach: the watcher must outlive this short-lived hook process (and
+    # `codex exec` entirely — its Stop hook removes the lease first anyway).
+    creationflags = 0
+    if os.name == "nt":
+        creationflags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(
+            subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+        )
+    try:
+        subprocess.Popen(
+            [sys.executable, os.path.abspath(__file__), "--heartbeat", path],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=os.name != "nt",
+            creationflags=creationflags,
+            env=dict(os.environ),
+        )
+    except OSError:
+        _unlink(path)
+
+
+def start_heartbeat(payload: tp.Dict[str, tp.Any]) -> None:
+    """Claim the session's lease, then spawn the detached running-watcher.
+
+    Idempotent: an already-running watcher (or a just-claimed lease) wins, so
+    repeated turn-start/model-request reports never stack watchers.
+    """
+    if notifications_muted():
+        return
+    session = str(payload.get("session_id") or "").strip()
+    path = lease_path(session)
+    if not path:
+        return
+    interval, _ = heartbeat_settings()
+    try:
+        os.makedirs(heartbeat_dir(), mode=0o700, exist_ok=True)
+        _prune_leases()
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    lease = json.load(fh)
+                if _watcher_alive(lease, path) and _lease_fresh(path, interval):
+                    return
+            except (OSError, ValueError):
+                pass
+            _unlink(path)
+        # O_EXCL claim: only one hook process may spawn the watcher.
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump({"pid": 0, "payload": payload}, fh)
+    except OSError:
+        return
+    _spawn_watcher(path)
+
+
+def stop_heartbeat(payload: tp.Dict[str, tp.Any]) -> None:
+    """End the turn's heartbeat: remove the lease (the watcher exits on its
+    next tick, lease-gated before every post) and best-effort kill the pid
+    when /proc can prove it is really the watcher."""
+    session = str(payload.get("session_id") or "").strip()
+    path = lease_path(session)
+    if not path:
+        return
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lease = json.load(fh)
+    except (OSError, ValueError):
+        lease = {}
+    _unlink(path)
+    alive = _watcher_alive(lease, path)
+    pid = lease.get("pid")
+    if alive and isinstance(pid, int) and pid > 0:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+
+
+def run_heartbeat(path: str) -> None:
+    """Watcher mode (argv: --heartbeat <lease>): re-post `running` every
+    interval while the lease lives, then exit. The lease file is rewritten
+    each cycle to prove liveness and carries this pid for prompt shutdown."""
+    interval, max_age = heartbeat_settings()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lease = json.load(fh)
+    except (OSError, ValueError):
+        return
+    payload = lease.get("payload")
+    if not isinstance(payload, dict):
+        return
+
+    def rewrite() -> bool:
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump({"pid": os.getpid(), "payload": payload}, fh)
+            return True
+        except OSError:
+            return False
+
+    if not rewrite():
+        return
+    started = time.time()
+    while max_age > 0 and time.time() - started <= max_age:
+        time.sleep(interval)
+        if not os.path.exists(path):
+            return
+        post_status(payload, "running", heartbeat=True)
+        rewrite()
+    # Age cap: an orphaned watcher must not keep a dead session "running"
+    # forever — drop out and let the entry go stale like any crashed agent.
+    _unlink(path)
 
 
 def status_event(payload: tp.Dict[str, tp.Any]) -> tp.Optional[str]:
@@ -501,6 +727,9 @@ def status_event(payload: tp.Dict[str, tp.Any]) -> tp.Optional[str]:
 
 
 def main() -> None:
+    if len(sys.argv) >= 3 and sys.argv[1] == "--heartbeat":
+        run_heartbeat(sys.argv[2])
+        return
     try:
         payload = json.loads(sys.stdin.read() or "{}")
     except json.JSONDecodeError as error:
@@ -514,8 +743,17 @@ def main() -> None:
 
     event = payload.get("hook_event_name")
     status = status_event(payload)
+    # End the heartbeat first so no lease-gated ping can race the idle report.
+    if status == "idle":
+        stop_heartbeat(payload)
     if status:
         post_status(payload, status)
+
+    # Turn start (and each model request — it also revives a watcher that
+    # aged out mid-turn, e.g. after a long approval wait) claims the lease
+    # and spawns the watcher when nobody else holds it.
+    if event in ("UserPromptSubmit", "PostModelRequest") and status == "running":
+        start_heartbeat(payload)
 
     message = notification_body(payload)
     if message is None:

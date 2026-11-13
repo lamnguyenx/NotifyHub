@@ -112,14 +112,26 @@ class AgentStatusStore:
         pwd: Optional[str] = None,
         host: Optional[str] = None,
         task: Optional[str] = None,
+        heartbeat: bool = False,
     ) -> bool:
         """Record a report; returns True when it changed the visible state
-        (and thus scheduled an SSE broadcast)."""
+        (and thus scheduled an SSE broadcast).
+
+        A heartbeat (the reporters' periodic `running` refresh during long
+        turns, sent with `"heartbeat": true`) is a pure liveness ping: it never
+        creates an entry — the first report of a turn is always a real
+        transition carrying the task excerpt — and never changes a stored
+        state, so a ping racing the turn's idle/blocked report cannot
+        resurrect a finished session or flip a permission wait back to
+        running. On a `running` entry it just refreshes `updated` (and
+        re-announces one that already went stale)."""
         key = (agent, session_id)
         now_dt = datetime.now(timezone.utc)
         now = now_dt.isoformat()
         existing = self.statuses.get(key)
         if existing is None:
+            if heartbeat:
+                return False
             self.statuses[key] = AgentStatus(
                 agent=agent,
                 session_id=session_id,
@@ -132,6 +144,9 @@ class AgentStatusStore:
             )
             self._broadcast(self.statuses[key])
             return True
+
+        if heartbeat and existing.state != "running":
+            return False
 
         # Age of the previous report, measured before it is overwritten: a
         # refresh that arrives after the stale window re-announces the entry,

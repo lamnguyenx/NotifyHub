@@ -12,20 +12,27 @@ const { default: plugin } = await import("../../../src/notifyhub/plugins/opencod
 
 const originalEnv = { ...process.env }
 const originalFetch = globalThis.fetch
-const posts: Array<{ state: string; session_id: string; host: string }> = []
+const posts: Array<{ state: string; session_id: string; host: string; heartbeat: boolean }> = []
 let cleanup: (() => void) | undefined
 let nextSession = 0
 
 beforeEach(() => {
   pushes.length = 0
   posts.length = 0
+  delete process.env.NOTIFYHUB_HEARTBEAT_INTERVAL_MS
+  delete process.env.NOTIFYHUB_HEARTBEAT_MAX_MINUTES
   process.env.NOTIFYHUB_CLI_ENABLED = "true"
   process.env.NOTIFYHUB_CLI_HOST = "127.0.0.1"
   process.env.NOTIFYHUB_CLI_PORT = "9080"
   process.env.NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS = "empty"
   globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body))
-    posts.push({ state: String(url).split("/").at(-1)!, session_id: body.session_id, host: body.host })
+    posts.push({
+      state: String(url).split("/").at(-1)!,
+      session_id: body.session_id,
+      host: body.host,
+      heartbeat: body.heartbeat === true,
+    })
     return new Response("{}", { status: 200 })
   }) as typeof fetch
 })
@@ -169,5 +176,76 @@ describe("OpenCode permission notifications", () => {
     expect(posts.map((post) => post.state)).toEqual(["blocked"])
     await h.reply("request-2")
     expect(posts.map((post) => post.state)).toEqual(["blocked", "running"])
+  })
+})
+
+describe("OpenCode running-turn heartbeat", () => {
+  const pings = () => posts.filter((post) => post.heartbeat)
+
+  test("long running turns are refreshed with heartbeat pings, then stop at idle", async () => {
+    process.env.NOTIFYHUB_HEARTBEAT_INTERVAL_MS = "20"
+    const h = await harness()
+    await h.emit("session.execution.started")
+
+    expect(posts[0]?.heartbeat).toBe(false) // the first report is a real one
+    expect(posts[0]?.state).toBe("running")
+    await Bun.sleep(100)
+    expect(pings().length).toBeGreaterThanOrEqual(1)
+    expect(pings().every((post) => post.state === "running")).toBe(true)
+
+    await h.emit("session.execution.succeeded")
+    await Bun.sleep(20) // let any in-flight tick land
+    const settledPings = pings().length
+    await Bun.sleep(100)
+    expect(pings().length).toBe(settledPings) // idle ended the heartbeat
+  })
+
+  test("blocked permission waits are not pinged and resume on reply", async () => {
+    process.env.NOTIFYHUB_HEARTBEAT_INTERVAL_MS = "20"
+    const h = await harness()
+    await h.ask()
+    await Bun.sleep(1150) // grace delay + blocked report
+    expect(posts.some((post) => post.state === "blocked")).toBe(true)
+    const pingsAtBlocked = pings().length
+    await Bun.sleep(100)
+    expect(pings().length).toBe(pingsAtBlocked)
+
+    await h.reply()
+    expect(posts.at(-1)?.state).toBe("running")
+    await Bun.sleep(100)
+    expect(pings().length).toBeGreaterThan(pingsAtBlocked)
+  })
+
+  test("zero max minutes disables the heartbeat", async () => {
+    process.env.NOTIFYHUB_HEARTBEAT_INTERVAL_MS = "20"
+    process.env.NOTIFYHUB_HEARTBEAT_MAX_MINUTES = "0"
+    const h = await harness()
+    await h.emit("session.execution.started")
+    await Bun.sleep(120)
+    expect(pings()).toEqual([])
+  })
+
+  test("aged-out turns stop refreshing", async () => {
+    process.env.NOTIFYHUB_HEARTBEAT_INTERVAL_MS = "10"
+    process.env.NOTIFYHUB_HEARTBEAT_MAX_MINUTES = "0.0005" // ~30ms cap
+    const h = await harness()
+    await h.emit("session.execution.started")
+    await Bun.sleep(40)
+    const firstWave = pings().length
+    expect(firstWave).toBeGreaterThanOrEqual(1)
+    await Bun.sleep(150)
+    // The entry ages out mid-turn; at most one straggler tick can follow.
+    expect(pings().length - firstWave).toBeLessThanOrEqual(1)
+  })
+
+  test("disposal stops the heartbeat", async () => {
+    process.env.NOTIFYHUB_HEARTBEAT_INTERVAL_MS = "20"
+    const h = await harness()
+    await h.emit("session.execution.started")
+    await Bun.sleep(80)
+    const atDisposal = pings().length
+    cleanup?.()
+    await Bun.sleep(100)
+    expect(pings().length).toBe(atDisposal)
   })
 })

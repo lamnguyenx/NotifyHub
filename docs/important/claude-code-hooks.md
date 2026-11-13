@@ -85,12 +85,13 @@ Besides notifications, the hooks report live session state to `POST /api/status/
 
 | Claude Code hook | Status | How |
 |---|---|---|
-| `UserPromptSubmit` | `running` | inline `sh -c 'curl --data-binary @- …'` hook — the raw payload (with the prompt) goes straight to the backend, which extracts `session_id`/`cwd`/the task excerpt |
-| `PostToolUse` | `running` | same curl one-liner: refreshes the entry and flips `blocked → running` after you answer a permission |
+| `UserPromptSubmit` | `running` | `notifyhub-claude.py` (async): posts `running` with the prompt for the task excerpt, then spawns the detached `--heartbeat` watcher that refreshes long turns every 60s |
+| `PostToolUse` | `running` | inline `sh -c 'curl --data-binary @- …'` refresh: keeps the entry fresh and flips `blocked → running` after you answer a permission |
 | `Notification` (wired types) | `blocked` | posted in-process by `notifyhub-claude.py` (urllib, 2s timeout) |
-| `Stop` / `StopFailure` | `idle` | posted by `notifyhub-claude.py` |
+| `Stop` / `StopFailure` | `idle` | posted by `notifyhub-claude.py`; also removes the heartbeat lease so the watcher exits |
 
-- The curl hooks resolve the backend via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` (like the push CLI),
+- The `PostToolUse` curl refresh resolves the backend via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME`
+  (like the push CLI),
   and `${VAR-default}` (no colon) expansion keeps the documented empty-host **mute** working.
 - The same one-liners send `X-NotifyHub-Host` using the push CLI label precedence:
   trimmed `HOST_MODEL` (except empty or `Unknown`), exported `HOSTNAME`, then OS hostname, because the raw hook payload has no

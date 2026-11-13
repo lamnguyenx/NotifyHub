@@ -2,14 +2,21 @@
 
 `hooks.json` is the plugin-layout distribution of the parent integration. The sibling
 `../install.py` generates equivalent installed hook definitions; both must stay aligned.
-This layout uses `${CLAUDE_PLUGIN_ROOT}` Python paths and the two inline running hooks.
+This layout uses `${CLAUDE_PLUGIN_ROOT}` Python paths, the python turn-start hook, and one
+inline running hook.
 
-## Running status and machine labels
+## Running status, machine labels, and the heartbeat watcher
 
-`UserPromptSubmit` and `PostToolUse` send running status. Unix commands resolve trimmed `HOST_MODEL`
-(except empty or `Unknown`), then trimmed exported `HOSTNAME`, then `hostname`. They send
-`X-NotifyHub-Host` while piping the original JSON stdin unchanged through `curl --data-binary @-`.
-Backend address variables preserve exported-empty host/port muting.
+`UserPromptSubmit` runs `notifyhub-claude.py`: it posts `running` (forwarding the prompt for
+the task excerpt), then spawns the detached `--heartbeat` watcher that keeps long turns fresh.
+`PostToolUse` stays the raw refresh: it resolves trimmed `HOST_MODEL` (except empty or
+`Unknown`), then trimmed exported `HOSTNAME`, then `hostname`; it sends `X-NotifyHub-Host`
+while piping the original JSON stdin unchanged through `curl --data-binary @-` (and flips
+`blocked → running` after you answer a permission). Backend address variables preserve
+exported-empty host/port muting. Watchers live under
+`$NOTIFYHUB_HEARTBEAT_DIR` (default `/tmp/notifyhub-claude-heartbeat`) and honor
+`NOTIFYHUB_HEARTBEAT_INTERVAL_SECONDS` / `NOTIFYHUB_HEARTBEAT_MAX_MINUTES`
+(0 disables); `Stop`/`StopFailure` remove the lease so the watcher exits.
 
 ## Install and verify
 

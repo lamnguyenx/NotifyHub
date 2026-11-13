@@ -29,21 +29,31 @@ Besides notifications, the hooks report live session state to the backend's
 
 | Claude Code hook | Status |
 | --- | --- |
-| `UserPromptSubmit` (curl hook) | `running` (the piped payload's `prompt` also becomes the task excerpt, extracted server-side) |
+| `UserPromptSubmit` (python hook, async) | `running` — posts the prompt as the body task excerpt and spawns the detached `--heartbeat` watcher |
 | `PostToolUse` (curl hook) | `running` (refresh; flips `blocked` → `running` after an answered permission) |
 | `Notification` (`permission_prompt`, elicitation, `agent_needs_input`) | `blocked` |
-| `Stop` / `StopFailure` | `idle` (a `stop_hook_active` stop is not a completion: state untouched) |
+| `Stop` / `StopFailure` | `idle` (ends the heartbeat first; a `stop_hook_active` stop is not a completion: state untouched) |
 
-The `running` hooks are inline `sh -c 'curl --data-binary @-'` commands — the hook
-payload on stdin goes straight to the server (which extracts `session_id`/`cwd`/the prompt),
-so the per-tool-call path pays no python startup. They resolve the backend via
+**Heartbeats**: turns can be silently busy longer than the stale window, so turn start
+spawns `notifyhub-claude.py --heartbeat <lease>` — a detached watcher re-posting `running`
+with `heartbeat: true` every `NOTIFYHUB_HEARTBEAT_INTERVAL_SECONDS` (default 60, 5s floor)
+until the turn's `Stop`/`StopFailure` removes the lease (SIGTERM with `/proc` pid proof),
+or the orphan cap `NOTIFYHUB_HEARTBEAT_MAX_MINUTES` (default 120, `0` disables) fires.
+Leases live in `$NOTIFYHUB_HEARTBEAT_DIR` (default `/tmp/notifyhub-claude-heartbeat/`);
+pings never create entries or change states server-side, so a straggler cannot resurrect
+a finished card. Design: [agent-status guide](../../../../docs/important/agent-status.md#heartbeats).
+
+`PostToolUse` stays the inline `sh -c 'curl --data-binary @-'` refresh — the hook
+payload on stdin goes straight to the server (which extracts `session_id`/`cwd`),
+so the per-tool-call path pays no python startup, and it carries the real
+`blocked → running` transition a heartbeat must not. It resolves the backend via
 `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` like the push CLI, and `${VAR-default}`
-expansion keeps the documented empty-host mute working. They also send
+expansion keeps the documented empty-host mute working. It also sends
 `X-NotifyHub-Host` using the same label as the push CLI: trimmed `HOST_MODEL` (except empty or
 `Unknown`), then exported `HOSTNAME`, then the OS hostname. This keeps live and completed cards
 consistent (for example, `HOST_MODEL=MS-7E70`). The raw hook payload has no machine field; without the
 header the backend stamps the request's client IP (often a Docker bridge address). Re-run
-`make install-plugin-claude` after upgrading so the installed settings carry the header.
+`make install-plugin-claude` after upgrading so the installed settings carry the split wiring.
 
 `Stop`/`StopFailure` hooks run `async: false` (10s handler / 5s push timeout): `claude -p`
 exits right after the turn and cancels unfinished async hooks, which would lose the idle
@@ -99,6 +109,9 @@ Same environment variables as the OpenCode plugin, read by the hook script:
 | `NOTIFYHUB_CLI_PORT` | `9080` | NotifyHub port |
 | `NOTIFYHUB_PUSH_SCRIPT` | `~/.config/opencode/plugin/notifyhub-push.py` | Override the CLI path (shared with the OpenCode install) |
 | `NOTIFYHUB_CLI_ENABLED` | unset | `false`-like value mutes, without spawning the CLI |
+| `NOTIFYHUB_HEARTBEAT_INTERVAL_SECONDS` | `60` | Watcher ping cadence (5s floor) |
+| `NOTIFYHUB_HEARTBEAT_MAX_MINUTES` | `120` | Watcher orphan cap; `0` disables watchers |
+| `NOTIFYHUB_HEARTBEAT_DIR` | `/tmp/notifyhub-claude-heartbeat` | Lease directory for the watcher protocol |
 
 Exporting `NOTIFYHUB_CLI_HOST` or `NOTIFYHUB_CLI_PORT` as an empty string mutes too —
 the documented shell mute switch. Muting is evaluated per event, so toggling takes effect
@@ -133,6 +146,13 @@ Manual verification against a running server: `make backend`, then run a Claude 
   — raw status hook machine name, 2026-11-11
 - [OpenCode plugin](../opencode) — the v2 plugin this port mirrors
 - [Claude Code hooks reference](https://docs.claude.com/en/docs/claude-code/hooks)
+
+## 2026-11-13 session record
+
+- [Heartbeat watcher — module changes, trials, errors, and lessons](../../../../docs/plans/2026/11/13/2026-11-13-agent-status-heartbeats-claude.md)
+- [Hook-definition submodule](../../../../docs/plans/2026/11/13/2026-11-13-agent-status-heartbeats-claude-hooks.md)
+- [Full session and module map](../../../../docs/plans/2026/11/13/2026-11-13-agent-status-heartbeats.md)
+- [Agent-status guide (Heartbeats)](../../../../docs/important/agent-status.md#heartbeats)
 
 ## 2026-11-12 session record
 

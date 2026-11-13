@@ -97,13 +97,23 @@ HOOK_EVENTS: tp.Dict[str, tp.List[tp.Dict[str, tp.Any]]] = {
             ],
         }
     ],
-    # Lifecycle status (POST /api/status/claude/running) at turn start and per
-    # tool call. Plain sh+curl piping the hook payload (the server extracts
-    # session_id/cwd itself), so the per-tool-call hot path pays no python
-    # startup; PostToolUse also flips a permission-blocked session back to
-    # running once the user answers. `${VAR-default}` (without the colon)
-    # preserves the documented empty-host/port mute.
-    "UserPromptSubmit": [{"hooks": [status_curl_handler()]}],
+    # Lifecycle status (POST /api/status/claude/running) at turn start and
+    # per tool call. Turn start runs the python hook: it posts `running`
+    # (forwarding the prompt for the waiting card's @USER excerpt) and spawns
+    # the detached --heartbeat watcher that keeps long turns fresh; each user
+    # prompt is cold, so the interpreter startup is not a hot-path cost.
+    # Per-tool-call refresh stays a plain sh+curl piping the hook payload
+    # (the server extracts session_id/cwd itself), so that hot path pays no
+    # python startup; PostToolUse also flips a permission-blocked session
+    # back to running once the user answers. `${VAR-default}` (without the
+    # colon) preserves the documented empty-host/port mute.
+    "UserPromptSubmit": [
+        {
+            "hooks": [
+                {"type": "command", "command": HOOK_SCRIPT, "args": [], "async": True, "timeout": 10}
+            ]
+        }
+    ],
     "PostToolUse": [{"hooks": [status_curl_handler()]}],
 }
 

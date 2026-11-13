@@ -85,13 +85,19 @@ def test_status_machine_label_matches_completion_cli(integration, monkeypatch, t
     host_command.write_text("#!/bin/sh\nprintf '%s\\n' os-host\n")
     host_command.chmod(0o755)
 
-    layout = json.loads((plugin_dir / "hooks/hooks.json").read_text())
-    command = install.status_curl_handler()["command"]
-    events = ("UserPromptSubmit", "PostToolUse") if plugin_dir.name == "claude" else ("UserPromptSubmit",)
-    for event in events:
-        assert layout["hooks"][event][0]["hooks"][0]["command"] == command
-    payload = '{"session_id":"label-test","prompt":"keep raw stdin"}'
-    subprocess.run(command, shell=True, input=payload, text=True, check=True)
-    sent = json.loads(capture.read_text())
-    assert f"x-notifyhub-host: {expected}" in sent["args"]
-    assert sent["body"] == payload
+    layout = json.loads((plugin_dir / "hooks" / "hooks.json").read_text())
+    if plugin_dir.name == "claude":
+        # The per-tool refresh remains the curl one-liner the handler builds.
+        command = install.status_curl_handler()["command"]
+        assert layout["hooks"]["PostToolUse"][0]["hooks"][0]["command"] == command
+        payload = '{"session_id":"label-test","prompt":"keep raw stdin"}'
+        subprocess.run(command, shell=True, input=payload, text=True, check=True)
+        sent = json.loads(capture.read_text())
+        assert f"x-notifyhub-host: {expected}" in sent["args"]
+        assert sent["body"] == payload
+    else:
+        # Turn start goes through the python reporter (its labels were checked
+        # above); no curl one-liner remains in the codex layout.
+        handler = layout["hooks"]["UserPromptSubmit"][0]["hooks"][0]
+        assert "notifyhub-codex.py" in handler["command"]
+        assert "curl" not in handler["command"]

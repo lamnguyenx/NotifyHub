@@ -28,22 +28,29 @@ The hooks also report live session state to `POST /api/status/codex/<state>`:
 
 | Codex hook | Status |
 |---|---|
-| `UserPromptSubmit` (curl hook) | `running` |
-| `PostModelRequest` (any status, per attempt) | `running` — a heartbeat that revives stale entries |
+| `UserPromptSubmit` (python reporter, async, every platform) | `running` — posts the prompt for task extraction and spawns the detached `--heartbeat` watcher |
+| `PostModelRequest` (any status, per attempt) | `running` — an event refresh that revives stale entries and re-arms an aged-out watcher |
 | `PermissionRequest` | `blocked` for human reviewers, `running` when `auto_review` handles it |
 | `PreToolUse` (`request_user_input`) | `blocked` |
-| `Stop` / `Interrupt` | `idle` (a `stop_hook_active` stop leaves state untouched) |
+| `Stop` / `Interrupt` | `idle` (ends the heartbeat first; a `stop_hook_active` stop leaves state untouched) |
 
-`UserPromptSubmit` is an inline `sh -c 'curl --data-binary @-'` command piping the
-hook payload straight to the server (which extracts `session_id`/`cwd` and the task
-excerpt from the prompt), resolved via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` like
-the push CLI; the other states are posted by `notifyhub-codex.py` in-process
-(`urllib`, proxy-free, 2s timeout). Both reporters use the push CLI label precedence:
-trimmed `HOST_MODEL` (except empty or `Unknown`), exported `HOSTNAME`, then the OS hostname.
-The raw Unix hook sends it in `X-NotifyHub-Host`; Windows uses the Python reporter, including
-the turn-start prompt. The piped payload has no machine field, so without the header the
-backend records the request's client IP, often a Docker bridge address. Re-run
-`make install-plugin-codex` after upgrading and re-trust the changed entries via `/hooks`.
+**Heartbeats**: turns can be silently busy longer than the stale window, so turn start
+spawns `notifyhub-codex.py --heartbeat <lease>` — a detached watcher re-posting `running`
+with `heartbeat: true` every `NOTIFYHUB_HEARTBEAT_INTERVAL_SECONDS` (default 60, 5s floor)
+until the turn's `Stop`/`Interrupt` removes the lease (SIGTERM with `/proc` pid proof),
+or the orphan cap `NOTIFYHUB_HEARTBEAT_MAX_MINUTES` (default 120, `0` disables) fires.
+Leases live in `$NOTIFYHUB_HEARTBEAT_DIR` (default `/tmp/notifyhub-codex-heartbeat/`).
+Pings never create entries or change states server-side. Design:
+[agent-status guide](../../../../docs/important/agent-status.md#heartbeats).
+
+All status is posted by `notifyhub-codex.py` in-process (`urllib`, proxy-free, 2s
+timeout), resolved via `NOTIFYHUB_CLI_HOST`/`_PORT`/`_SCHEME` like the push CLI, and
+sends the machine label in `body.host` using the push CLI label precedence: trimmed
+`HOST_MODEL` (except empty or `Unknown`), exported `HOSTNAME`, then the OS hostname —
+identically on Unix and Windows. Without it the backend would record the request's
+client IP, often a Docker bridge address. Re-run
+`make install-plugin-codex` after upgrading and re-trust the changed entries via `/hooks`
+(the `UserPromptSubmit` definition changed from the curl one-liner to the Python reporter).
 Completion pushes stamp `NOTIFYHUB_SESSION_ID` so notifications correlate with their status
 entry, and `hooks/hooks.json` (plugin layout) carries the same six events.
 
@@ -105,6 +112,9 @@ Same environment variables as the OpenCode and Claude Code integrations, read by
 | `NOTIFYHUB_CLI_PORT` | `9080` | NotifyHub port |
 | `NOTIFYHUB_PUSH_SCRIPT` | `~/.config/opencode/plugin/notifyhub-push.py` | Override the CLI path (shared with the OpenCode install) |
 | `NOTIFYHUB_CLI_ENABLED` | unset | `false`-like value mutes, without spawning the CLI |
+| `NOTIFYHUB_HEARTBEAT_INTERVAL_SECONDS` | `60` | Watcher ping cadence (5s floor) |
+| `NOTIFYHUB_HEARTBEAT_MAX_MINUTES` | `120` | Watcher orphan cap; `0` disables watchers |
+| `NOTIFYHUB_HEARTBEAT_DIR` | `/tmp/notifyhub-codex-heartbeat` | Lease directory for the watcher protocol |
 | `NOTIFYHUB_CODEX_STATE_DIR` | system temp dir | Dedupe claim files (tests / custom cleanup) |
 
 Exporting `NOTIFYHUB_CLI_HOST` or `NOTIFYHUB_CLI_PORT` as an empty string mutes too. Hooks inherit the
@@ -153,6 +163,13 @@ Manual verification against a running server: `make backend`, then run a Codex t
 - [OpenCode plugin](../opencode) — the v2 plugin this port mirrors
 - [Claude Code hooks](../claude) — the sibling hook-based port
 - [Codex hooks reference](https://learn.chatgpt.com/docs/hooks)
+
+## 2026-11-13 session record
+
+- [Heartbeat watcher — module changes, trials, errors, and lessons](../../../../docs/plans/2026/11/13/2026-11-13-agent-status-heartbeats-codex.md)
+- [Hook-definition submodule](../../../../docs/plans/2026/11/13/2026-11-13-agent-status-heartbeats-codex-hooks.md)
+- [Full session and module map](../../../../docs/plans/2026/11/13/2026-11-13-agent-status-heartbeats.md)
+- [Agent-status guide (Heartbeats)](../../../../docs/important/agent-status.md#heartbeats)
 
 ## 2026-11-12 session record
 

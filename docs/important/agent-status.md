@@ -31,7 +31,10 @@ SSE  agent_status                    → one entry per meaningful change (new se
 - **Staleness**: a `running` entry whose last refresh is older than
   `backend.agent_status_stale_seconds` (default **300**) is served as `stale` — the stored state
   isn't changed, so a late refresh revives it. Reporters refresh actively during long turns
-  (claude `PostToolUse`, codex `PostModelRequest`, opencode events).
+  (see [Heartbeats](#heartbeats)): claude/codex spawn a detached watcher on turn start, opencode
+  runs an in-process ticker, and claude `PostToolUse` / codex `PostModelRequest` add
+  event-driven refreshes. With heartbeats on, `stalled?` reliably means "the agent died", not
+  "the turn is silent".
 - **e2e**: serving/SSE entries are AES-256-GCM envelopes per entry when an e2e key is configured
   (same wrapping as notifications). Ingest accepts plaintext (TLS) or an envelope.
 - **Host field**: reporters may send `host` in the JSON body (opencode plugin, Python hook
@@ -44,22 +47,58 @@ SSE  agent_status                    → one entry per meaningful change (new se
 
 | Agent | running | blocked | idle |
 |---|---|---|---|
-| **opencode** (resident plugin — lifecycle authority) | `session.execution.started`, `permission.replied` (+ task excerpt) | `permission.asked` after the one-second grace period and pending check; `form.created` immediately | `session.idle`, `session.execution.succeeded/failed/interrupted` |
-| **claude** (hooks) | `UserPromptSubmit` / `PostToolUse` → curl one-liner | `Notification` (permission/elicitation/agent_needs_input) | `Stop` / `StopFailure` |
-| **codex** (hooks) | `UserPromptSubmit` → Unix curl / Windows Python reporter; `PostModelRequest` heartbeat | `PermissionRequest` (human-reviewer only), `request_user_input` | `Stop` / `Interrupt` |
+| **opencode** (resident plugin — lifecycle authority) | `session.execution.started`, `permission.replied` (+ task excerpt); in-process heartbeat ticker refreshes long turns | `permission.asked` after the one-second grace period and pending check; `form.created` immediately | `session.idle`, `session.execution.succeeded/failed/interrupted` |
+| **claude** (hooks) | `UserPromptSubmit` → python hook posts `running` (forwarding the prompt) and spawns the `--heartbeat` watcher; `PostToolUse` → curl one-liner refresh | `Notification` (permission/elicitation/agent_needs_input) | `Stop` / `StopFailure` (also end the watcher) |
+| **codex** (hooks) | `UserPromptSubmit` → python hook + `--heartbeat` watcher; `PostModelRequest` event refresh (also re-arms the watcher) | `PermissionRequest` (human-reviewer only), `request_user_input` | `Stop` / `Interrupt` (also end the watcher) |
 
 Common properties:
 
-- **Thin curl hooks**: `UserPromptSubmit`/`PostToolUse` are inline
-  `sh -c 'curl --data-binary @- "$s://$h:$p/api/status/<agent>/running"'` commands — the hook
+- **Heartbeats** (see below) are periodic `running` refreshes sent with
+  `"heartbeat": true`; they keep a live entry fresh without ever changing state.
+- **Thin curl refresh** (claude `PostToolUse` only): inline
+  `sh -c 'curl --data-binary @- "$s://$h:$p/api/status/<agent>/running"'` command — the hook
   payload on stdin goes straight to the backend, which extracts `session_id`/`cwd`/the prompt
-  itself. Unix running hooks avoid interpreter startup; Codex on Windows uses its Python reporter
-  and forwards the turn-start prompt.
+  itself. Turn start runs the python reporter instead (labels, prompt forwarding, watcher
+  spawn); one prompt per turn is a cold path, so the interpreter start is not a hot-path cost.
 - **Backend address** comes from `NOTIFYHUB_CLI_HOST` / `_PORT` / `_SCHEME` (same as the push
   CLI), and `${VAR-default}` expansion keeps the documented empty-host **mute** working.
 - **Failures are silent by design** — status is best-effort and must never delay or fail a turn.
 - Completion notifications from all three reporters now carry `data.session_id`, so consumers
   can resolve a running row exactly when its turn's notification lands.
+
+## Heartbeats
+
+A turn can go longer than the stale window with **no** reporting event — one tool call or
+model stream that runs 5+ minutes (the exact case the `stalled?` state was catching as a false
+positive). Each reporter now refreshes liveness actively:
+
+- **opencode**: the resident plugin keeps a `running` map and re-posts each entry with
+  `heartbeat: true` on a 60s `setInterval`, aging entries out after a cap (default 2h). The
+  timer is torn down with the plugin.
+- **claude / codex**: hooks only run on events, so turn start (`UserPromptSubmit`) spawns the
+  hook script itself in `--heartbeat` mode — a **detached watcher** that re-posts `running`
+  every 60s. A per-session lease file (`$NOTIFYHUB_HEARTBEAT_DIR`, default
+  `/tmp/notifyhub-<agent>-heartbeat/<sha256(session)>.json`) makes the spawn idempotent; the
+  turn's `Stop`/`StopFailure`/`Interrupt` hook removes the lease (and, where `/proc` can prove
+  the pid is the watcher, SIGTERMs it), so the watcher exits on its next lease check. Codex
+  `PostModelRequest` re-arms a watcher that aged out mid-turn.
+- **Orphan guards**: a watcher hard-exits after `NOTIFYHUB_HEARTBEAT_MAX_MINUTES` (default
+  **120**; `0` disables) and removes its lease, so a dead agent's card still goes `stale`
+  instead of idling "running" forever. Session ids are validated (`^[-_A-Za-z0-9.]+$`) before
+  they touch the filesystem.
+- **Server-side safety**: heartbeat posts are pure liveness pings. They never create entries
+  and never change a stored state — a ping cannot resurrect an idle session or flip a
+  permission-`blocked` one back to `running` (real transitions, like claude `PostToolUse`
+  after you answer, still flip normally). A heartbeat arriving on an already-`stale` running
+  entry revives and re-announces it, like any late refresh.
+
+Tunables (all three reporters, same names):
+
+| Env | Default | Meaning |
+|---|---|---|
+| `NOTIFYHUB_HEARTBEAT_INTERVAL_SECONDS` | `60` | Refresh cadence (plugin floor 1s, hook scripts 5s) |
+| `NOTIFYHUB_HEARTBEAT_MAX_MINUTES` | `120` | Orphan cap — watcher/ticker gives up after this; `0` disables |
+| `NOTIFYHUB_HEARTBEAT_DIR` | `/tmp/notifyhub-<agent>-heartbeat` | Lease directory (hook scripts only) |
 
 ## Install / upgrade
 
@@ -106,8 +145,19 @@ for e in json.load(sys.stdin)['agents']:
 | Nothing reports for opencode | The running server predates the plugin change — restart opencode. Check `opencode plugin list` shows `notifyhub` from `~/.config/opencode/plugin/`. |
 | claude shows running but never idle from `claude -p` | Old installer state — Stop/StopFailure must be `async: false`; re-run `make install-plugin-claude`. |
 | codex status missing | Hooks not trusted yet: `/hooks` in a codex session; or `~/.codex/config.toml` has inline `[hooks]` tables the installer defers to. |
-| Entry stuck `stale` | The agent died without an idle event (crash/kill) — expected after 5 min; a fresh prompt clears it. |
-| Status works, notifications don't (or vice versa) | They are independent channels (curl vs push script) — check `NOTIFYHUB_PUSH_SCRIPT` exists and the backend log. |
+| Entry stuck `stale` | The agent died without an idle event (crash/kill) — with heartbeats on, `stalled?` means exactly this; a fresh prompt clears it. If it happens on every long turn, the watcher never started: check re-trusted `/hooks` definitions and `NOTIFYHUB_HEARTBEAT_MAX_MINUTES`/`_INTERVAL_SECONDS`. |
+| Entry shows running long after the agent died | The heartbeat watcher outlived its turn — it should age out within `NOTIFYHUB_HEARTBEAT_MAX_MINUTES` (default 2h). Inspect `/tmp/notifyhub-<agent>-heartbeat/` and `/proc/<pid>/cmdline` if it persists. |
+| Status works, notifications don't (or vice versa) | They are independent channels (status posts vs push script) — check `NOTIFYHUB_PUSH_SCRIPT` exists and the backend log. |
+
+## 2026-11-13 records
+
+- [Parent session and module map](../plans/2026/11/13/2026-11-13-agent-status-heartbeats.md) — heartbeats
+- [Backend](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-backend.md) — heartbeat flag semantics
+- [Plugins parent](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-plugins.md) — mechanism split
+- [OpenCode](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-opencode.md) — ticker
+- [Claude](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-claude.md) + [hook definitions](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-claude-hooks.md) — watcher + wiring split
+- [Codex](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-codex.md) + [hook definitions](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-codex-hooks.md) — watcher + turn-start reporter
+- [Tests](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-tests.md) — regression suites
 
 ## 2026-11-12 records
 

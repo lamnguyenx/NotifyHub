@@ -314,6 +314,33 @@ function statusEndpoint(): string {
   return `${scheme}://${host}:${port}/api/status`
 }
 
+async function postStatus(
+  sessionID: string,
+  state: AgentState,
+  directory: string,
+  task?: string,
+  heartbeat = false,
+): Promise<void> {
+  // 3s deadline: status is best-effort and must never delay a turn.
+  const signal = AbortSignal.timeout(3_000)
+  try {
+    await fetch(`${statusEndpoint()}/opencode/${state}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionID,
+        pwd: directory,
+        host: machineLabel(),
+        ...(task ? { task } : {}),
+        ...(heartbeat ? { heartbeat: true } : {}),
+      }),
+      signal,
+    })
+  } catch {
+    // Backend unreachable: reports are fire-and-forget by design.
+  }
+}
+
 async function reportStatus(
   ctx: PluginContext,
   sessionID: string | undefined,
@@ -342,24 +369,42 @@ async function reportStatus(
 
   if (!isCurrent()) return
   lastPostedState.set(sessionID, state)
-  try {
-    // 3s deadline: status is best-effort and must never delay a turn.
-    const signal = AbortSignal.timeout(3_000)
-    await fetch(`${statusEndpoint()}/opencode/${state}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        session_id: sessionID,
-        pwd: directory,
-        host: machineLabel(),
-        ...(task ? { task } : {}),
-      }),
-      signal,
-    })
-  } catch {
-    // Backend unreachable: keep the local cache so a later successful post
-    // still reflects a real transition and is not skipped as a duplicate.
-  }
+  if (state === "running") runningTurns.set(sessionID, { started: Date.now(), directory })
+  else runningTurns.delete(sessionID)
+  await postStatus(sessionID, state, directory, task)
+}
+
+// --- Running-turn heartbeat --------------------------------------------------
+//
+// A turn with no intermediate events (one long tool call) reports nothing for
+// its whole duration, so the backend would flip a live card to "stalled?"
+// once backend.agent_status_stale_seconds passes. Every interval, each
+// session this instance reported `running` is re-posted with
+// `heartbeat: true` (the backend refreshes liveness but never changes state),
+// until the turn ends or the entry ages out — an orphan guard: a session
+// that stopped reporting transitions for hours is dead, not busy.
+
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 60_000
+const DEFAULT_HEARTBEAT_MAX_MINUTES = 120
+
+/** Sessions this instance last reported `running`, for the heartbeat tick. */
+const runningTurns = new Map<string, { started: number; directory: string }>()
+
+function envNumber(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim()
+  if (!raw) return fallback
+  const value = Number(raw)
+  return Number.isFinite(value) && value >= 0 ? value : fallback
+}
+
+function heartbeatIntervalMs(): number {
+  const raw = envNumber("NOTIFYHUB_HEARTBEAT_INTERVAL_MS", DEFAULT_HEARTBEAT_INTERVAL_MS)
+  return raw >= 1 ? raw : DEFAULT_HEARTBEAT_INTERVAL_MS
+}
+
+function heartbeatMaxAgeMs(): number {
+  // 0 disables the heartbeat (the watchers/hook scripts use the same rule).
+  return envNumber("NOTIFYHUB_HEARTBEAT_MAX_MINUTES", DEFAULT_HEARTBEAT_MAX_MINUTES) * 60_000
 }
 
 // Mirrors the truncation rules of the retired opencode-trace.py --notifyhub preset.
@@ -469,6 +514,22 @@ const plugin: Plugin.Plugin = {
       permissions.set(requestID, pending)
     }
 
+    // Liveness heartbeat for turns this instance owns (see runningTurns note).
+    const interval = heartbeatIntervalMs()
+    const maxAgeMs = heartbeatMaxAgeMs()
+    const heartbeatTimer = setInterval(() => {
+      if (notificationsMuted() || runningTurns.size === 0) return
+      const now = Date.now()
+      for (const [sessionID, turn] of [...runningTurns]) {
+        if (now - turn.started > maxAgeMs) {
+          runningTurns.delete(sessionID)
+          continue
+        }
+        void postStatus(sessionID, "running", turn.directory, undefined, true)
+      }
+    }, interval)
+    heartbeatTimer.unref?.()
+
     const subscription = (async () => {
       for await (const event of ctx.event.subscribe({ signal: controller.signal })) {
         try {
@@ -535,6 +596,8 @@ const plugin: Plugin.Plugin = {
 
     return () => {
       controller.abort()
+      clearInterval(heartbeatTimer)
+      runningTurns.clear()
       for (const requestID of permissions.keys()) cancelPermission(requestID)
     }
   },

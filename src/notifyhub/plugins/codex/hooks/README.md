@@ -4,15 +4,16 @@
 `../install.py` generates equivalent installed hook definitions; both must stay aligned.
 This layout uses `${PLUGIN_ROOT}` / `%PLUGIN_ROOT%` Python paths and the turn-start hook.
 
-## Running status and machine labels
+## Running status, machine labels, and the heartbeat watcher
 
-`UserPromptSubmit` sends running status. Unix commands resolve trimmed `HOST_MODEL`
-(except empty or `Unknown`), then trimmed exported `HOSTNAME`, then `hostname`. They send
-`X-NotifyHub-Host` while piping the original JSON stdin unchanged through `curl --data-binary @-`.
-Backend address variables preserve exported-empty host/port muting.
-
-Codex's Windows turn-start definition uses the Python reporter to share label resolution.
-The reporter recognizes `UserPromptSubmit` and forwards its prompt for task extraction.
+`UserPromptSubmit` runs the Python reporter (`notifyhub-codex.py`) on every platform: it posts
+`running` (forwarding the prompt for task extraction), then spawns the detached `--heartbeat`
+watcher that keeps long turns fresh; `PostModelRequest` refreshes `running` and re-arms the
+watcher. Labels resolve trimmed `HOST_MODEL` (except empty or `Unknown`), then trimmed exported
+`HOSTNAME`, then `hostname` — the same precedence on Windows. Watchers live under
+`$NOTIFYHUB_HEARTBEAT_DIR` (default `/tmp/notifyhub-codex-heartbeat`) and honor
+`NOTIFYHUB_HEARTBEAT_INTERVAL_SECONDS` / `NOTIFYHUB_HEARTBEAT_MAX_MINUTES`
+(0 disables); `Stop`/`Interrupt` remove the lease so the watcher exits.
 
 ## Install and verify
 

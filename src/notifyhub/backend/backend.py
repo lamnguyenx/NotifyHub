@@ -280,7 +280,13 @@ async def report_status(agent: str, state: str, request: Request):
             host = request.client.host
 
         changed = status_store.update(
-            agent, session_id, state, pwd=pwd or cwd, host=host, task=task_excerpt(body)
+            agent,
+            session_id,
+            state,
+            pwd=pwd or cwd,
+            host=host,
+            task=task_excerpt(body),
+            heartbeat=body.get("heartbeat") is True,
         )
         return {"success": True, "changed": changed}
     except CryptoError as e:

@@ -75,6 +75,45 @@ class TestAgentStatusStore:
         assert store.update("claude", "s1", "running", task="second prompt") is True
         assert store.list_payloads()[0]["task"] == "second prompt"
 
+    def test_heartbeat_never_creates_an_entry(self):
+        store = AgentStatusStore(stale_after=300)
+        assert store.update("claude", "s1", "running", heartbeat=True) is False
+        assert store.list_payloads() == []
+
+    def test_heartbeat_refreshes_running_without_reannouncing(self):
+        store = AgentStatusStore(stale_after=300)
+        store.update("claude", "s1", "running")
+        before = store.statuses[("claude", "s1")].updated
+        assert store.update("claude", "s1", "running", heartbeat=True) is False
+        entry = store.list_payloads()[0]
+        assert entry["state"] == "running"
+        assert entry["updated"] >= before  # liveness refreshed
+
+    def test_heartbeat_revives_a_stale_entry(self):
+        store = AgentStatusStore(stale_after=300)
+        store.update("codex", "s1", "running")
+        store.statuses[("codex", "s1")].updated = (
+            datetime.now(timezone.utc) - timedelta(seconds=301)
+        ).isoformat()
+        assert store.update("codex", "s1", "running", heartbeat=True) is True
+
+    def test_heartbeat_cannot_unblock_or_resurrect(self):
+        store = AgentStatusStore(stale_after=300)
+        store.update("claude", "s1", "blocked")
+        assert store.update("claude", "s1", "running", heartbeat=True) is False
+        assert store.list_payloads()[0]["state"] == "blocked"
+        store.update("claude", "s2", "idle")
+        assert store.update("claude", "s2", "running", heartbeat=True) is False
+        assert store.list_payloads()[1]["state"] == "idle"
+
+    def test_real_running_post_still_flips_blocked(self):
+        # The post-permission refresh (claude PostToolUse, opencode
+        # permission.replied) is not a heartbeat and must keep working.
+        store = AgentStatusStore(stale_after=300)
+        store.update("claude", "s1", "blocked")
+        assert store.update("claude", "s1", "running") is True
+        assert store.list_payloads()[0]["state"] == "running"
+
     def test_entry_transform_applies_to_payloads(self):
         store = AgentStatusStore(
             stale_after=300,
@@ -220,6 +259,26 @@ class TestStatusAPI:
         client.post("/api/status/claude/idle", json={"session_id": "s"})
         second = client.post("/api/status/claude/idle", json={"session_id": "s"})
         assert second.json() == {"success": True, "changed": False}
+
+    def test_heartbeat_ping_is_a_liveness_refresh_only(self, client):
+        # No entry exists: a heartbeat must not conjure one from nothing.
+        first = client.post(
+            "/api/status/claude/running", json={"session_id": "s", "heartbeat": True}
+        )
+        assert first.json() == {"success": True, "changed": False}
+        assert client.get("/api/status").json()["agents"] == []
+
+        # A real report creates it; pings then refresh without re-announcing,
+        # and cannot flip a blocked or idle entry back to running.
+        client.post("/api/status/claude/running", json={"session_id": "s"})
+        assert (
+            client.post("/api/status/claude/running", json={"session_id": "s", "heartbeat": True}).json()
+            == {"success": True, "changed": False}
+        )
+        client.post("/api/status/claude/blocked", json={"session_id": "s"})
+        client.post("/api/status/claude/running", json={"session_id": "s", "heartbeat": True})
+        entry = client.get("/api/status").json()["agents"][0]
+        assert entry["state"] == "blocked"
 
     def test_e2e_envelope_ingest_and_serving(self, client, monkeypatch):
         monkeypatch.setattr(backend, "_e2e_enabled", True)

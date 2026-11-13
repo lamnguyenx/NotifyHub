@@ -78,6 +78,11 @@ stream) and reports live state to `POST /api/status/opencode/<state>` in-process
 | `session.idle` / `session.execution.succeeded` / `failed` / `interrupted` | `idle` |
 
 Identical consecutive states are deduped locally; a backend that is down is silently ignored.
+Sessions this instance reported `running` are additionally refreshed by an in-process
+**heartbeat ticker** (`setInterval`, 60s default): each tick re-posts `running` with
+`heartbeat: true` so one long tool call can no longer flip a live card to `stalled?`. Entries
+older than the age cap (default 120 min) are dropped and left to go stale — the honest state
+for a dead session. `NOTIFYHUB_HEARTBEAT_MAX_MINUTES=0` disables the ticker.
 The status body carries `host` using the shared CLI precedence: trimmed `HOST_MODEL` (except
 empty or `Unknown`), exported `HOSTNAME`, then OS hostname. Live and completed cards use the same
 label, such as `MS-7E70`, without requiring a host header.
@@ -101,6 +106,8 @@ OpenCode:
 | `NOTIFYHUB_CLI_HOST` | `0.0.0.0` | NotifyHub host |
 | `NOTIFYHUB_CLI_PORT` | `9080` | NotifyHub port |
 | `NOTIFYHUB_CLI_ENABLED` | `true` | `false`/`0`/`off`/`no`/… mutes all notifications |
+| `NOTIFYHUB_HEARTBEAT_INTERVAL_MS` | `60000` | Heartbeat cadence for running sessions (1s floor) |
+| `NOTIFYHUB_HEARTBEAT_MAX_MINUTES` | `120` | Orphan cap for running entries; `0` disables the heartbeat |
 | `NOTIFYHUB_PUSH_SCRIPT` | `~/.config/opencode/plugin/notifyhub-push.py` | Override the CLI path (project-level installs, tests) |
 | `VERBOSE_INT` | `0` | Forwarded to the NotifyHub CLI |
 

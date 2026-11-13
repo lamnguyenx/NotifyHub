@@ -34,8 +34,9 @@ HOOK_SCRIPT = os.path.join(PLUGIN_DIR, "notifyhub-codex.py")
 # directory's notifyhub-codex.py, so foreign hooks stay untouched.
 HOOK_MARKER = "notifyhub-codex.py"
 
-# Uninstall also matches the curl status one-liners (which target this
-# agent's status endpoint).
+# Uninstall also matches the legacy curl status one-liners (which targeted
+# this agent's status endpoint) so upgrades from that wiring clean up after
+# themselves.
 STATUS_HOOK_MARKER = "/api/status/codex/"
 
 
@@ -68,6 +69,13 @@ def command_handler(timeout: float, async_: bool) -> tp.Dict[str, tp.Any]:
 
 
 def status_curl_handler() -> tp.Dict[str, tp.Any]:
+    """Legacy curl refresh, kept only for reference/uninstall matching.
+
+    Current wiring reports `running` through notifyhub-codex.py (label
+    precedence, prompt forwarding, and the --heartbeat watcher spawn), but
+    existing installs may still carry this one-liner, so the shaped entry
+    below remains the exact string the installer used to write.
+    """
     return {
         "type": "command",
         # Codex may spawn hook commands without a shell, so the sh -c wrapper
@@ -114,12 +122,13 @@ HOOK_EVENTS: tp.Dict[str, tp.List[tp.Dict[str, tp.Any]]] = {
     "PreToolUse": [
         {"matcher": "^request_user_input$", "hooks": [command_handler(30, async_=True)]}
     ],
-    # Turn start → running. Plain sh+curl piping the hook payload (the server
-    # extracts session_id/cwd itself): no python startup on the prompt path.
-    # `${VAR-default}` (without the colon) preserves the documented
-    # empty-host/port mute. Stop/Interrupt/PermissionRequest/PostModelRequest
-    # status (idle/blocked/running) is posted by notifyhub-codex.py instead.
-    "UserPromptSubmit": [{"hooks": [status_curl_handler()]}],
+    # Turn start → running. Report and spawn the --heartbeat watcher via the
+    # Python hook: one prompt per turn is a cold path, the interpreter start
+    # buys the label/prompt logic and the detached watcher that keeps long
+    # turns fresh. Stop/Interrupt/PermissionRequest/PostModelRequest status
+    # (idle/blocked/running) is posted by notifyhub-codex.py as well; the
+    # legacy curl one-liner remains only for uninstall matching.
+    "UserPromptSubmit": [{"hooks": [command_handler(10, async_=True)]}],
 }
 
 

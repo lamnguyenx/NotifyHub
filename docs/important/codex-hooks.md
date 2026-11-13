@@ -103,19 +103,18 @@ Details:
 ## Agent status reporting
 
 The hooks also report live session state to `POST /api/status/codex/<state>` (see
-[`agent-status.md`](agent-status.md)). The raw curl one-liner sends
-`X-NotifyHub-Host` using the push CLI label precedence: trimmed `HOST_MODEL` (except empty or
-`Unknown`), exported `HOSTNAME`, then OS hostname. Windows uses the Python reporter with the same
-precedence and forwards the turn-start prompt. This lets the backend record the machine
-name rather than the request's client IP, which can be a Docker bridge address:
+[`agent-status.md`](agent-status.md)). All status posts go through the Python reporter, which
+resolves the push CLI label precedence — trimmed `HOST_MODEL` (except empty or `Unknown`),
+exported `HOSTNAME`, then OS hostname — and sends it in the body. This lets the backend record
+the machine name rather than the request's client IP, which can be a Docker bridge address:
 
 | Codex hook | Status | How |
 |---|---|---|
-| `UserPromptSubmit` | `running` | Unix: inline `sh -c 'curl --data-binary @- …'`; Windows: Python reporter (async, 3s), forwarding the prompt for task extraction |
-| `PostModelRequest` (every attempt) | `running` | posted in-process by `notifyhub-codex.py` — a heartbeat that also revives entries the backend marked stale |
+| `UserPromptSubmit` | `running` | `notifyhub-codex.py` (async, every platform): posts `running` forwarding the prompt for task extraction, then spawns the detached `--heartbeat` watcher |
+| `PostModelRequest` (every attempt) | `running` | posted in-process by `notifyhub-codex.py` — an event refresh that also revives stale entries and re-arms the watcher |
 | `PermissionRequest` | `blocked` when a human must decide, else `running` | posted by `notifyhub-codex.py`, reusing the `needs_human_permission()` check (`auto_review` approvals are not user-visible blockers) |
 | `PreToolUse` (`request_user_input`) | `blocked` | posted by `notifyhub-codex.py` |
-| `Stop` / `Interrupt` | `idle` | posted by `notifyhub-codex.py` |
+| `Stop` / `Interrupt` | `idle` | posted by `notifyhub-codex.py`; also removes the heartbeat lease so the watcher exits |
 
 Completion pushes stamp `NOTIFYHUB_SESSION_ID` (→ `data.session_id` on the notification) so the
 TUI waiting card resolves when the notification lands

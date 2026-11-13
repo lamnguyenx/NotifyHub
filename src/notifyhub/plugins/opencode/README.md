@@ -36,7 +36,11 @@ to `POST /api/status/opencode/<state>` in-process, no spawn — operator guide:
 | `permission.replied` | `running` (reject settles via the following `session.idle` / execution event) |
 
 Identical consecutive reports are skipped locally; a backend that is down is
-silently ignored. Completion pushes stamp `NOTIFYHUB_SESSION_ID` (`→ data.session_id`
+silently ignored. Sessions this instance reported `running` are also refreshed by an
+in-process **heartbeat ticker** (60s `setInterval`): each tick re-posts `running` with
+`heartbeat: true`, which the backend treats as pure liveness — one long tool call can no
+longer flip a live card to `stalled?`. Entries age out after a cap (default 120 min) so a
+dead session still goes stale. Completion pushes stamp `NOTIFYHUB_SESSION_ID` (`→ data.session_id`
 on the notification) so consumers can resolve the running row when the card lands.
 A long-lived opencode server/TUI keeps the previously-loaded plugin instance until
 it restarts.
@@ -119,6 +123,8 @@ launching OpenCode:
 | `NOTIFYHUB_CLI_PORT`                          | `9080`                                         | NotifyHub port                       |
 | `NOTIFYHUB_PUSH_SCRIPT`                       | `~/.config/opencode/plugin/notifyhub-push.py`  | Override the CLI path (project installs) |
 | `NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS`     | `empty`                                        | Comma-separated agent names never notified; overrides the config file |
+| `NOTIFYHUB_HEARTBEAT_INTERVAL_MS`             | `60000`                                        | Heartbeat cadence for running sessions (1s floor) |
+| `NOTIFYHUB_HEARTBEAT_MAX_MINUTES`             | `120`                                          | Orphan cap for running entries; `0` disables the heartbeat |
 | `VERBOSE_INT`                                 | `0`                                            | Forwarded to the NotifyHub CLI       |
 
 ### Muting specific agents
@@ -209,6 +215,12 @@ OpenCode plugin regression checks (no live server or model requests):
 bun test ./tests/notifyhub/plugins/opencode_plugin.test.ts
 npm run typecheck --prefix src/notifyhub/plugins/opencode
 ```
+
+## 2026-11-13 session record
+
+- [Heartbeat ticker — module changes, trials, errors, and lessons](../../../../docs/plans/2026/11/13/2026-11-13-agent-status-heartbeats-opencode.md)
+- [Full session and module map](../../../../docs/plans/2026/11/13/2026-11-13-agent-status-heartbeats.md)
+- [Agent-status guide (Heartbeats)](../../../../docs/important/agent-status.md#heartbeats)
 
 ## 2026-11-12 session record
 

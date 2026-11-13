@@ -142,6 +142,9 @@ the opencode plugin and the claude/codex hooks report `running` / `blocked` / `i
 to `POST /api/status/<agent>/<state>`, and every meaningful change is broadcast as an SSE
 `agent_status` event. Entries carry the directory, host, a one-line excerpt of the running task,
 and turn `stale` after `backend.agent_status_stale_seconds` (default 300) without a refresh.
+Reporters also heartbeat — an opencode in-process ticker plus detached claude/codex watcher
+processes re-post `running` (with a `heartbeat` flag) every 60s during long turns, so a silent
+5-minute tool call no longer reads as `stalled?`; only a genuinely dead agent does.
 Completion notifications carry `data.session_id`, so clients can resolve a running row exactly
 when its turn's notification lands. The TUI (§9) renders these as waiting notification cards;
 operator guide: [`docs/important/agent-status.md`](docs/important/agent-status.md).
@@ -266,7 +269,8 @@ label as completed notifications.
 
 The plugin is a **dependency-free single file** (type-only import of `@opencode/plugin`, so no
 `node_modules` is needed in `~/.config/opencode`), hot-reloads when the installed file changes, and reads
-`NOTIFYHUB_CLI_HOST`, `NOTIFYHUB_CLI_PORT`, `NOTIFYHUB_CLI_SCHEME`, `NOTIFYHUB_CLI_ENABLED`, and `NOTIFYHUB_PUSH_SCRIPT`. It also
+`NOTIFYHUB_CLI_HOST`, `NOTIFYHUB_CLI_PORT`, `NOTIFYHUB_CLI_SCHEME`, `NOTIFYHUB_CLI_ENABLED`, `NOTIFYHUB_PUSH_SCRIPT`,
+`NOTIFYHUB_HEARTBEAT_INTERVAL_MS`, and `NOTIFYHUB_HEARTBEAT_MAX_MINUTES`. It also
 mutes specific agents via `plugins.opencode.muted_agents` in the NotifyHub config (or the comma-separated
 `NOTIFYHUB_PLUGINS_OPENCODE_MUTED_AGENTS`). Development happens in `src/notifyhub/plugins/opencode/`:
 
@@ -298,7 +302,8 @@ make remove-plugin-claude   # uninstall
 
 Claude live-status and completion cards use the same machine label: `HOST_MODEL` (ignoring empty
 or `Unknown`), then exported `HOSTNAME`, then the OS hostname. Re-run `make install-plugin-claude`
-and restart Claude sessions after upgrading the inline status hooks.
+and restart Claude sessions after upgrading the status hooks (turn start now also spawns the
+heartbeat watcher; per-tool refresh stays the curl one-liner).
 
 Hooks run straight from `src/notifyhub/plugins/claude/notifyhub-claude.py` (live edits, no
 reinstall), share `notifyhub-push.py` and the mute env vars with the OpenCode plugin, and the
@@ -569,8 +574,9 @@ Above the stream, **sessions in motion** render as notification cards in waiting
 project header, coding-agent pill (`◇ opencode`, `✳ claude`, `◐ codex`) and the reporting
 machine's host pill (`⌂ Mac153`), the running prompt on the `@USER` line, and `@ASSISTANT` with
 a shimmering per-turn loading gerund + `⠙` snapped to the card's bottom-right while running.
-Permission/input waits turn the border and line amber (`waiting for you ⚠`); a session silent for
-5 minutes turns them red (`stalled? ◼`). Docked cards stack border-to-border with a faint
+Permission/input waits turn the border and line amber (`waiting for you ⚠`); a session whose
+heartbeats stop for 5 minutes turns them red (`stalled? ◼`) — with the reporters' heartbeat
+watchers running, that means the agent itself died rather than a mere long tool call. Docked cards stack border-to-border with a faint
 state-colored background wash. Cards vanish when the turn finishes — resolved by `session_id`
 against the completion notification — and resync from `GET /api/status` on reconnect. Details:
 [`docs/important/the-tui.md`](docs/important/the-tui.md) and
