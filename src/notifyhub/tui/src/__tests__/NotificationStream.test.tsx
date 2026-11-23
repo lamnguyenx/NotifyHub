@@ -10,19 +10,16 @@ const mockItems: NotificationItem[] = [
   { id: "3", data: { message: "Third notification" }, timestamp: "2026-07-05T10:02:00.000Z" },
 ]
 
-async function render(items: NotificationItem[], onDelete?: (id: string) => void) {
-  const result = await testRender(
-    <NotificationStream notifications={items} onDelete={onDelete ?? (() => {})} />,
-    { width: 80, height: 24 },
-  )
+async function render(
+  items: NotificationItem[],
+  props: { selectMode?: boolean; selectedId?: string | null } = {},
+) {
+  const result = await testRender(<NotificationStream notifications={items} {...props} />, {
+    width: 80,
+    height: 24,
+  })
   await act(async () => { await result.renderOnce() })
   return result
-}
-
-async function press(key: string, mockInput: { pressKey: (k: string) => void }, renderOnce: () => Promise<void>) {
-  mockInput.pressKey(key)
-  await act(async () => { await renderOnce() })
-  await act(async () => { await renderOnce() })
 }
 
 it("shows waiting message when empty", async () => {
@@ -41,85 +38,17 @@ it("renders all notifications", async () => {
   renderer.destroy()
 })
 
-it("shows select mode banner on v press", async () => {
-  const { captureCharFrame, mockInput, renderOnce, renderer } = await render(mockItems)
-  await press("v", mockInput, renderOnce)
+it("shows select mode banner when selectMode is on", async () => {
+  const { captureCharFrame, renderer } = await render(mockItems, { selectMode: true })
   const frame = captureCharFrame()
   expect(frame).toContain("SELECT MODE")
+  expect(frame).toContain("Del: delete/dismiss")
   renderer.destroy()
 })
 
-it("hides select mode banner on second v press", async () => {
-  const { captureCharFrame, mockInput, renderOnce, renderer } = await render(mockItems)
-  await press("v", mockInput, renderOnce)
-  await press("v", mockInput, renderOnce)
-  const frame = captureCharFrame()
-  expect(frame).not.toContain("SELECT MODE")
-  renderer.destroy()
-})
-
-it("moves selection down on j press", async () => {
-  const { captureCharFrame, mockInput, renderOnce, renderer } = await render(mockItems)
-  await press("v", mockInput, renderOnce)
-  await press("j", mockInput, renderOnce)
-  renderer.destroy()
-})
-
-it("moves selection down on arrow down", async () => {
-  const { captureCharFrame, mockInput, renderOnce, renderer } = await render(mockItems)
-  await press("v", mockInput, renderOnce)
-  await press("ARROW_DOWN", mockInput, renderOnce)
-  renderer.destroy()
-})
-
-it("moves selection up on k press", async () => {
-  const { captureCharFrame, mockInput, renderOnce, renderer } = await render(mockItems)
-  await press("v", mockInput, renderOnce)
-  await press("j", mockInput, renderOnce)
-  await press("k", mockInput, renderOnce)
-  renderer.destroy()
-})
-
-it("calls onDelete on delete key", async () => {
-  const deleted: string[] = []
-  const { mockInput, renderOnce, renderer } = await render(mockItems, (id) => deleted.push(id))
-  await press("v", mockInput, renderOnce)
-  await press("j", mockInput, renderOnce)
-  await press("DELETE", mockInput, renderOnce)
-  expect(deleted).toEqual(["2"])
-  renderer.destroy()
-})
-
-it("calls onDelete on backspace key", async () => {
-  const deleted: string[] = []
-  const { mockInput, renderOnce, renderer } = await render(mockItems, (id) => deleted.push(id))
-  await press("v", mockInput, renderOnce)
-  await press("j", mockInput, renderOnce)
-  await press("BACKSPACE", mockInput, renderOnce)
-  expect(deleted).toEqual(["2"])
-  renderer.destroy()
-})
-
-it("deselects on escape", async () => {
-  const { mockInput, renderOnce, renderer } = await render(mockItems)
-  await press("v", mockInput, renderOnce)
-  await press("j", mockInput, renderOnce)
-  await press("ESCAPE", mockInput, renderOnce)
-  renderer.destroy()
-})
-
-it("home goes to first item", async () => {
-  const { mockInput, renderOnce, renderer } = await render(mockItems)
-  await press("v", mockInput, renderOnce)
-  await press("END", mockInput, renderOnce)
-  await press("HOME", mockInput, renderOnce)
-  renderer.destroy()
-})
-
-it("end goes to last item", async () => {
-  const { mockInput, renderOnce, renderer } = await render(mockItems)
-  await press("v", mockInput, renderOnce)
-  await press("END", mockInput, renderOnce)
+it("hides select mode banner when selectMode is off", async () => {
+  const { captureCharFrame, renderer } = await render(mockItems)
+  expect(captureCharFrame()).not.toContain("SELECT MODE")
   renderer.destroy()
 })
 
@@ -127,12 +56,7 @@ it("end goes to last item", async () => {
 // doesn't fire and call counts stay deterministic.
 async function renderWithLoadMore(onLoadMore: () => void, height = 8) {
   const result = await testRender(
-    <NotificationStream
-      notifications={mockItems}
-      onDelete={() => {}}
-      hasMore
-      onLoadMore={onLoadMore}
-    />,
+    <NotificationStream notifications={mockItems} hasMore onLoadMore={onLoadMore} />,
     { width: 80, height },
   )
   await act(async () => { await result.renderOnce() })
@@ -148,24 +72,5 @@ it("shows load-older hint when hasMore", async () => {
 it("does not show load-older hint when fully loaded", async () => {
   const { captureCharFrame, renderer } = await render(mockItems)
   expect(captureCharFrame()).not.toContain("load older")
-  renderer.destroy()
-})
-
-it("calls onLoadMore on l key when hasMore", async () => {
-  let calls = 0
-  const { mockInput, renderOnce, renderer } = await renderWithLoadMore(() => { calls++ })
-  await press("l", mockInput, renderOnce)
-  expect(calls).toBe(1)
-  renderer.destroy()
-})
-
-it("calls onLoadMore when navigating past the last item in select mode", async () => {
-  let calls = 0
-  const { mockInput, renderOnce, renderer } = await renderWithLoadMore(() => { calls++ })
-  await press("v", mockInput, renderOnce)
-  await press("j", mockInput, renderOnce)
-  await press("j", mockInput, renderOnce)
-  await press("j", mockInput, renderOnce)
-  expect(calls).toBe(1)
   renderer.destroy()
 })

@@ -121,7 +121,11 @@ session/context APIs and does not read the database directly. See [OpenCode beha
   `@USER` line, and `@ASSISTANT` with a shimmering loading gerund + spinner snapped to the card's
   bottom-right while running, `waiting for you ⚠` (amber) when blocked on permission/input, and
   `stalled? ◼` (red) when past the stale window. Cards vanish when idle or when their
-  completion notification arrives. The card's time is `since` (session age), not turn age.
+  completion notification arrives. `v` select mode includes the dock: `Delete`/`Backspace`
+  dismisses a selected card, and right-click opens a context menu whose `Dismiss card` action
+  hides any docked card without select mode (client-side — the session keeps running and the card
+  reappears if its state or prompt changes). The card's time is `since` (session age), not turn
+  age.
   Design/lessons:
   [`2026-11-11-tui-waiting-cards.md`](../plans/2026/11/11/2026-11-11-tui-waiting-cards.md),
   [`2026-11-11-tui-waiting-card-machine-id.md`](../plans/2026/11/11/2026-11-11-tui-waiting-card-machine-id.md)
@@ -159,7 +163,12 @@ for e in json.load(sys.stdin)['agents']:
 - [Codex](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-codex.md) + [hook definitions](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-codex-hooks.md) — watcher + turn-start reporter
 - [Tests](../plans/2026/11/13/2026-11-13-agent-status-heartbeats-tests.md) — regression suites
 
+## 2026-11-20 record
+
+- [Dock dismiss, mouse and context menu](../plans/2026/11/20/2026-11-20-tui-dock-dismiss-mouse-context-menu.md)
+
 ## 2026-11-12 records
+
 
 - [Parent session and module map](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions.md)
 - [Plugin parent](../plans/2026/11/12/2026-11-12-plugin-labels-installation-and-permissions-plugins.md)

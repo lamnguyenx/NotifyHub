@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react"
-import { useKeyboard } from "@opentui/react"
+import { useEffect, useRef } from "react"
 import type { ScrollBoxRenderable } from "@opentui/core"
 import { useTheme } from "../theme"
 import type { NotificationItem } from "../types"
@@ -19,17 +18,29 @@ const rowId = (id: string) => `notification-row-${id}`
 
 interface Props {
   notifications: NotificationItem[]
-  onDelete: (id: string) => void
+  /** Select mode and the focused notification live in AppView so the docked
+   * waiting cards and the feed share one selection order. */
+  selectMode?: boolean
+  selectedId?: string | null
   hasMore?: boolean
   loadingMore?: boolean
   onLoadMore?: () => void
+  /** Right-click: open the notification's context menu. */
+  onContextMenu?: (item: NotificationItem, x: number, y: number) => void
   /** Frozen clock for prototypes and screenshots; omit for the live clock. */
   now?: Date
 }
 
-export function NotificationStream({ notifications, onDelete, hasMore, loadingMore, onLoadMore, now: frozenNow }: Props) {
-  const [selectedIdx, setSelectedIdx] = useState(-1)
-  const [selectMode, setSelectMode] = useState(false)
+export function NotificationStream({
+  notifications,
+  selectMode = false,
+  selectedId = null,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+  onContextMenu,
+  now: frozenNow,
+}: Props) {
   const liveNow = useNow()
   const now = frozenNow ?? liveNow
   const playSound = useNotificationSound(SOUND_PATH)
@@ -61,65 +72,9 @@ export function NotificationStream({ notifications, onDelete, hasMore, loadingMo
     return () => clearInterval(id)
   }, [hasMore, loadingMore, onLoadMore])
 
-  useKeyboard((key) => {
-    if (key.name === "v") {
-      setSelectMode((prev) => {
-        if (prev) setSelectedIdx(-1)
-        return !prev
-      })
-      return
-    }
-
-    if (key.name === "l") {
-      if (hasMore && !loadingMore) onLoadMore?.()
-      return
-    }
-
-    if (!selectMode) return
-
-    if (key.name === "down" || key.name === "j") {
-      if (notifications.length === 0) {
-        setSelectedIdx(-1)
-        return
-      }
-      const idx = selectedIdx < 0 ? 0 : selectedIdx
-      if (idx >= notifications.length - 1 && hasMore) onLoadMore?.()
-      setSelectedIdx(Math.min(idx + 1, notifications.length - 1))
-    } else if (key.name === "up" || key.name === "k") {
-      setSelectedIdx((prev) => {
-        if (notifications.length === 0) return -1
-        const idx = prev < 0 ? 0 : prev
-        return Math.max(idx - 1, 0)
-      })
-    } else if (key.name === "pageup") {
-      setSelectedIdx((prev) => {
-        if (notifications.length === 0) return -1
-        const idx = prev < 0 ? 0 : prev
-        return Math.max(idx - 5, 0)
-      })
-    } else if (key.name === "pagedown") {
-      setSelectedIdx((prev) => {
-        if (notifications.length === 0) return -1
-        const idx = prev < 0 ? 0 : prev
-        return Math.min(idx + 5, notifications.length - 1)
-      })
-    } else if (key.name === "home") {
-      setSelectedIdx(notifications.length > 0 ? 0 : -1)
-    } else if (key.name === "end") {
-      setSelectedIdx(notifications.length > 0 ? notifications.length - 1 : -1)
-    } else if (key.name === "delete" || key.name === "backspace") {
-      if (notifications.length === 0 || selectedIdx < 0 || selectedIdx >= notifications.length) return
-      onDelete(notifications[selectedIdx].id)
-      setSelectedIdx(Math.max(0, Math.min(selectedIdx, notifications.length - 2)))
-    } else if (key.name === "escape") {
-      setSelectedIdx(-1)
-    }
-  })
-
   // Keep the selected card visible while navigating in select mode.
-  const selectedId = selectedIdx >= 0 ? notifications[selectedIdx]?.id : undefined
   useEffect(() => {
-    if (selectedId === undefined) return
+    if (selectedId === null || selectedId === undefined) return
     // Defer one tick so the new selection has been laid out.
     const t = setTimeout(() => scrollRef.current?.scrollChildIntoView(rowId(selectedId)), 0)
     return () => clearTimeout(t)
@@ -130,7 +85,7 @@ export function NotificationStream({ notifications, onDelete, hasMore, loadingMo
       {selectMode && (
         <box width="100%" height={1} flexShrink={0} backgroundColor={theme.accentBg} paddingX={1}>
           <text fg={theme.accent} wrapMode="none">
-            {"SELECT MODE  |  j/k/\u2191/\u2193: navigate  |  Del: delete  |  Esc: deselect  |  v: exit"}
+            {"SELECT MODE | j/k: navigate | Del: delete/dismiss | Esc: deselect | v: exit"}
           </text>
         </box>
       )}
@@ -149,8 +104,15 @@ export function NotificationStream({ notifications, onDelete, hasMore, loadingMo
             <text fg={theme.dim}>{"Waiting for notifications\u2026"}</text>
           </box>
         ) : (
-          notifications.map((n, i) => (
-            <NotificationRow key={n.id} id={rowId(n.id)} item={n} selected={i === selectedIdx} now={now} />
+          notifications.map((n) => (
+            <NotificationRow
+              key={n.id}
+              id={rowId(n.id)}
+              item={n}
+              selected={n.id === selectedId}
+              now={now}
+              onContextMenu={onContextMenu}
+            />
           ))
         )}
         {hasMore && (

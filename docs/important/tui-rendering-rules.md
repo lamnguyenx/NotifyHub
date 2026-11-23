@@ -64,7 +64,7 @@ Current values:
 
 | Popup | Content rows | Gaps | Padding | Border | Height |
 |---|---|---|---|---|---|
-| Help | 14 | 0 | 2 | 2 | **18** |
+| Help | 15 | 0 | 2 | 2 | **19** |
 | Status | 7 | 6 | 2 | 2 | **17** |
 
 Status width also depends on the address: `min(width - 2, max(46, address.length + 22))`, because
@@ -100,6 +100,9 @@ frame.
 
 ## 6. Select mode: pin the banner, scroll by id
 
+- Selection state lives in `AppView`, not the scrollbox: the ordered key list is docked waiting
+  cards first, then feed notifications. `NotificationStream` receives `selectMode` and
+  `selectedId`, so the banner stays pinned and the feed scrolls only the selected row.
 - The SELECT MODE banner is a **sibling** of the scrollbox (`flexShrink={0}` above it), not its
   first child; `stickyScroll` does not pin arbitrary content.
 - Give every card a stable renderable id (`notification-row-<id>`) and scroll it into view after
@@ -115,6 +118,14 @@ useEffect(() => {
 
 - Never put a side effect such as `onDelete()` inside a `setState` updater; updaters run more than
   once under StrictMode/concurrent rendering. Read the current index in the key handler.
+- Right-click dispatch lives on the card's **outer box** (`onMouseDown`): OpenTUI hit-tests the
+  deepest cell and bubbles through parents, so a click on the title or body reaches the card.
+  Check `event.button === MouseButton.RIGHT` and `event.stopPropagation()` when handled. The card
+  reports `(item|entry, x, y)` upward; `AppView` opens `ContextMenu` at those absolute coordinates.
+  Never delete on right-click directly — the menu owns the destructive action. Do not bind delete
+  to left-click either; left-drag is reserved for text selection.
+- `ContextMenu` stops mouse propagation at its outer box so its own clicks do not reach the root
+  "click outside closes" handler. Clicking an action row stops propagation and runs it.
 
 ### 6.1 Waiting cards: chrome above the scrollbox
 
@@ -125,8 +136,9 @@ useEffect(() => {
   border-to-border and each `WaitingCard` owns its rounded border. Do not wrap the list in a
   second border.
 - No fixed card height: the `@USER` task excerpt can wrap at narrow widths. Let Yoga measure it.
-- Cards are display-only; they are not selectable and have no delete handling. If you move them
-  inside the scrollbox, add selection indexing and a delete story first.
+- Cards are selectable through `AppView`'s shared select order and can be dismissed with
+  Delete/Backspace. A selected card keeps its state-colored border and switches its background to
+  `theme.surfaceSelected`. Do not move them inside the scrollbox; the dock is not scrolled.
 - The agent pill and the host pill reuse `getHostModelTagColor`; the border is accent while
   running, warning while blocked on a permission/input, and danger while stalled. The card
   background is `mixHex(border, theme.background, 0.1)`, so the wash stays subtle in both light

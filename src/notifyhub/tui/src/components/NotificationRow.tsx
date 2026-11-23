@@ -1,4 +1,4 @@
-import { TextAttributes } from "@opentui/core"
+import { MouseButton, TextAttributes, type MouseEvent } from "@opentui/core"
 import { useTheme, type Theme } from "../theme"
 import type { NotificationItem } from "../types"
 import { isEnvelope, type EncryptedEnvelope } from "../utils/crypto"
@@ -134,6 +134,19 @@ interface Props {
   now?: Date
   /** Renderable id, so the stream can scroll the selected card into view. */
   id?: string
+  /** Right-click action: open the card's context menu at the pointer. */
+  onContextMenu?: (item: NotificationItem, x: number, y: number) => void
+}
+
+/** Right-click opens the card context menu; other buttons stay inert. */
+function handleRightClick(
+  event: MouseEvent,
+  item: NotificationItem,
+  onContextMenu?: (item: NotificationItem, x: number, y: number) => void,
+) {
+  if (event.button !== MouseButton.RIGHT || !onContextMenu) return
+  event.stopPropagation()
+  onContextMenu(item, event.x, event.y)
 }
 
 /** Human label for a truncation marker: "+24 LINES" -> "+24 lines". */
@@ -169,7 +182,7 @@ function renderSegments(segments: TagSegment[], lineKey: string, theme: Theme) {
   return out
 }
 
-function LockedNotificationRow({ item, selected, now, id }: Props) {
+function LockedNotificationRow({ item, selected, now, id, onContextMenu }: Props) {
   const theme = useTheme()
   const kid = envelopeKid(item)
   const borderColor = selected ? theme.borderSelected : theme.cardBorder
@@ -183,6 +196,7 @@ function LockedNotificationRow({ item, selected, now, id }: Props) {
       borderColor={borderColor}
       backgroundColor={cardBg}
       paddingX={1}
+      onMouseDown={(event) => handleRightClick(event, item, onContextMenu)}
     >
       <box flexDirection="column" width="100%">
         <box flexDirection="row" width="100%">
@@ -205,7 +219,7 @@ export function NotificationRow(props: Props) {
   return props.item.locked ? <LockedNotificationRow {...props} /> : <PlainNotificationRow {...props} />
 }
 
-function PlainNotificationRow({ item, selected, now: propNow, id }: Props) {
+function PlainNotificationRow({ item, selected, now: propNow, id, onContextMenu }: Props) {
   const now = propNow ?? new Date()
   const theme = useTheme()
   const data = (item.data ?? {}) as Record<string, unknown>
@@ -235,6 +249,7 @@ function PlainNotificationRow({ item, selected, now: propNow, id }: Props) {
       borderColor={borderColor}
       backgroundColor={cardBg}
       paddingX={1}
+      onMouseDown={(event) => handleRightClick(event, item, onContextMenu)}
     >
       <box flexDirection="column" gap={0} width="100%">
         <box flexDirection="row" width="100%" overflow="hidden">

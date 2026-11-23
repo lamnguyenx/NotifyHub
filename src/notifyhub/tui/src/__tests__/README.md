@@ -8,15 +8,16 @@ make tui-test                  # from the repo root
 cd src/notifyhub/tui && bun test  # equivalent
 ```
 
-Current: **154 pass, 0 fail, 11 files**.
+Current: **162 pass, 0 fail, 12 files**.
 
 ## Suites
 
 | File | Covers |
 |---|---|
 | `App.test.tsx` | Layout, footer hints, popup toggles/mutual exclusion, dismissal |
+| `AppView.test.tsx` | Shared selection order (dock → feed), delete vs dismiss, right-click context menu (open/keyboard/click/copy/Escape), Home/End, `l` and end-of-list load-more |
 | `NotificationRow.test.tsx` | Card text, avatar, title, pwd, timestamp, host-model color, gray/selected border, LOCKED rows |
-| `NotificationStream.test.tsx` | Empty state, rendering, select mode, navigation, delete |
+| `NotificationStream.test.tsx` | Empty state, rendering, select-mode banner, load-older hint |
 | `WaitingCards.test.tsx` | Waiting-card chrome, right-aligned gerund + spinner, shimmer, blocked/stalled colors, tinted backgrounds, idle hiding |
 | `StatusPopup.test.tsx` | Connection/SSE/e2e rows, host:port, locked count |
 | `HelpPopup.test.tsx` | Heading, key bindings, dismiss instruction |
@@ -45,6 +46,10 @@ await act(async () => { await renderOnce() }) // render the state change
   `loadingWordFor(seed)` instead of asserting the literal `loading`.
 - Mock `globalThis.fetch` when rendering the full `App` (`/api/notifications`, `/api/e2e`,
   `/events`), or the test will hit the real backend if it is running.
+- Mouse tests use `mockMouse.click(x, y, MouseButtons.RIGHT)` from `@opentui/core/testing`; hit
+  the card's title row and let the event bubble to the card's `onMouseDown`. Wrap the click in
+  `act()`. A right-click opens the context menu; run actions with menu keys or by clicking the
+  item row (menu top is the pointer row, actions start two rows below it).
 - Assert **unique** strings. For popups, use full titles (`NotifyHub — Help`,
   `NotifyHub — Status`) or the first and last content rows; a bare `toContain("Status")` can pass
   because of an overlap bug.
@@ -81,10 +86,11 @@ process exits with code 0.
 3. For rendering, assert a specific row index or a unique line; dump
    `index + JSON.stringify(line)` when debugging a frame.
 4. For popups, assert both the first and last content rows.
-5. Run `make tui-test` and keep the suite at 154+ passing.
+5. Run `make tui-test` and keep the suite at 162+ passing.
 
 ## Related
 
+- [2026-11-20 dock dismiss, mouse and context menu](../../../../../docs/plans/2026/11/20/2026-11-20-tui-dock-dismiss-mouse-context-menu.md)
 - [Prototype polish — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
 - [Prototype polish — components](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)
 - [Prototype polish — harness](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-harness.md)

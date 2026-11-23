@@ -8,11 +8,12 @@ the module overview is [`../../README.md`](../../README.md).
 
 | File | Responsibility | Notes |
 |---|---|---|
-| `NotificationStream.tsx` | Scrollable feed, select mode, lazy-load trigger | Owns `selectedIdx` and `selectMode`; banner is outside the scrollbox |
-| `NotificationRow.tsx` | One notification card, plain or `LOCKED` | Hook-free dispatcher; card height is measured by Yoga |
-| `WaitingCards.tsx` | Waiting notification cards for running/blocked/stalled sessions | `flexShrink={0}`; `@USER` task, per-turn gerund + spinner, state colors/tint, agent/host pills, stale mirror |
+| `NotificationStream.tsx` | Scrollable feed render, select-mode banner, lazy-load trigger | Selection lives in `AppView`; banner is outside the scrollbox |
+| `NotificationRow.tsx` | One notification card, plain or `LOCKED` | Hook-free dispatcher; card height is measured by Yoga; right-click opens the context menu |
+| `WaitingCards.tsx` | Waiting notification cards for running/blocked/stalled sessions | `flexShrink={0}`; `@USER` task, per-turn gerund + spinner, state colors/tint, agent/host pills, stale mirror, right-click opens the context menu |
+| `ContextMenu.tsx` | Absolute right-click menu, clamped to the terminal | Title + action rows; `zIndex={200}`; click or keyboard (`j`/`k`, Enter) runs an action |
 | `StatusPopup.tsx` | Centered connection/e2e status | 17 rows; width adapts to `host:port` |
-| `HelpPopup.tsx` | Centered key-binding reference | 18 rows; 60 columns max |
+| `HelpPopup.tsx` | Centered key-binding reference | 19 rows; 60 columns max |
 | `ErrorBoundary.tsx` | Fallback when a child render throws | Shows `Rendering error: <message>` only |
 
 ## Invariants
@@ -33,7 +34,7 @@ the module overview is [`../../README.md`](../../README.md).
 
 - Waiting cards are **pinned above the scrollbox** (`flexShrink={0}`), not scroll children. The
   stream keeps `flexGrow={1}` + `minHeight={0}`. Moving the cards inside the feed would make them
-  scroll away and force select-mode/delete semantics onto display-only state.
+  scroll away; they participate in select mode through `AppView`'s shared order instead.
 - The `WaitingCards` container is borderless with `gap={0}` + `marginBottom={1}`; consecutive
   cards sit border-to-border to save vertical space, and each `WaitingCard` owns its rounded
   border. The border color is accent while running, warning while blocked on a permission/input,
@@ -59,6 +60,9 @@ the module overview is [`../../README.md`](../../README.md).
 - The timestamp is `since` — session age, not turn age. The status API has no `turn_since`.
 - Idle entries are filtered by the container; a running card disappears when its completion
   notification (`data.session_id`) or an `idle` status arrives.
+- Right-click opens `ContextMenu` for select/copy/delete/dismiss; `AppView` owns the menu state and
+  copies through the renderer's OSC 52 clipboard. Clicking outside the menu closes it, and its
+  outer box stops mouse propagation.
 
 ### Popups
 
@@ -67,20 +71,23 @@ height = content rows + gaps + 2 (padding) + 2 (border)
 width  = min(terminal - 2, longest line + 2 (padding) + 2 (border))
 ```
 
-- Help: 14 content rows + padding 2 + border 2 = **18**.
+- Help: 15 content rows + padding 2 + border 2 = **19**.
 - Status: 7 content rows + 6 gaps + padding 2 + border 2 = **17**.
+- Context menu: title + one row per action + border = **actions + 3**; width is the longest row
+  + 4 (two border cells and a leading/trailing space).
 - Too small a height makes Yoga **overlap** rows, not clip them. Update the row count comment and
   the height when adding a line.
 - Escape sequences must be in a string expression:
   `<text>{"NotifyHub \u2014 Help"}</text>`.
-- Absolute popups use `zIndex={100}`.
+- Absolute popups use `zIndex={100}`; `ContextMenu` uses `200` so it stays above them.
 
 ### Stream
 
 - The SELECT MODE banner is a sibling above the scrollbox (`flexShrink={0}`), not a scroll child.
 - Cards get `id={"notification-row-" + n.id}`; the selection effect calls
   `scrollChildIntoView()` after layout (`setTimeout(0)`).
-- Delete handling must not call `onDelete()` inside a `setState` updater.
+- Delete handling must not call the delete callback inside a `setState` updater; the same applies
+  to context-menu actions (run them from the key/mouse handler, not the updater).
 - The scrollbox uses `flexGrow={1}` + `minHeight={0}` in the parent column.
 
 ### Lifecycle
@@ -99,6 +106,7 @@ width  = min(terminal - 2, longest line + 2 (padding) + 2 (border))
 
 ## Related
 
+- [Dock dismiss, mouse and context menu](../../../../../docs/plans/2026/11/20/2026-11-20-tui-dock-dismiss-mouse-context-menu.md)
 - [Prototype polish — parent plan](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
 - [Prototype polish — components](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)
 - [Prototype polish — tests](../../../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-tests.md)

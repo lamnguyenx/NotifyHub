@@ -553,7 +553,8 @@ on restart; Bun's `--hot` cannot preserve a React/OpenTUI root across reloads). 
 | --- | --- |
 | `v` | Toggle select mode |
 | `j`/`k` or `↑`/`↓` | Move selection (select mode); `PgUp`/`PgDn` by five, `Home`/`End` to the ends |
-| `Delete`/`Backspace` | Delete selected card (select mode) |
+| `Delete`/`Backspace` | Delete selected card (select mode); dismisses a selected docked waiting card |
+| Right-click | Open the card context menu (select, copy, delete/dismiss) |
 | `Esc` | Deselect |
 | `↑`/`↓`/`←`/`→` | Scroll the feed (select mode off) |
 | `l` | Load older notifications |
@@ -562,7 +563,7 @@ on restart; Bun's `--hot` cannot preserve a React/OpenTUI root across reloads). 
 
 Cards measure their content, so there is no blank padding after a resize. Normal feed cards use a
 soft gray border; the selected card uses the accent. Popups are sized to their content: Help is
-18 rows, Status 17 rows and wide enough for a funnel `host:port`.
+19 rows, Status 17 rows and wide enough for a funnel `host:port`.
 With e2e encryption enabled, the TUI prints the key source on startup
 (`make tui` → `e2e key: config e2e.key (kid …)`) and decrypts automatically using
 the key from `~/.config/notifyhub/config.jsonl` (or `NOTIFYHUB_E2E_KEY` / a key
@@ -578,9 +579,13 @@ Permission/input waits turn the border and line amber (`waiting for you ⚠`); a
 heartbeats stop for 5 minutes turns them red (`stalled? ◼`) — with the reporters' heartbeat
 watchers running, that means the agent itself died rather than a mere long tool call. Docked cards stack border-to-border with a faint
 state-colored background wash. Cards vanish when the turn finishes — resolved by `session_id`
-against the completion notification — and resync from `GET /api/status` on reconnect. Details:
+against the completion notification — and resync from `GET /api/status` on reconnect. Docked cards
+are part of select mode: `v` + `j`/`k` reaches them first, and `Delete`/`Backspace` dismisses the
+selected card locally (the agent keeps running). Right-clicking any card opens a context menu with
+select/copy/delete or dismiss actions. Details:
 [`docs/important/the-tui.md`](docs/important/the-tui.md) and
 [`docs/important/agent-status.md`](docs/important/agent-status.md). Design, trials and lessons:
+[`2026-11-20-tui-dock-dismiss-mouse-context-menu.md`](docs/plans/2026/11/20/2026-11-20-tui-dock-dismiss-mouse-context-menu.md),
 [`2026-11-11-tui-prototype-polish.md`](docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
 and
 [`2026-11-11-tui-waiting-cards.md`](docs/plans/2026/11/11/2026-11-11-tui-waiting-cards.md).

@@ -31,11 +31,34 @@ The main view is a real-time scrolling feed of notifications received via SSE fr
 - The `init` snapshot is capped by `NOTIFYHUB_TUI_PAGE_SIZE` (default 30); older pages load on
   scroll or with `l`
 - **Select mode** (`v`): `j`/`k` or `↑`/`↓` to move the selection, `PgUp`/`PgDn` to move by five,
-  `Home`/`End` for first/last, `Delete`/`Backspace` to delete, `Esc` to deselect. The selected card
-  is kept on-screen with `scrollChildIntoView()` and the SELECT MODE banner is pinned above the
-  scrollbox.
+  `Home`/`End` for first/last, `Delete`/`Backspace` to delete a feed card or dismiss a docked
+  waiting card, `Esc` to deselect. Selection walks the docked waiting cards first, then the feed.
+  The selected feed card is kept on-screen with `scrollChildIntoView()` and the SELECT MODE banner
+  is pinned above the scrollbox.
 - With select mode off, `↑`/`↓`/`←`/`→` scroll the feed directly.
+- **Right-click** any card to open its context menu (`Select card`, copy task/message, copy pwd,
+  copy session id, `Delete notification`/`Dismiss card`). The menu is anchored at the pointer,
+  clamped to the terminal, navigable with `j`/`k`/arrows, run with `Enter`, and dismissed with
+  `Esc` or a click elsewhere. Mouse wheel scrolls the feed; left-drag selects text.
 - Viewport culling for performance with large lists
+
+### 1.1 Context Menu
+
+Right-clicking a feed card opens a `Notification` menu; right-clicking a docked waiting card opens
+a `Waiting card` menu. Both share the same popup and keyboard handling:
+
+| Action | Feed notification | Waiting card |
+|---|---|---|
+| `Select card` | Enters select mode on that card | Enters select mode on that card |
+| `Copy message` / `Copy task` | Copies the message with tag markers stripped | Copies the task excerpt |
+| `Copy pwd` | Copies the notification's `pwd` | Copies the session's `pwd` |
+| `Copy session id` | — | Copies the agent session id |
+| destructive action | `Delete notification` | `Dismiss card` (client-side) |
+
+The menu is a content-sized absolute popup (`zIndex={200}`): title row + one row per action +
+border. `j`/`k`/`↑`/`↓` wrap, `Enter` runs, `Esc` closes, and clicking an item runs it. The root
+view closes the menu on a click outside. Copy actions use OSC 52 and the footer briefly shows
+`Message copied` / `Clipboard unavailable`.
 
 ### 2. Notification Cards
 Each notification is rendered as a bordered card (rounded corners) with:
@@ -104,12 +127,18 @@ the same chrome as a completed notification, with the running prompt and a live 
   stalled cards use the danger (red) border. The `waiting for you ⚠` and `stalled? ◼` text follows
   the same distinction, so an action-needed prompt never looks like a dead session. The card
   background is a 10% mix of that border color into the theme background, giving each state a
-  faint wash without competing with the text. Cards are
+  faint wash without competing with the text (a selected card uses `surfaceSelected` and keeps
+  its state-colored border). Cards are
   content-measured (`flexShrink={0}`) and the stream below uses the remaining space
   (`flexGrow`), so live cards are never squeezed by a long notification list
 - **idle** entries are hidden (their completion already rendered as a notification card); the
   card also disappears the moment its completion notification lands — matched by
   `data.session_id` stamped on every completion push
+- **Docked cards are selectable**: `v` + `j`/`k` walks the waiting cards before the feed, and
+  `Delete`/`Backspace` dismisses the selected one locally. Right-clicking a docked card opens the
+  context menu; its `Dismiss card` action works without select mode. A dismissal survives an SSE
+  reconnect while the turn is unchanged (same state + task excerpt) and clears when the state or
+  prompt changes. The agent session itself keeps running; there is no server-side status delete.
 - **stale** is mirrored client-side (running + `updated` older than 5 min) so the marker appears
   even between SSE events
 - The timestamp is `since` — **session age, not turn age**. The status API has no `turn_since`;
@@ -133,8 +162,9 @@ instead of clipping them.
 
 ### 5. Help Popup
 Press `h` or `?` to toggle a centered key-binding reference. It is 60 columns wide (or
-`terminal - 2` on a narrower terminal) and 18 rows tall (14 content rows + padding + border). The
-body lists select mode, navigation, delete/deselect, feed scrolling, status, help and quit.
+`terminal - 2` on a narrower terminal) and 19 rows tall (15 content rows + padding + border). The
+body lists select mode, navigation, delete/dismiss (keyboard and right-click context menu), feed
+scrolling, status, help and quit.
 
 ### 6. End-to-End Decryption
 When the backend has [e2e encryption](e2e-encryption.md) enabled, payloads arrive
@@ -172,7 +202,8 @@ theme mode):
 | `j` / `k` or `↑` / `↓` | Move the selected card (select mode) |
 | `PgUp` / `PgDn` | Move the selection by five cards (select mode) |
 | `Home` / `End` | Jump to first/last card (select mode) |
-| `Delete` / `Backspace` | Delete the selected card (select mode) |
+| `Delete` / `Backspace` | Delete the selected feed card, or dismiss the selected waiting card (select mode) |
+| Right-click | Open the card context menu (select, copy, delete/dismiss) |
 | `Esc` | Deselect the card |
 | `↑` / `↓` / `←` / `→` | Scroll the feed (select mode off) |
 | `l` | Load the next older page |
@@ -197,7 +228,7 @@ src/notifyhub/tui/
 │   ├── index.tsx              # Mounts App through renderTui()
 │   ├── prototype.tsx          # Mounts PrototypeApp through renderTui() (mock data)
 │   ├── render.tsx             # CliRenderer, ThemeProvider, onDestroy exit
-│   ├── App.tsx                # AppView shell (layout/keys/popups) + App live wiring
+│   ├── App.tsx                # AppView shell (layout/selection/keys/popups) + App live wiring
 │   ├── prototypes/            # Harness, scenarios and temporary seams
 │   │   ├── PrototypeApp.tsx   # Scenario switcher, frozen clock, prototype bar, r restart
 │   │   └── scenarios.ts       # Fake waiting cards (forever/stalled), variants, e2e, empty
@@ -212,7 +243,7 @@ src/notifyhub/tui/
 │   │   └── useAudio.ts          # Notification sound
 │   ├── components/
 │   │   ├── README.md                  # Component-level invariants
-│   │   ├── NotificationStream.tsx     # Live feed, select mode, scroll-to-selection
+│   │   ├── NotificationStream.tsx     # Live feed render, select-mode banner, scroll-to-selection
 │   │   ├── NotificationRow.tsx        # Card renderer (+ LOCKED cards, marker formatting)
 │   │   ├── WaitingCards.tsx           # Waiting notification cards (task + gerund + agent)
 │   │   ├── StatusPopup.tsx            # Centered status overlay (content-sized)
@@ -308,6 +339,8 @@ key file:
 
 ## History
 
+- [2026-11-20 dock dismiss, mouse and context menu](../plans/2026/11/20/2026-11-20-tui-dock-dismiss-mouse-context-menu.md)
+  — dock joined select mode, right-click context menu, OSC 52 copy, shared selection order.
 - [2026-11-11 prototype polish](../plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
   — parent: watch mode, `r` restart, `cardBorder`, docs.
 - [2026-11-11 prototype polish — components](../plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)

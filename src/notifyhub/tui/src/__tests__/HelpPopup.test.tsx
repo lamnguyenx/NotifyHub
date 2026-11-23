@@ -23,6 +23,13 @@ it("shows Toggle select mode key binding", async () => {
   renderer.destroy()
 })
 
+it("shows the right-click context-menu binding", async () => {
+  const { captureCharFrame, renderer } = await render()
+  const frame = captureCharFrame()
+  expect(frame).toContain("Right-click")
+  renderer.destroy()
+})
+
 it("shows dismiss instruction", async () => {
   const { captureCharFrame, renderer } = await render()
   const frame = captureCharFrame()

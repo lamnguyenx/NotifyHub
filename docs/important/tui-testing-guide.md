@@ -256,7 +256,7 @@ still pass.
 When a popup height is a constant, assert the **first and last content rows** (or every row):
 
 ```tsx
-// Help: 14 content rows, 18 total
+// Help: 15 content rows, 19 total
 expect(frame).toContain("Toggle select mode")
 expect(frame).toContain("Press any key to close")
 

@@ -39,6 +39,7 @@ export function PrototypeApp() {
   const [referenceNow, setReferenceNow] = useState(() => new Date())
   const [frozenAt, setFrozenAt] = useState<Date | null>(null)
   const [deleted, setDeleted] = useState<string[]>([])
+  const [dismissedStatus, setDismissedStatus] = useState<string[]>([])
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMoreOverride, setHasMoreOverride] = useState<boolean | null>(null)
   const [restartKey, setRestartKey] = useState(0)
@@ -66,6 +67,7 @@ export function PrototypeApp() {
       setHasMoreOverride(null)
       setScenarioIdx(next)
       setDeleted([])
+      setDismissedStatus([])
       if (!frozenAt) setReferenceNow(new Date())
     },
     [scenarios.length, frozenAt, clearLoadTimer],
@@ -78,6 +80,7 @@ export function PrototypeApp() {
     setReferenceNow(new Date())
     setFrozenAt(null)
     setDeleted([])
+    setDismissedStatus([])
     setLoadingMore(false)
     setHasMoreOverride(null)
     setRestartKey((key) => key + 1)
@@ -110,6 +113,10 @@ export function PrototypeApp() {
     setDeleted((prev) => (prev.includes(id) ? prev : [...prev, id]))
   }, [])
 
+  const handleDismissAgentStatus = useCallback((sessionId: string) => {
+    setDismissedStatus((prev) => (prev.includes(sessionId) ? prev : [...prev, sessionId]))
+  }, [])
+
   useKeyboard((key) => {
     if (key.name === "r") {
       restart()
@@ -136,6 +143,9 @@ export function PrototypeApp() {
   const notifications: NotificationItem[] = scenario.notifications.filter(
     (n) => !deleted.includes(n.id),
   )
+  const agentStatus = scenario.agentStatus.filter(
+    (e) => !dismissedStatus.includes(e.session_id),
+  )
 
   return (
     <AppView
@@ -149,11 +159,12 @@ export function PrototypeApp() {
         />
       }
       notifications={notifications}
-      agentStatus={scenario.agentStatus}
+      agentStatus={agentStatus}
       serverInfo={scenario.serverInfo}
       hasMore={hasMore}
       loadingMore={loadingMore}
       handleDelete={handleDelete}
+      handleDismissAgentStatus={handleDismissAgentStatus}
       loadMore={loadMore}
       lockedCount={notifications.filter((n) => n.locked).length}
       now={frozenAt ?? undefined}

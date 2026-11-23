@@ -42,6 +42,20 @@ it("keeps loading fixtures live and ships a stalled card", () => {
   expect(now.getTime() - Date.parse(stalled.updated)).toBeGreaterThan(5 * 60 * 1000)
 })
 
+it("dismisses a docked waiting card with v + j + Delete", async () => {
+  const { captureCharFrame, mockInput, renderOnce, renderer } = await render()
+  expect(captureCharFrame()).toContain("add make tui-prototype with mock data")
+
+  await press("v", mockInput, renderOnce)
+  await press("j", mockInput, renderOnce)
+  await press("DELETE", mockInput, renderOnce)
+
+  const frame = captureCharFrame()
+  expect(frame).not.toContain("add make tui-prototype with mock data")
+  expect(frame).toContain("why does the parser drop the last chunk?")
+  renderer.destroy()
+})
+
 it("switches scenarios with n and the number keys", async () => {
   const { captureCharFrame, mockInput, renderOnce, renderer } = await render()
   await press("n", mockInput, renderOnce)

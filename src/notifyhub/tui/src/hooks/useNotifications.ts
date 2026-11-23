@@ -37,6 +37,15 @@ async function decryptStatusEntry(raw: unknown): Promise<AgentStatusEntry | null
   return raw as AgentStatusEntry
 }
 
+/**
+ * Identity of one visible turn for a dismissed waiting card. Dismissals
+ * survive SSE reconnects (the resync re-sends the same entry), but a new
+ * state (e.g. running → blocked) or a new prompt clears the dismissal.
+ */
+function statusSignature(entry: Pick<AgentStatusEntry, "state" | "task">): string {
+  return `${entry.state}\u0000${entry.task ?? ""}`
+}
+
 export function useNotifications() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [hasMore, setHasMore] = useState(false)
@@ -51,8 +60,13 @@ export function useNotifications() {
   })
 
   const [agentStatus, setAgentStatus] = useState<AgentStatusEntry[]>([])
+  // session_id -> visible turn signature the user dismissed from the dock.
+  const dismissedStatusRef = useRef<Map<string, string>>(new Map())
 
   const upsertAgentStatus = useCallback((entry: AgentStatusEntry) => {
+    const dismissed = dismissedStatusRef.current
+    if (dismissed.get(entry.session_id) === statusSignature(entry)) return
+    dismissed.delete(entry.session_id)
     setAgentStatus((prev) => {
       const next = prev.filter((e) => e.session_id !== entry.session_id)
       next.unshift(entry)
@@ -61,8 +75,16 @@ export function useNotifications() {
   }, [])
 
   const removeAgentStatus = useCallback((sessionId: string) => {
+    dismissedStatusRef.current.delete(sessionId)
     setAgentStatus((prev) => prev.filter((e) => e.session_id !== sessionId))
   }, [])
+
+  /** Dismiss one docked card client-side; the agent session keeps running. */
+  const dismissAgentStatus = useCallback((sessionId: string) => {
+    const target = agentStatus.find((e) => e.session_id === sessionId)
+    if (target) dismissedStatusRef.current.set(sessionId, statusSignature(target))
+    setAgentStatus((prev) => prev.filter((e) => e.session_id !== sessionId))
+  }, [agentStatus])
 
   // Status poll: only fetches the count, never the full list.
   const refresh = useCallback(async () => {
@@ -147,10 +169,15 @@ export function useNotifications() {
       (streaming) => {
         setServerInfo((prev) => ({ ...prev, streaming }))
         // (Re)connected: resync live agent rows (events missed while offline
-        // are not replayed).
+        // are not replayed). Dismissed turns stay hidden until they change.
         if (streaming) {
           fetchAgentStatus()
-            .then((entries) => setAgentStatus(entries))
+            .then((entries) => {
+              const dismissed = dismissedStatusRef.current
+              setAgentStatus(
+                entries.filter((e) => dismissed.get(e.session_id) !== statusSignature(e)),
+              )
+            })
             .catch(() => {})
         }
       },
@@ -216,6 +243,7 @@ export function useNotifications() {
     loadingMore,
     refresh,
     handleDelete,
+    dismissAgentStatus,
     loadMore,
     lockedCount: notifications.filter((n) => n.locked).length,
   }

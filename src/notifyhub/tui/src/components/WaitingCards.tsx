@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { TextAttributes } from "@opentui/core"
+import { MouseButton, TextAttributes } from "@opentui/core"
 import { useTheme, type Theme } from "../theme"
 import type { AgentState, AgentStatusEntry } from "../types"
 import {
@@ -147,9 +147,27 @@ function cardBorderColor(state: AgentState, theme: Theme): string {
   return theme.border
 }
 
+/** Stable selection key shared by AppView and the dock. */
+export function waitingEntryKey(entry: AgentStatusEntry): string {
+  return `waiting:${entry.agent}:${entry.session_id}`
+}
+
+/**
+ * Entries that render as docked cards, in display order (newest activity
+ * first). AppView uses the same order for its selectable list.
+ */
+export function liveWaitingEntries(entries: AgentStatusEntry[]): AgentStatusEntry[] {
+  return entries
+    .filter((e) => e.state !== "idle")
+    .sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated))
+}
+
 interface CardProps {
   entry: AgentStatusEntry
   now: Date
+  selected?: boolean
+  /** Right-click action: open the card's context menu at the pointer. */
+  onContextMenu?: (entry: AgentStatusEntry, x: number, y: number) => void
 }
 
 /**
@@ -157,7 +175,7 @@ interface CardProps {
  * but the body shows the running prompt (`@USER`) and a live `@ASSISTANT
  * loading` line instead of a completed reply.
  */
-export function WaitingCard({ entry, now }: CardProps) {
+export function WaitingCard({ entry, now, selected = false, onContextMenu }: CardProps) {
   const theme = useTheme()
   const state = effectiveAgentState(entry, now)
   const tick = useTicker(state === "running")
@@ -175,8 +193,12 @@ export function WaitingCard({ entry, now }: CardProps) {
   const elapsed = formatRelativeTime(entry.since, now)
   const task = entry.task?.trim() ?? ""
   const status = statusLine(state, spinner, theme)
+  // Keep the semantic state border visible while selected; the selected
+  // surface is enough to show which docked card Delete will dismiss.
   const borderColor = cardBorderColor(state, theme)
-  const cardBackground = mixHex(borderColor, theme.background, CARD_TINT_RATIO)
+  const cardBackground = selected
+    ? theme.surfaceSelected
+    : mixHex(borderColor, theme.background, CARD_TINT_RATIO)
 
   return (
     <box
@@ -186,6 +208,11 @@ export function WaitingCard({ entry, now }: CardProps) {
       borderColor={borderColor}
       backgroundColor={cardBackground}
       paddingX={1}
+      onMouseDown={(event) => {
+        if (event.button !== MouseButton.RIGHT || !onContextMenu) return
+        event.stopPropagation()
+        onContextMenu(entry, event.x, event.y)
+      }}
     >
       <box flexDirection="column" gap={0} width="100%">
         <box flexDirection="row" width="100%" overflow="hidden">
@@ -228,6 +255,10 @@ export function WaitingCard({ entry, now }: CardProps) {
 interface Props {
   entries: AgentStatusEntry[]
   now: Date
+  /** Selection key (`waitingEntryKey`) of the focused docked card. */
+  selectedKey?: string | null
+  /** Right-click: open the waiting card's context menu. */
+  onContextMenu?: (entry: AgentStatusEntry, x: number, y: number) => void
 }
 
 /**
@@ -236,16 +267,20 @@ interface Props {
  * notification row). Running cards resolve when the matching notification
  * arrives (data.session_id) or the state flips to idle.
  */
-export function WaitingCards({ entries, now }: Props) {
-  const live = entries
-    .filter((e) => e.state !== "idle")
-    .sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated))
+export function WaitingCards({ entries, now, selectedKey = null, onContextMenu }: Props) {
+  const live = liveWaitingEntries(entries)
   if (live.length === 0) return null
 
   return (
     <box width="100%" flexDirection="column" flexShrink={0} gap={0} marginBottom={1}>
       {live.map((entry) => (
-        <WaitingCard key={`${entry.agent}:${entry.session_id}`} entry={entry} now={now} />
+        <WaitingCard
+          key={waitingEntryKey(entry)}
+          entry={entry}
+          now={now}
+          selected={waitingEntryKey(entry) === selectedKey}
+          onContextMenu={onContextMenu}
+        />
       ))}
     </box>
   )

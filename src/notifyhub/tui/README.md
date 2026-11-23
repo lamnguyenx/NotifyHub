@@ -27,8 +27,12 @@ The backend can be reached through a Tailscale funnel: set `NOTIFYHUB_CLI_SCHEME
   `NOTIFYHUB_TUI_PAGE_SIZE` (default 30) caps the snapshot; scroll to the bottom or press `l` to
   load older pages. The 15-second status poll only fetches the count.
 - **Select mode** (`v`) — `j`/`k` or arrows move the selection, `PgUp`/`PgDn` move by five,
-  `Home`/`End` jump to the ends, `Delete`/`Backspace` deletes, `Esc` deselects. The selection is
-  kept on-screen and the banner is pinned.
+  `Home`/`End` jump to the ends, `Delete`/`Backspace` deletes a feed card or dismisses a docked
+  waiting card, `Esc` deselects. Selection walks the docked waiting cards first, then the feed.
+  The selection is kept on-screen and the banner is pinned.
+- **Mouse** — right-click any card for a context menu: select it, copy its message/task/pwd/session
+  id, or delete/dismiss it. The menu is keyboard-navigable (`j`/`k`, `Enter`, `Esc`) and clickable.
+  Mouse wheel scrolling works in the feed; left-drag still selects text.
 - **Cards** — colored avatar from the pwd hash, title, full pwd, message with tag/truncation
   highlighting, host-model pill, relative timestamp, and a quiet gray border (selected cards use
   the accent). Cards measure their content; there is no fixed height.
@@ -37,7 +41,9 @@ The backend can be reached through a Tailscale funnel: set `NOTIFYHUB_CLI_SCHEME
   a shimmering per-turn gerund (`loading`, `pondering`, `noodling`, …) + braille spinner snapped
   to the card's bottom-right corner, an amber wash for permission/input waits, a red wash for
   stalls, tight border-to-border stacking, the coding-agent pill, the reporting machine's host
-  pill (`⌂ Mac153`), and a client-side stale mirror (5 min).
+  pill (`⌂ Mac153`), and a client-side stale mirror (5 min). Docked cards participate in select
+  mode: `v` + `j`/`k` reaches them before the feed, and `Delete`/`Backspace` dismisses the
+  selected card locally (the agent session keeps running).
 - **Status popup** (`s`) and **help popup** (`h`/`?`) — content-sized overlays; see
   `components/`.
 - **E2E decryption** — AES-256-GCM envelopes are decrypted locally (`utils/crypto.ts`). A row that
@@ -64,7 +70,7 @@ src/notifyhub/tui/
 │   ├── types.ts
 │   ├── hooks/             # useNotifications, useNow, useAudio
 │   ├── utils/             # api.ts (REST + SSE), crypto.ts (WebCrypto)
-│   ├── components/        # stream, cards, waiting cards, popups, error boundary
+│   ├── components/        # stream, cards, context menu, popups, error boundary
 │   ├── prototypes/        # harness, scenarios and (temporary) seams
 │   └── __tests__/         # bun test suites
 └── exp/                   # scratch captures from debugging sessions
@@ -78,7 +84,8 @@ src/notifyhub/tui/
 | `j`/`k` or `↑`/`↓` | Move selection (select mode) |
 | `PgUp`/`PgDn` | Move by five (select mode) |
 | `Home`/`End` | First/last (select mode) |
-| `Delete`/`Backspace` | Delete selected card (select mode) |
+| `Delete`/`Backspace` | Delete selected feed card or dismiss the selected waiting card (select mode) |
+| Right-click | Open the card context menu (select, copy, delete/dismiss) |
 | `Esc` | Deselect |
 | `↑`/`↓`/`←`/`→` | Scroll feed (select mode off) |
 | `l` | Load older page |
@@ -94,7 +101,7 @@ src/notifyhub/tui/
    plain cards are separate components.
 2. **No fixed card height.** Use `flexShrink={0}` inside the scrollbox and let Yoga measure;
    `wrapMode="none"` for title/pwd.
-3. **Popup height = content + gaps + padding + border.** Help is 18 rows, Status 17. Too small a
+3. **Popup height = content + gaps + padding + border.** Help is 19 rows, Status 17. Too small a
    height overlaps rows (`Helpu(thisupopup)`) rather than clipping.
 4. **Escapes go in expressions:** `<text>{"NotifyHub \u2014 Help"}</text>`. Raw `\u2014` in JSX
    text renders literally.
@@ -109,7 +116,7 @@ Full explanations: [`docs/important/tui-rendering-rules.md`](../../../docs/impor
 ## Testing
 
 ```bash
-make tui-test   # 154 pass, 11 files
+make tui-test   # 162 pass, 12 files
 ```
 
 Use `testRender()` + `captureCharFrame()`; press keys twice through `renderOnce()` inside `act()`.
@@ -142,6 +149,9 @@ Compare against `HEAD` before treating a type error as a regression.
 
 ## History
 
+- [2026-11-20 dock dismiss, mouse and context menu](../../../docs/plans/2026/11/20/2026-11-20-tui-dock-dismiss-mouse-context-menu.md)
+  — `Delete` dismisses a selected docked card, right-click opens the card context menu
+  (select/copy/delete/dismiss), OSC 52 copy
 - [2026-11-11 prototype polish](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish.md)
   — watch mode, `r` restart, bottom-right loading status, per-turn gerunds, state colors, tints
 - [2026-11-11 polish components](../../../docs/plans/2026/11/11/2026-11-11-tui-prototype-polish-components.md)

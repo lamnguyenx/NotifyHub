@@ -28,7 +28,7 @@ function layout() {
     <box flexDirection="column" width="100%" height="100%">
       <box width="100%" flexGrow={1} flexDirection="column" minHeight={0}>
         <WaitingCards entries={entries} now={now} />
-        <NotificationStream notifications={items} onDelete={() => {}} />
+        <NotificationStream notifications={items} />
       </box>
       <box width="100%" height={1}>
         <text>FOOTER</text>
