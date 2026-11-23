@@ -3,16 +3,7 @@ import type { ScrollBoxRenderable } from "@opentui/core"
 import { useTheme } from "../theme"
 import type { NotificationItem } from "../types"
 import { NotificationRow } from "./NotificationRow"
-import { useNotificationSound } from "../hooks/useAudio"
 import { useNow } from "../hooks/useNow"
-
-const SOUND_PATH = (() => {
-  try {
-    return new URL("../../assets/Submarine.mp3", import.meta.url).pathname
-  } catch {
-    return ""
-  }
-})()
 
 const rowId = (id: string) => `notification-row-${id}`
 
@@ -43,17 +34,8 @@ export function NotificationStream({
 }: Props) {
   const liveNow = useNow()
   const now = frozenNow ?? liveNow
-  const playSound = useNotificationSound(SOUND_PATH)
-  const prevCountRef = useRef(notifications.length)
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const theme = useTheme()
-
-  useEffect(() => {
-    if (prevCountRef.current > 0 && notifications.length > prevCountRef.current) {
-      playSound()
-    }
-    prevCountRef.current = notifications.length
-  }, [notifications.length])
 
   // Auto-load older notifications when the viewport reaches the bottom.
   // ScrollBox has no scroll event in the React bindings, so poll lightly.

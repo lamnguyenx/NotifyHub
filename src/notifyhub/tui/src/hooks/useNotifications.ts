@@ -9,6 +9,7 @@ import {
   PAGE_SIZE,
 } from "../utils/api"
 import { decryptItem, decryptItems, isEnvelope, decryptEnvelope, ensureKey } from "../utils/crypto"
+import { soundDebug, useNotificationSound } from "./useAudio"
 
 export function safeParse<T>(json: string, fallback: T): T {
   try {
@@ -51,6 +52,13 @@ export function useNotifications() {
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const loadingRef = useRef(false)
+  const playSound = useNotificationSound()
+  /**
+   * Ids currently in the feed, maintained synchronously beside every state
+   * change. The SSE notification handler dedupes and dings on this set —
+   * reading it from the state itself is not possible in the same tick.
+   */
+  const feedIdsRef = useRef<Set<string>>(new Set())
   const [serverInfo, setServerInfo] = useState<ServerInfo>({
     connected: false,
     streaming: false,
@@ -101,6 +109,7 @@ export function useNotifications() {
             const items = safeParse<NotificationItem[]>(data, [])
             decryptItems(items).then((decrypted) => {
               setNotifications(decrypted)
+              feedIdsRef.current = new Set(decrypted.map((n) => n.id))
               setHasMore(decrypted.length >= PAGE_SIZE)
             })
             setServerInfo((prev) => ({
@@ -113,11 +122,13 @@ export function useNotifications() {
           case "notification": {
             const item = safeParse<NotificationItem | null>(data, null)
             if (item) {
+              soundDebug(`sse: notification id=${item.id}`)
               decryptItem(item).then((decrypted) => {
-                setNotifications((prev) => {
-                  if (prev.some((n) => n.id === decrypted.id)) return prev
-                  return [decrypted, ...prev]
-                })
+                // Dedupe against the feed; a duplicate (server resend after a
+                // reconnect race) must neither prepend nor ding.
+                const isNew = !feedIdsRef.current.has(decrypted.id)
+                if (isNew) feedIdsRef.current.add(decrypted.id)
+                if (isNew) setNotifications((prev) => [decrypted, ...prev])
                 // A completion notification resolves the live row for the
                 // same session (both reporters stamp data.session_id).
                 const sid =
@@ -125,6 +136,14 @@ export function useNotifications() {
                   typeof (decrypted.data as Record<string, unknown>)?.session_id === "string"
                     ? ((decrypted.data as Record<string, unknown>).session_id as string)
                     : null
+                soundDebug(
+                  `notify: id=${decrypted.id} locked=${!!decrypted.locked} sid=${sid ?? "-"}${isNew ? " new" : " duplicate"}${sid ? " resolve-waiting" : ""}`,
+                )
+                // Ding on the live event itself, not on feed-shape changes:
+                // init/loadMore/delete/clear reshape the array without being
+                // an arrival, and an arrival into an empty feed (cleared
+                // cards, freshly restarted backend) is still an arrival.
+                if (isNew) playSound()
                 if (sid) removeAgentStatus(sid)
               })
               setServerInfo((prev) => ({
@@ -138,13 +157,17 @@ export function useNotifications() {
           }
           case "agent_status": {
             const entry = await decryptStatusEntry(safeParse<unknown>(data, null))
-            if (entry) upsertAgentStatus(entry)
+            if (entry) {
+              soundDebug(`sse: agent_status ${entry.agent} ${entry.session_id} → ${entry.state}`)
+              upsertAgentStatus(entry)
+            }
             break
           }
           case "delete": {
             const parsed = safeParse<{ id: string }>(data, { id: "" })
             if (parsed.id) {
               setNotifications((prev) => prev.filter((n) => n.id !== parsed.id))
+              feedIdsRef.current.delete(parsed.id)
               setServerInfo((prev) => ({
                 ...prev,
                 notificationsCount: Math.max(0, prev.notificationsCount - 1),
@@ -154,6 +177,7 @@ export function useNotifications() {
           }
           case "clear": {
             setNotifications([])
+            feedIdsRef.current = new Set()
             setHasMore(false)
             setServerInfo((prev) => ({ ...prev, notificationsCount: 0 }))
             break
@@ -168,6 +192,7 @@ export function useNotifications() {
       },
       (streaming) => {
         setServerInfo((prev) => ({ ...prev, streaming }))
+        soundDebug(`sse: ${streaming ? "connected (init will replace feed)" : "disconnected"}`)
         // (Re)connected: resync live agent rows (events missed while offline
         // are not replayed). Dismissed turns stay hidden until they change.
         if (streaming) {
@@ -208,6 +233,7 @@ export function useNotifications() {
     try {
       const rawPage = await fetchNotifications({ limit: PAGE_SIZE, before: oldest.id })
       const page = await decryptItems(rawPage)
+      for (const p of page) feedIdsRef.current.add(p.id)
       setNotifications((prev) => {
         const seen = new Set(prev.map((n) => n.id))
         const merged = [...prev]
@@ -232,6 +258,7 @@ export function useNotifications() {
   const handleDelete = useCallback(async (id: string) => {
     await deleteNotification(id)
     setNotifications((prev) => prev.filter((n) => n.id !== id))
+    feedIdsRef.current.delete(id)
     setServerInfo((prev) => ({ ...prev, notificationsCount: Math.max(0, prev.notificationsCount - 1) }))
   }, [])
 
